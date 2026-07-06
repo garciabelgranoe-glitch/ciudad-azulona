@@ -490,20 +490,24 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const photoRequired = showDuration;
   const canPublish = name && price && (!photoRequired || photoFile) && !busy;
 
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[12px] font-bold text-ink-soft";
+
   return (
-    <div className="pb-10">
-      <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
-        <button onClick={onBack} className="text-[#9A9DA6] hover:text-[#F2EFE9] focus:outline-none">
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Nueva publicación</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">NUEVA PUBLICACION</p>
       </header>
 
       <div className="space-y-4 px-5 pt-6">
         {showDuration && (
           <div>
-            <label className="text-[12px] text-[#9A9DA6]">Foto de la carta (obligatoria)</label>
-            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-[#3A3F4B] bg-[#1B1E24] text-[11px] text-[#6B6F79]">
+            <label className={labelClass}>Foto de la carta (obligatoria)</label>
+            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-line bg-paper text-[11px] text-ink-soft">
               {photoPreview ? (
                 <img src={photoPreview} alt="preview" className="h-full w-full object-cover" />
               ) : (
@@ -514,12 +518,12 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
           </div>
         )}
         <div>
-          <label className="text-[12px] text-[#9A9DA6]">Nombre de la carta</label>
+          <label className={labelClass}>Nombre de la carta</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej: Gengar VMAX Alt Art"
-            className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+            className={inputClass}
           />
         </div>
 
@@ -527,43 +531,39 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] text-[#9A9DA6]">Colección / set</label>
+                <label className={labelClass}>Colección / set</label>
                 <input
                   value={setName_}
                   onChange={(e) => setSetName(e.target.value)}
                   placeholder="Ej: Obsidian Flames"
-                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="text-[12px] text-[#9A9DA6]">Número</label>
+                <label className={labelClass}>Número</label>
                 <input
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
                   placeholder="Ej: 125/197"
-                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                  className={inputClass}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[12px] text-[#9A9DA6]">Año</label>
+                <label className={labelClass}>Año</label>
                 <input
                   type="number"
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
                   placeholder="Ej: 2023"
-                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="text-[12px] text-[#9A9DA6]">Condición</label>
-                <select
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
-                >
+                <label className={labelClass}>Condición</label>
+                <select value={condition} onChange={(e) => setCondition(e.target.value)} className={inputClass}>
                   {CONDITION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
@@ -571,12 +571,12 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-[13px] text-[#D5D7DC]">
+            <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
               <input
                 type="checkbox"
                 checked={isGraded}
                 onChange={(e) => setIsGraded(e.target.checked)}
-                className="h-4 w-4 accent-[#C9A34E]"
+                className="h-4 w-4 accent-gold"
               />
               ¿Está gradeada?
             </label>
@@ -584,26 +584,22 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
             {isGraded && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[12px] text-[#9A9DA6]">Empresa</label>
-                  <select
-                    value={gradingCompany}
-                    onChange={(e) => setGradingCompany(e.target.value)}
-                    className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
-                  >
+                  <label className={labelClass}>Empresa</label>
+                  <select value={gradingCompany} onChange={(e) => setGradingCompany(e.target.value)} className={inputClass}>
                     {GRADING_COMPANY_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[12px] text-[#9A9DA6]">Grado</label>
+                  <label className={labelClass}>Grado</label>
                   <input
                     type="number"
                     step="0.5"
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
                     placeholder="Ej: 9.5"
-                    className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                    className={inputClass}
                   />
                 </div>
               </div>
@@ -612,27 +608,27 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
         )}
 
         <div>
-          <label className="text-[12px] text-[#9A9DA6]">Precio base</label>
+          <label className={labelClass}>Precio base</label>
           <input
             type="number"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
             placeholder="0"
-            className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+            className={inputClass}
           />
         </div>
         {showDuration && (
           <div>
-            <label className="text-[12px] text-[#9A9DA6]">Dura</label>
+            <label className={labelClass}>Dura</label>
             <div className="mt-1.5 grid grid-cols-4 gap-2">
               {DURATION_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setDuration(opt.value)}
-                  className={`rounded-lg border py-2 text-[12px] font-medium transition ${
+                  className={`rounded-lg border-2 py-2 text-[12px] font-bold transition ${
                     duration === opt.value
-                      ? "border-[#C9A34E] bg-[#C9A34E]/15 text-[#D9BB74]"
-                      : "border-[#3A3F4B] text-[#9A9DA6] hover:border-[#6B6F79]"
+                      ? "border-gold bg-gold/15 text-gold-dark"
+                      : "border-line bg-paper text-ink-soft hover:border-forest-mid"
                   }`}
                 >
                   {opt.label}
@@ -641,7 +637,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
             </div>
           </div>
         )}
-        {error && <p className="text-[12px] text-[#E38166]">{error}</p>}
+        {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
         <button
           disabled={!canPublish}
           onClick={() =>
@@ -659,14 +655,14 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               grade: grade ? Number(grade) : null,
             })
           }
-          className="w-full rounded-lg bg-[#C9A34E] py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
+          className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           {busy ? "Publicando..." : "Publicar subasta"}
         </button>
         {photoRequired && !photoFile && (
-          <p className="text-center text-[11px] text-[#6B6F79]">Necesitás sacarle una foto antes de publicar.</p>
+          <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle una foto antes de publicar.</p>
         )}
-        <p className="text-center text-[12px] text-[#6B6F79]">
+        <p className="text-center text-[12px] text-ink-soft">
           Compartí el link en tu grupo de WhatsApp. La subasta corre acá; la entrega sigue siendo en el stand.
         </p>
       </div>
