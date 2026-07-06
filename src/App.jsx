@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut } from "lucide-react";
+import { useAuth } from "./context/AuthContext";
+import { isSupabaseConfigured } from "./lib/supabaseClient";
+import Login from "./components/Login";
 
 // ---------------------------------------------
 // Datos de ejemplo (mock) — reemplazar por backend real
@@ -367,9 +370,18 @@ function CreateAuction({ onBack, onCreate }) {
 // App raíz
 // ---------------------------------------------
 export default function App() {
+  const auth = useAuth();
   const [view, setView] = useState({ name: "list" });
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);
   const [tickets, setTickets] = useState(SEED_TICKETS);
+
+  if (isSupabaseConfigured && auth.loading) {
+    return <div className="min-h-screen bg-[#14161A]" />;
+  }
+
+  if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
+    return <Login />;
+  }
 
   function handleWin(auction) {
     const code = Math.random().toString(16).slice(2, 6).toUpperCase() + "-" + Math.floor(10 + Math.random() * 90);
@@ -411,6 +423,21 @@ export default function App() {
         .font-display { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.01em; }
         input:focus { outline: none; }
       `}</style>
+
+      {!isSupabaseConfigured && (
+        <div className="flex items-center justify-between bg-[#B5462F]/15 px-5 py-2 text-[11px] text-[#E38166]">
+          <span>Modo demo — sin backend conectado (datos de ejemplo, no se guarda nada)</span>
+        </div>
+      )}
+
+      {isSupabaseConfigured && auth.profile && view.name === "list" && (
+        <div className="flex items-center justify-between px-5 pt-4 text-[12px] text-[#9A9DA6]">
+          <span>Hola, <span className="text-[#F2EFE9]">{auth.profile.alias}</span></span>
+          <button onClick={auth.signOut} className="flex items-center gap-1 hover:text-[#F2EFE9]">
+            <LogOut size={13} /> Salir
+          </button>
+        </div>
+      )}
 
       {tickets.length > 0 && view.name === "list" && (
         <div className="px-5 pt-4">
