@@ -3,6 +3,14 @@ import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut } f
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
+import {
+  listLiveAuctions,
+  subscribeToLiveAuctions,
+  placeBid,
+  uploadAuctionPhoto,
+  createAuction,
+  auctionToVM,
+} from "./lib/auctions";
 
 // ---------------------------------------------
 // Datos de ejemplo (mock) — reemplazar por backend real
@@ -104,7 +112,14 @@ function SellerBadge({ name, rating, sales }) {
   );
 }
 
-function CardArt({ label }) {
+function CardArt({ label, photoUrl }) {
+  if (photoUrl) {
+    return (
+      <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#3A3F4B] bg-[#14161A]">
+        <img src={photoUrl} alt={label} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
   // Placeholder visual con proporción de carta TCG (aprox 2.5:3.5)
   return (
     <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#3A3F4B] bg-gradient-to-br from-[#1B1E24] via-[#20242C] to-[#14161A]">
@@ -144,7 +159,7 @@ function AuctionList({ auctions, onOpen, onCreate }) {
             onClick={() => onOpen(a)}
             className="group flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E] rounded-xl"
           >
-            <CardArt label={a.card} />
+            <CardArt label={a.card} photoUrl={a.photoUrl} />
             <div className="mt-2 space-y-1">
               <p className="line-clamp-2 text-[13px] font-medium leading-tight text-[#F2EFE9]">{a.card}</p>
               <SellerBadge name={a.seller} rating={a.sellerRating} sales={a.sellerSales} />
@@ -172,10 +187,28 @@ function AuctionList({ auctions, onOpen, onCreate }) {
 // ---------------------------------------------
 // Vista: Detalle de subasta + pujar
 // ---------------------------------------------
-function AuctionDetail({ auction, onBack, onWin }) {
+function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine }) {
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
+  const [confirmedBid, setConfirmedBid] = useState(null);
   const minBid = auction.currentBid + 1000;
+
+  useEffect(() => {
+    if (!placed) setBid(auction.currentBid + 1000);
+  }, [auction.currentBid, placed]);
+
+  async function handleBid() {
+    if (onBid) {
+      const ok = await onBid(auction.id, bid);
+      if (ok) {
+        setConfirmedBid(bid);
+        setPlaced(true);
+      }
+    } else {
+      setConfirmedBid(bid);
+      setPlaced(true);
+    }
+  }
 
   return (
     <div className="pb-10">
@@ -188,7 +221,7 @@ function AuctionDetail({ auction, onBack, onWin }) {
 
       <div className="px-5 pt-5">
         <div className="mx-auto w-40">
-          <CardArt label={auction.card} />
+          <CardArt label={auction.card} photoUrl={auction.photoUrl} />
         </div>
 
         <h2 className="mt-4 font-display text-xl text-[#F2EFE9]">{auction.card}</h2>
@@ -209,7 +242,11 @@ function AuctionDetail({ auction, onBack, onWin }) {
           </div>
         </div>
 
-        {!placed ? (
+        {isMine ? (
+          <p className="mt-6 rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4 text-[12px] text-[#9A9DA6]">
+            Esta es tu publicación — no podés pujar en tu propia carta.
+          </p>
+        ) : !placed ? (
           <div className="mt-6 rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4">
             <p className="text-[12px] text-[#9A9DA6]">Tu puja (mínimo {formatARS(minBid)})</p>
             <div className="mt-2 flex items-center gap-2">
@@ -222,27 +259,29 @@ function AuctionDetail({ auction, onBack, onWin }) {
                 className="w-full rounded-lg border border-[#3A3F4B] bg-[#14161A] px-3 py-2.5 text-[15px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
               />
               <button
-                onClick={() => setPlaced(true)}
-                disabled={bid < minBid}
+                onClick={handleBid}
+                disabled={bid < minBid || bidBusy}
                 className="shrink-0 rounded-lg bg-[#C9A34E] px-4 py-2.5 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
               >
                 Pujar
               </button>
             </div>
+            {bidError && <p className="mt-2 text-[12px] text-[#E38166]">{bidError}</p>}
           </div>
         ) : (
           <div className="mt-6 rounded-xl border border-[#1F6F5C]/40 bg-[#1F6F5C]/10 p-4">
             <p className="flex items-center gap-2 text-[13px] font-medium text-[#4FBF9F]">
-              <Check size={15} /> Pujaste {formatARS(bid)}
+              <Check size={15} /> Pujaste {formatARS(confirmedBid)}
             </p>
             <p className="mt-1 text-[12px] text-[#9A9DA6]">Te avisamos si te superan o si ganás cuando cierre.</p>
-            {/* Solo para demo: simular cierre y gane */}
-            <button
-              onClick={() => onWin({ ...auction, currentBid: bid })}
-              className="mt-3 text-[12px] font-medium text-[#D9BB74] underline underline-offset-2"
-            >
-              (Demo) Simular cierre — gané la subasta →
-            </button>
+            {!onBid && (
+              <button
+                onClick={() => onWin({ ...auction, currentBid: confirmedBid })}
+                className="mt-3 text-[12px] font-medium text-[#D9BB74] underline underline-offset-2"
+              >
+                (Demo) Simular cierre — gané la subasta →
+              </button>
+            )}
           </div>
         )}
 
@@ -318,9 +357,25 @@ function TicketView({ ticket, onBack, onMarkDelivered }) {
 // ---------------------------------------------
 // Vista: Crear subasta
 // ---------------------------------------------
-function CreateAuction({ onBack, onCreate }) {
+const DURATION_OPTIONS = [
+  { label: "15 min", value: 15 },
+  { label: "30 min", value: 30 },
+  { label: "1 hora", value: 60 },
+  { label: "3 horas", value: 180 },
+];
+
+function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, error = "" }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [duration, setDuration] = useState(60);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0] ?? null;
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  }
 
   return (
     <div className="pb-10">
@@ -332,6 +387,19 @@ function CreateAuction({ onBack, onCreate }) {
       </header>
 
       <div className="space-y-4 px-5 pt-6">
+        {showDuration && (
+          <div>
+            <label className="text-[12px] text-[#9A9DA6]">Foto de la carta</label>
+            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-[#3A3F4B] bg-[#1B1E24] text-[11px] text-[#6B6F79]">
+              {photoPreview ? (
+                <img src={photoPreview} alt="preview" className="h-full w-full object-cover" />
+              ) : (
+                "Sacar foto"
+              )}
+              <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" />
+            </label>
+          </div>
+        )}
         <div>
           <label className="text-[12px] text-[#9A9DA6]">Nombre de la carta</label>
           <input
@@ -351,12 +419,33 @@ function CreateAuction({ onBack, onCreate }) {
             className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
           />
         </div>
+        {showDuration && (
+          <div>
+            <label className="text-[12px] text-[#9A9DA6]">Dura</label>
+            <div className="mt-1.5 grid grid-cols-4 gap-2">
+              {DURATION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDuration(opt.value)}
+                  className={`rounded-lg border py-2 text-[12px] font-medium transition ${
+                    duration === opt.value
+                      ? "border-[#C9A34E] bg-[#C9A34E]/15 text-[#D9BB74]"
+                      : "border-[#3A3F4B] text-[#9A9DA6] hover:border-[#6B6F79]"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {error && <p className="text-[12px] text-[#E38166]">{error}</p>}
         <button
-          disabled={!name || !price}
-          onClick={() => onCreate({ name, price: Number(price) })}
+          disabled={!name || !price || busy}
+          onClick={() => onCreate({ name, price: Number(price), durationMinutes: duration, photoFile })}
           className="w-full rounded-lg bg-[#C9A34E] py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
         >
-          Publicar subasta
+          {busy ? "Publicando..." : "Publicar subasta"}
         </button>
         <p className="text-center text-[12px] text-[#6B6F79]">
           Compartí el link en tu grupo de WhatsApp. La subasta corre acá; la entrega sigue siendo en el stand.
@@ -374,6 +463,29 @@ export default function App() {
   const [view, setView] = useState({ name: "list" });
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);
   const [tickets, setTickets] = useState(SEED_TICKETS);
+  const [realRows, setRealRows] = useState([]);
+  const [auctionsLoading, setAuctionsLoading] = useState(isSupabaseConfigured);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [bidError, setBidError] = useState("");
+  const [bidBusy, setBidBusy] = useState(false);
+
+  const ready = isSupabaseConfigured && auth.session && auth.profile;
+
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    listLiveAuctions()
+      .then((rows) => !cancelled && setRealRows(rows))
+      .finally(() => !cancelled && setAuctionsLoading(false));
+    const unsubscribe = subscribeToLiveAuctions((updatedRow) => {
+      setRealRows((rows) => rows.map((r) => (r.id === updatedRow.id ? { ...r, ...updatedRow } : r)));
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [ready]);
 
   if (isSupabaseConfigured && auth.loading) {
     return <div className="min-h-screen bg-[#14161A]" />;
@@ -382,6 +494,8 @@ export default function App() {
   if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
     return <Login />;
   }
+
+  const displayAuctions = isSupabaseConfigured ? realRows.map(auctionToVM) : auctions;
 
   function handleWin(auction) {
     const code = Math.random().toString(16).slice(2, 6).toUpperCase() + "-" + Math.floor(10 + Math.random() * 90);
@@ -417,6 +531,48 @@ export default function App() {
     setView({ name: "list" });
   }
 
+  async function handleRealCreate({ name, price, durationMinutes, photoFile }) {
+    setCreateBusy(true);
+    setCreateError("");
+    try {
+      const photoUrl = photoFile ? await uploadAuctionPhoto(photoFile) : null;
+      const row = await createAuction({
+        sellerId: auth.session.user.id,
+        cardName: name,
+        basePrice: price,
+        durationMinutes,
+        photoUrl,
+      });
+      setRealRows((rows) => [row, ...rows]);
+      setView({ name: "list" });
+    } catch (e) {
+      setCreateError(e.message);
+    } finally {
+      setCreateBusy(false);
+    }
+  }
+
+  async function handleRealBid(auctionId, amount) {
+    setBidBusy(true);
+    setBidError("");
+    try {
+      await placeBid(auctionId, amount);
+      setRealRows((rows) =>
+        rows.map((r) => (r.id === auctionId ? { ...r, current_bid: amount, bid_count: r.bid_count + 1 } : r))
+      );
+      return true;
+    } catch (e) {
+      setBidError(e.message);
+      return false;
+    } finally {
+      setBidBusy(false);
+    }
+  }
+
+  const activeAuction =
+    view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
+  const displayTickets = isSupabaseConfigured ? [] : tickets;
+
   return (
     <div className="min-h-screen bg-[#14161A] font-sans text-[#F2EFE9]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
@@ -439,31 +595,39 @@ export default function App() {
         </div>
       )}
 
-      {tickets.length > 0 && view.name === "list" && (
+      {displayTickets.length > 0 && view.name === "list" && (
         <div className="px-5 pt-4">
           <button
-            onClick={() => setView({ name: "ticket", ticket: tickets[0] })}
+            onClick={() => setView({ name: "ticket", ticket: displayTickets[0] })}
             className="flex w-full items-center justify-between rounded-lg border border-[#C9A34E]/30 bg-[#C9A34E]/10 px-4 py-3 text-left"
           >
-            <span className="text-[12px] text-[#D9BB74]">Tenés {tickets.filter(t=>t.status==="pendiente").length} carta(s) pendiente(s) de retiro</span>
+            <span className="text-[12px] text-[#D9BB74]">Tenés {displayTickets.filter(t=>t.status==="pendiente").length} carta(s) pendiente(s) de retiro</span>
             <span className="text-[12px] font-medium text-[#D9BB74]">Ver →</span>
           </button>
         </div>
       )}
 
-      {view.name === "list" && (
+      {view.name === "list" && isSupabaseConfigured && auctionsLoading && (
+        <p className="px-5 pt-10 text-center text-[12px] text-[#6B6F79]">Cargando subastas...</p>
+      )}
+
+      {view.name === "list" && !(isSupabaseConfigured && auctionsLoading) && (
         <AuctionList
-          auctions={auctions}
-          onOpen={(a) => setView({ name: "detail", auction: a })}
+          auctions={displayAuctions}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id })}
           onCreate={() => setView({ name: "create" })}
         />
       )}
 
-      {view.name === "detail" && (
+      {view.name === "detail" && activeAuction && (
         <AuctionDetail
-          auction={view.auction}
+          auction={activeAuction}
           onBack={() => setView({ name: "list" })}
           onWin={handleWin}
+          onBid={isSupabaseConfigured ? handleRealBid : undefined}
+          bidError={bidError}
+          bidBusy={bidBusy}
+          isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
         />
       )}
 
@@ -479,7 +643,13 @@ export default function App() {
       )}
 
       {view.name === "create" && (
-        <CreateAuction onBack={() => setView({ name: "list" })} onCreate={handleCreate} />
+        <CreateAuction
+          onBack={() => setView({ name: "list" })}
+          onCreate={isSupabaseConfigured ? handleRealCreate : handleCreate}
+          showDuration={isSupabaseConfigured}
+          busy={createBusy}
+          error={createError}
+        />
       )}
     </div>
   );
