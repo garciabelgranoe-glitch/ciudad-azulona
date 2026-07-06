@@ -10,6 +10,9 @@ import {
   uploadAuctionPhoto,
   createAuction,
   auctionToVM,
+  listMyTickets,
+  ticketToVM,
+  redeemTicket,
 } from "./lib/auctions";
 
 // ---------------------------------------------
@@ -297,7 +300,7 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
 // ---------------------------------------------
 // Vista: Ticket de retiro (signature element)
 // ---------------------------------------------
-function TicketView({ ticket, onBack, onMarkDelivered }) {
+function TicketView({ ticket, onBack, onMarkDelivered, busy = false }) {
   const delivered = ticket.status === "entregado";
   return (
     <div className="pb-10">
@@ -313,7 +316,9 @@ function TicketView({ ticket, onBack, onMarkDelivered }) {
         <div className="relative mx-auto max-w-sm">
           <div className="rounded-t-2xl border border-b-0 border-[#3A3F4B] bg-[#1B1E24] p-5">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B6F79]">Ganaste esta carta</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B6F79]">
+                {ticket.isSeller ? "Vendiste esta carta" : "Ganaste esta carta"}
+              </p>
               {delivered ? <Pill tone="live"><Check size={11} /> Entregado</Pill> : <Pill tone="gold">Pendiente de retiro</Pill>}
             </div>
             <h3 className="mt-3 font-display text-lg text-[#F2EFE9]">{ticket.card}</h3>
@@ -337,13 +342,19 @@ function TicketView({ ticket, onBack, onMarkDelivered }) {
           </div>
         </div>
 
-        {!delivered && (
+        {!delivered && (ticket.isSeller || ticket.isSeller === undefined) && (
           <button
             onClick={onMarkDelivered}
-            className="mx-auto mt-6 block rounded-lg bg-[#C9A34E] px-5 py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74]"
+            disabled={busy}
+            className="mx-auto mt-6 block rounded-lg bg-[#C9A34E] px-5 py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
           >
-            Vendedor: confirmar entrega
+            {busy ? "Confirmando..." : "Vendedor: confirmar entrega"}
           </button>
+        )}
+        {!delivered && ticket.isSeller === false && (
+          <p className="mx-auto mt-6 max-w-sm text-center text-[12px] text-[#6B6F79]">
+            Mostrale este código al vendedor cuando vayas a retirar la carta.
+          </p>
         )}
 
         <p className="mx-auto mt-5 max-w-sm text-center text-[12px] leading-relaxed text-[#6B6F79]">
@@ -469,6 +480,8 @@ export default function App() {
   const [createError, setCreateError] = useState("");
   const [bidError, setBidError] = useState("");
   const [bidBusy, setBidBusy] = useState(false);
+  const [realTickets, setRealTickets] = useState([]);
+  const [redeemBusy, setRedeemBusy] = useState(false);
 
   const ready = isSupabaseConfigured && auth.session && auth.profile;
 
@@ -481,6 +494,7 @@ export default function App() {
     const unsubscribe = subscribeToLiveAuctions((updatedRow) => {
       setRealRows((rows) => rows.map((r) => (r.id === updatedRow.id ? { ...r, ...updatedRow } : r)));
     });
+    listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
     return () => {
       cancelled = true;
       unsubscribe();
@@ -569,9 +583,23 @@ export default function App() {
     }
   }
 
+  async function handleRedeem(ticketId) {
+    setRedeemBusy(true);
+    try {
+      await redeemTicket(ticketId);
+      setRealTickets((rows) =>
+        rows.map((r) => (r.id === ticketId ? { ...r, status: "redeemed", redeemed_at: new Date().toISOString() } : r))
+      );
+    } finally {
+      setRedeemBusy(false);
+    }
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
-  const displayTickets = isSupabaseConfigured ? [] : tickets;
+  const displayTickets = isSupabaseConfigured
+    ? realTickets.map((t) => ticketToVM(t, auth.session?.user.id))
+    : tickets;
 
   return (
     <div className="min-h-screen bg-[#14161A] font-sans text-[#F2EFE9]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -634,10 +662,16 @@ export default function App() {
       {view.name === "ticket" && (
         <TicketView
           ticket={view.ticket}
+          busy={redeemBusy}
           onBack={() => setView({ name: "list" })}
-          onMarkDelivered={() => {
-            setTickets((ts) => ts.map((t) => (t.id === view.ticket.id ? { ...t, status: "entregado" } : t)));
-            setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
+          onMarkDelivered={async () => {
+            if (isSupabaseConfigured) {
+              await handleRedeem(view.ticket.id);
+              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
+            } else {
+              setTickets((ts) => ts.map((t) => (t.id === view.ticket.id ? { ...t, status: "entregado" } : t)));
+              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
+            }
           }}
         />
       )}

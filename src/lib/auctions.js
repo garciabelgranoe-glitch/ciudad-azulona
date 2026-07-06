@@ -92,7 +92,8 @@ export async function createAuction({ sellerId, cardName, basePrice, durationMin
   return data;
 }
 
-export async function listMyTickets(userId) {
+export async function listMyTickets() {
+  // RLS ya restringe esto a tickets donde soy el ganador o el vendedor.
   const { data, error } = await supabase
     .from("tickets")
     .select(
@@ -102,5 +103,26 @@ export async function listMyTickets(userId) {
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data.filter((t) => t.auction?.winner_id === userId || t.auction?.seller_id === userId);
+  return data;
+}
+
+export function ticketToVM(row, currentUserId) {
+  return {
+    id: row.id,
+    card: row.auction.card_name,
+    seller: row.auction.seller?.alias ?? "—",
+    price: Number(row.auction.current_bid),
+    code: row.code,
+    status: row.status === "redeemed" ? "entregado" : "pendiente",
+    closedAt: new Date(row.created_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+    isSeller: row.auction.seller_id === currentUserId,
+  };
+}
+
+export async function redeemTicket(ticketId) {
+  const { error } = await supabase
+    .from("tickets")
+    .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) throw error;
 }
