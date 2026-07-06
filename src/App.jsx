@@ -13,6 +13,9 @@ import {
   listMyTickets,
   ticketToVM,
   redeemTicket,
+  submitRating,
+  listMyGivenRatingTicketIds,
+  getProfile,
 } from "./lib/auctions";
 
 // ---------------------------------------------
@@ -300,8 +303,9 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
 // ---------------------------------------------
 // Vista: Ticket de retiro (signature element)
 // ---------------------------------------------
-function TicketView({ ticket, onBack, onMarkDelivered, busy = false }) {
+function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingPrompt = false, onSubmitRating, ratingBusy = false }) {
   const delivered = ticket.status === "entregado";
+  const [score, setScore] = useState(0);
   return (
     <div className="pb-10">
       <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
@@ -355,6 +359,30 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false }) {
           <p className="mx-auto mt-6 max-w-sm text-center text-[12px] text-[#6B6F79]">
             Mostrale este código al vendedor cuando vayas a retirar la carta.
           </p>
+        )}
+
+        {delivered && showRatingPrompt && (
+          <div className="mx-auto mt-6 max-w-sm rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4 text-center">
+            <p className="text-[12px] text-[#9A9DA6]">¿Cómo te fue con {ticket.seller}?</p>
+            <div className="mt-2 flex justify-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} onClick={() => setScore(n)} className="p-1">
+                  <Star
+                    size={22}
+                    fill={n <= score ? "currentColor" : "none"}
+                    className={n <= score ? "text-[#D9BB74]" : "text-[#3A3F4B]"}
+                  />
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => onSubmitRating(score)}
+              disabled={!score || ratingBusy}
+              className="mt-3 rounded-lg bg-[#C9A34E] px-4 py-2 text-[12px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
+            >
+              {ratingBusy ? "Enviando..." : "Calificar"}
+            </button>
+          </div>
         )}
 
         <p className="mx-auto mt-5 max-w-sm text-center text-[12px] leading-relaxed text-[#6B6F79]">
@@ -467,6 +495,42 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 }
 
 // ---------------------------------------------
+// Vista: Perfil
+// ---------------------------------------------
+function ProfileView({ profile, onBack }) {
+  return (
+    <div className="pb-10">
+      <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
+        <button onClick={onBack} className="text-[#9A9DA6] hover:text-[#F2EFE9] focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Tu perfil</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <h2 className="font-display text-2xl text-[#F2EFE9]">{profile.alias}</h2>
+        <div className="mt-1 flex items-center gap-1 text-[#D9BB74]">
+          <Star size={14} fill="currentColor" strokeWidth={0} />
+          <span className="text-[14px]">{Number(profile.rating_avg).toFixed(1)}</span>
+          <span className="text-[12px] text-[#6B6F79]">de reputación</span>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-4">
+            <p className="text-[11px] text-[#9A9DA6]">Ventas completadas</p>
+            <p className="mt-1 font-display text-2xl text-[#F2EFE9]">{profile.sales_count}</p>
+          </div>
+          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-4">
+            <p className="text-[11px] text-[#9A9DA6]">Compras completadas</p>
+            <p className="mt-1 font-display text-2xl text-[#F2EFE9]">{profile.purchases_count}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // App raíz
 // ---------------------------------------------
 export default function App() {
@@ -482,6 +546,9 @@ export default function App() {
   const [bidBusy, setBidBusy] = useState(false);
   const [realTickets, setRealTickets] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
+  const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const [viewedProfile, setViewedProfile] = useState(null);
 
   const ready = isSupabaseConfigured && auth.session && auth.profile;
 
@@ -495,6 +562,7 @@ export default function App() {
       setRealRows((rows) => rows.map((r) => (r.id === updatedRow.id ? { ...r, ...updatedRow } : r)));
     });
     listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
+    listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
     return () => {
       cancelled = true;
       unsubscribe();
@@ -595,6 +663,22 @@ export default function App() {
     }
   }
 
+  async function handleSubmitRating(ticketId, sellerId, score) {
+    setRatingBusy(true);
+    try {
+      await submitRating(ticketId, auth.session.user.id, sellerId, score);
+      setRatedTicketIds((ids) => new Set(ids).add(ticketId));
+    } finally {
+      setRatingBusy(false);
+    }
+  }
+
+  async function openProfile() {
+    const p = await getProfile(auth.session.user.id);
+    setViewedProfile(p);
+    setView({ name: "profile" });
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const displayTickets = isSupabaseConfigured
@@ -616,7 +700,9 @@ export default function App() {
 
       {isSupabaseConfigured && auth.profile && view.name === "list" && (
         <div className="flex items-center justify-between px-5 pt-4 text-[12px] text-[#9A9DA6]">
-          <span>Hola, <span className="text-[#F2EFE9]">{auth.profile.alias}</span></span>
+          <button onClick={openProfile} className="hover:text-[#F2EFE9]">
+            Hola, <span className="text-[#F2EFE9]">{auth.profile.alias}</span>
+          </button>
           <button onClick={auth.signOut} className="flex items-center gap-1 hover:text-[#F2EFE9]">
             <LogOut size={13} /> Salir
           </button>
@@ -673,7 +759,18 @@ export default function App() {
               setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
             }
           }}
+          showRatingPrompt={
+            isSupabaseConfigured && view.ticket.isSeller === false && !ratedTicketIds.has(view.ticket.id)
+          }
+          ratingBusy={ratingBusy}
+          onSubmitRating={async (score) => {
+            await handleSubmitRating(view.ticket.id, view.ticket.sellerId, score);
+          }}
         />
+      )}
+
+      {view.name === "profile" && viewedProfile && (
+        <ProfileView profile={viewedProfile} onBack={() => setView({ name: "list" })} />
       )}
 
       {view.name === "create" && (

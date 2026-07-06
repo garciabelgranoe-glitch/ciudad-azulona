@@ -111,6 +111,7 @@ export function ticketToVM(row, currentUserId) {
     id: row.id,
     card: row.auction.card_name,
     seller: row.auction.seller?.alias ?? "—",
+    sellerId: row.auction.seller_id,
     price: Number(row.auction.current_bid),
     code: row.code,
     status: row.status === "redeemed" ? "entregado" : "pendiente",
@@ -125,4 +126,23 @@ export async function redeemTicket(ticketId) {
     .update({ status: "redeemed", redeemed_at: new Date().toISOString() })
     .eq("id", ticketId);
   if (error) throw error;
+}
+
+export async function submitRating(ticketId, raterId, ratedUserId, score) {
+  const { error } = await supabase
+    .from("ratings")
+    .insert({ ticket_id: ticketId, rater_id: raterId, rated_user_id: ratedUserId, score });
+  if (error) throw error;
+}
+
+export async function listMyGivenRatingTicketIds() {
+  const { data, error } = await supabase.from("ratings").select("ticket_id");
+  if (error) throw error;
+  return new Set(data.map((r) => r.ticket_id));
+}
+
+export async function getProfile(userId) {
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  if (error) throw error;
+  return data;
 }
