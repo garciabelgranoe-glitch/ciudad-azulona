@@ -16,6 +16,10 @@ import {
   submitRating,
   listMyGivenRatingTicketIds,
   getProfile,
+  listRecentBids,
+  CONDITION_OPTIONS,
+  CONDITION_SHORT,
+  GRADING_COMPANY_OPTIONS,
 } from "./lib/auctions";
 
 // ---------------------------------------------
@@ -93,13 +97,13 @@ function formatCountdown(min) {
 
 function Pill({ children, tone = "default" }) {
   const tones = {
-    default: "bg-[#242832] text-[#B9BCC4] border-[#33384444]",
-    live: "bg-[#1F6F5C]/20 text-[#4FBF9F] border-[#1F6F5C]/40",
-    urgent: "bg-[#B5462F]/20 text-[#E38166] border-[#B5462F]/40",
-    gold: "bg-[#C9A34E]/15 text-[#D9BB74] border-[#C9A34E]/40",
+    default: "bg-paper text-ink-soft border-line",
+    live: "bg-forest-mid/15 text-forest-deep border-forest-mid/40",
+    urgent: "bg-[#FBE6E0] text-[#B9432C] border-[#B9432C]/30",
+    gold: "bg-gold/15 text-gold-dark border-gold/40",
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide ${tones[tone]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${tones[tone]}`}>
       {children}
     </span>
   );
@@ -107,9 +111,9 @@ function Pill({ children, tone = "default" }) {
 
 function SellerBadge({ name, rating, sales }) {
   return (
-    <div className="flex items-center gap-1.5 text-[12px] text-[#9A9DA6]">
-      <span className="font-medium text-[#D5D7DC]">{name}</span>
-      <span className="flex items-center gap-0.5 text-[#D9BB74]">
+    <div className="flex items-center gap-1.5 text-[12px] text-ink-soft">
+      <span className="font-bold text-ink">{name}</span>
+      <span className="flex items-center gap-0.5 text-gold-dark">
         <Star size={11} fill="currentColor" strokeWidth={0} />
         {rating.toFixed(1)}
       </span>
@@ -121,23 +125,34 @@ function SellerBadge({ name, rating, sales }) {
 function CardArt({ label, photoUrl }) {
   if (photoUrl) {
     return (
-      <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#3A3F4B] bg-[#14161A]">
+      <div className="relative aspect-[5/7] w-full overflow-hidden border-b-2 border-ink bg-cream-dark">
         <img src={photoUrl} alt={label} className="h-full w-full object-cover" />
       </div>
     );
   }
   // Placeholder visual con proporción de carta TCG (aprox 2.5:3.5)
   return (
-    <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-[#3A3F4B] bg-gradient-to-br from-[#1B1E24] via-[#20242C] to-[#14161A]">
-      <div className="absolute inset-0 opacity-40" style={{
-        backgroundImage: "repeating-linear-gradient(115deg, rgba(201,163,78,0.08) 0px, rgba(201,163,78,0.08) 2px, transparent 2px, transparent 14px)"
+    <div className="relative aspect-[5/7] w-full overflow-hidden border-b-2 border-ink bg-cream-dark">
+      <div className="absolute inset-0 opacity-60" style={{
+        backgroundImage: "repeating-linear-gradient(45deg, rgba(217,164,65,0.12) 0px, rgba(217,164,65,0.12) 10px, transparent 10px, transparent 20px)"
       }} />
-      <div className="absolute inset-3 rounded-md border border-[#C9A34E]/25" />
       <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
-        <span className="text-[11px] uppercase tracking-[0.15em] text-[#6B6F79]">{label}</span>
+        <span className="font-pixel text-[9px] uppercase leading-relaxed text-ink-soft">{label}</span>
       </div>
     </div>
   );
+}
+
+function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
+  if (isGraded) {
+    return (
+      <Pill tone="gold">
+        {gradingCompany?.toUpperCase() ?? "GRADEADA"} {grade ?? ""}
+      </Pill>
+    );
+  }
+  if (!condition) return null;
+  return <Pill>{CONDITION_SHORT[condition] ?? condition}</Pill>;
 }
 
 // ---------------------------------------------
@@ -145,34 +160,51 @@ function CardArt({ label, photoUrl }) {
 // ---------------------------------------------
 function AuctionList({ auctions, onOpen, onCreate }) {
   return (
-    <div className="pb-24">
-      <header className="sticky top-0 z-10 border-b border-[#2A2E36] bg-[#14161A]/95 px-5 pb-4 pt-6 backdrop-blur">
+    <div className="min-h-screen bg-cream pb-24">
+      <header className="sticky top-0 z-10 border-b-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-6">
         <div className="flex items-baseline justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Subastas en vivo</p>
-            <h1 className="mt-1 font-display text-2xl text-[#F2EFE9]">Mesa del evento</h1>
+            <p className="font-pixel text-[9px] tracking-wide text-gold">SUBASTAS EN VIVO</p>
+            <h1 className="mt-2 text-2xl font-extrabold text-paper">Mesa del evento</h1>
           </div>
-          <Pill tone="live">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4FBF9F]" /> {auctions.length} activas
-          </Pill>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
+            <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
+          </span>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 px-5 pt-4">
+      <div className="grid grid-cols-2 gap-4 px-5 pt-5">
         {auctions.map((a) => (
           <button
             key={a.id}
             onClick={() => onOpen(a)}
-            className="group flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E] rounded-xl"
+            className="group flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-xl"
           >
-            <CardArt label={a.card} photoUrl={a.photoUrl} />
-            <div className="mt-2 space-y-1">
-              <p className="line-clamp-2 text-[13px] font-medium leading-tight text-[#F2EFE9]">{a.card}</p>
+            <div className="relative rounded-t-lg border-2 border-b-0 border-ink bg-paper shadow-card transition group-hover:-translate-y-1">
+              <CardArt label={a.card} photoUrl={a.photoUrl} />
+              {(a.condition || a.isGraded) && (
+                <div className="absolute right-1.5 top-1.5 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
+                  <ConditionBadge
+                    condition={a.condition}
+                    isGraded={a.isGraded}
+                    gradingCompany={a.gradingCompany}
+                    grade={a.grade}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="relative space-y-1 rounded-b-lg border-2 border-ink bg-paper px-3 pb-3 pt-3">
+              <div className="pointer-events-none absolute -top-1.5 left-3 right-3 border-t-2 border-dashed border-line" />
+              <p className="line-clamp-2 text-[13px] font-extrabold leading-tight text-ink">{a.card}</p>
               <SellerBadge name={a.seller} rating={a.sellerRating} sales={a.sellerSales} />
               <div className="flex items-center justify-between pt-1">
-                <span className="font-display text-[15px] text-[#D9BB74]">{formatARS(a.currentBid)}</span>
-                <span className={`flex items-center gap-1 text-[11px] ${a.closesInMin <= 10 ? "text-[#E38166]" : "text-[#9A9DA6]"}`}>
-                  <Clock size={11} /> {formatCountdown(a.closesInMin)}
+                <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+                <span
+                  className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
+                    a.closesInMin <= 10 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
+                  }`}
+                >
+                  {formatCountdown(a.closesInMin)}
                 </span>
               </div>
             </div>
@@ -182,7 +214,7 @@ function AuctionList({ auctions, onOpen, onCreate }) {
 
       <button
         onClick={onCreate}
-        className="fixed bottom-6 right-5 flex items-center gap-2 rounded-full bg-[#C9A34E] px-5 py-3.5 text-[13px] font-semibold text-[#14161A] shadow-lg shadow-black/40 transition hover:bg-[#D9BB74] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F2EFE9]"
+        className="fixed bottom-6 right-5 flex items-center gap-2 rounded-full bg-gold px-5 py-3.5 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep"
       >
         <Plus size={16} strokeWidth={2.5} /> Publicar carta
       </button>
@@ -193,7 +225,7 @@ function AuctionList({ auctions, onOpen, onCreate }) {
 // ---------------------------------------------
 // Vista: Detalle de subasta + pujar
 // ---------------------------------------------
-function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine }) {
+function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine, bidHistory = [] }) {
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
@@ -217,44 +249,62 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
   }
 
   return (
-    <div className="pb-10">
-      <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
-        <button onClick={onBack} className="text-[#9A9DA6] hover:text-[#F2EFE9] focus:outline-none">
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Detalle de subasta</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
       </header>
 
       <div className="px-5 pt-5">
-        <div className="mx-auto w-40">
+        <div className="mx-auto w-40 overflow-hidden rounded-lg border-2 border-ink shadow-card">
           <CardArt label={auction.card} photoUrl={auction.photoUrl} />
         </div>
 
-        <h2 className="mt-4 font-display text-xl text-[#F2EFE9]">{auction.card}</h2>
+        <h2 className="mt-4 text-xl font-extrabold text-ink">{auction.card}</h2>
         <div className="mt-1"><SellerBadge name={auction.seller} rating={auction.sellerRating} sales={auction.sellerSales} /></div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-3">
-            <p className="text-[11px] text-[#9A9DA6]">Puja actual</p>
-            <p className="mt-0.5 font-display text-lg text-[#D9BB74]">{formatARS(auction.currentBid)}</p>
-            <p className="text-[11px] text-[#6B6F79]">{auction.bids} pujas</p>
+        {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {(auction.setName || auction.cardNumber || auction.year) && (
+              <span className="text-[12px] text-ink-soft">
+                {[auction.setName, auction.cardNumber, auction.year].filter(Boolean).join(" · ")}
+              </span>
+            )}
+            <ConditionBadge
+              condition={auction.condition}
+              isGraded={auction.isGraded}
+              gradingCompany={auction.gradingCompany}
+              grade={auction.grade}
+            />
           </div>
-          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-3">
-            <p className="text-[11px] text-[#9A9DA6]">Cierra en</p>
-            <p className={`mt-0.5 font-display text-lg ${auction.closesInMin <= 10 ? "text-[#E38166]" : "text-[#F2EFE9]"}`}>
+        )}
+
+        <div className="mt-5 flex flex-wrap gap-6">
+          <div>
+            <span className="block text-[10px] text-ink-soft">PUJA ACTUAL</span>
+            <span className="text-lg font-extrabold text-forest-deep">{formatARS(auction.currentBid)}</span>
+          </div>
+          <div>
+            <span className="block text-[10px] text-ink-soft">TERMINA EN</span>
+            <span className={`text-lg font-extrabold ${auction.closesInMin <= 10 ? "text-[#B9432C]" : "text-ink"}`}>
               {formatCountdown(auction.closesInMin)}
-            </p>
-            <p className="text-[11px] text-[#6B6F79]">Base: {formatARS(auction.basePrice)}</p>
+            </span>
+          </div>
+          <div>
+            <span className="block text-[10px] text-ink-soft">PUJAS</span>
+            <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
           </div>
         </div>
 
         {isMine ? (
-          <p className="mt-6 rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4 text-[12px] text-[#9A9DA6]">
+          <p className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
             Esta es tu publicación — no podés pujar en tu propia carta.
           </p>
         ) : !placed ? (
-          <div className="mt-6 rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4">
-            <p className="text-[12px] text-[#9A9DA6]">Tu puja (mínimo {formatARS(minBid)})</p>
+          <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
+            <p className="text-[12px] text-ink-soft">Tu puja (mínimo {formatARS(minBid)})</p>
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="number"
@@ -262,28 +312,28 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
                 min={minBid}
                 step={1000}
                 onChange={(e) => setBid(Number(e.target.value))}
-                className="w-full rounded-lg border border-[#3A3F4B] bg-[#14161A] px-3 py-2.5 text-[15px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[15px] font-bold text-ink focus:outline-none focus-visible:border-forest-mid"
               />
               <button
                 onClick={handleBid}
                 disabled={bid < minBid || bidBusy}
-                className="shrink-0 rounded-lg bg-[#C9A34E] px-4 py-2.5 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
+                className="shrink-0 rounded-lg bg-forest-deep px-4 py-2.5 text-[13px] font-extrabold text-cream shadow-[0_3px_0_rgba(62,122,82,1)] transition hover:bg-[#204f37] active:translate-y-[2px] active:shadow-[0_1px_0_rgba(62,122,82,1)] disabled:opacity-40"
               >
                 Pujar
               </button>
             </div>
-            {bidError && <p className="mt-2 text-[12px] text-[#E38166]">{bidError}</p>}
+            {bidError && <p className="mt-2 text-[12px] text-[#B9432C]">{bidError}</p>}
           </div>
         ) : (
-          <div className="mt-6 rounded-xl border border-[#1F6F5C]/40 bg-[#1F6F5C]/10 p-4">
-            <p className="flex items-center gap-2 text-[13px] font-medium text-[#4FBF9F]">
+          <div className="mt-6 rounded-xl border-2 border-forest-mid bg-forest-mid/10 p-4">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-forest-deep">
               <Check size={15} /> Pujaste {formatARS(confirmedBid)}
             </p>
-            <p className="mt-1 text-[12px] text-[#9A9DA6]">Te avisamos si te superan o si ganás cuando cierre.</p>
+            <p className="mt-1 text-[12px] text-ink-soft">Te avisamos si te superan o si ganás cuando cierre.</p>
             {!onBid && (
               <button
                 onClick={() => onWin({ ...auction, currentBid: confirmedBid })}
-                className="mt-3 text-[12px] font-medium text-[#D9BB74] underline underline-offset-2"
+                className="mt-3 text-[12px] font-bold text-gold-dark underline underline-offset-2"
               >
                 (Demo) Simular cierre — gané la subasta →
               </button>
@@ -291,7 +341,21 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
           </div>
         )}
 
-        <p className="mt-6 flex items-start gap-2 text-[12px] leading-relaxed text-[#6B6F79]">
+        {bidHistory.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Historial de pujas</h4>
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {bidHistory.map((b) => (
+                <li key={b.id} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
+                  <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
+                  <span className="font-bold text-forest-deep">{formatARS(Number(b.amount))}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p className="mt-6 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
           El pago se hace en persona en el stand del vendedor. La plataforma no procesa dinero — solo confirma la identidad de la entrega con un código único.
         </p>
@@ -409,12 +473,22 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const [duration, setDuration] = useState(60);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [setName_, setSetName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [year, setYear] = useState("");
+  const [condition, setCondition] = useState("near_mint");
+  const [isGraded, setIsGraded] = useState(false);
+  const [gradingCompany, setGradingCompany] = useState("psa");
+  const [grade, setGrade] = useState("");
 
   function handlePhotoChange(e) {
     const file = e.target.files?.[0] ?? null;
     setPhotoFile(file);
     setPhotoPreview(file ? URL.createObjectURL(file) : null);
   }
+
+  const photoRequired = showDuration;
+  const canPublish = name && price && (!photoRequired || photoFile) && !busy;
 
   return (
     <div className="pb-10">
@@ -428,7 +502,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
       <div className="space-y-4 px-5 pt-6">
         {showDuration && (
           <div>
-            <label className="text-[12px] text-[#9A9DA6]">Foto de la carta</label>
+            <label className="text-[12px] text-[#9A9DA6]">Foto de la carta (obligatoria)</label>
             <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-[#3A3F4B] bg-[#1B1E24] text-[11px] text-[#6B6F79]">
               {photoPreview ? (
                 <img src={photoPreview} alt="preview" className="h-full w-full object-cover" />
@@ -448,6 +522,95 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
             className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
           />
         </div>
+
+        {showDuration && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[12px] text-[#9A9DA6]">Colección / set</label>
+                <input
+                  value={setName_}
+                  onChange={(e) => setSetName(e.target.value)}
+                  placeholder="Ej: Obsidian Flames"
+                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] text-[#9A9DA6]">Número</label>
+                <input
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  placeholder="Ej: 125/197"
+                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[12px] text-[#9A9DA6]">Año</label>
+                <input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  placeholder="Ej: 2023"
+                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                />
+              </div>
+              <div>
+                <label className="text-[12px] text-[#9A9DA6]">Condición</label>
+                <select
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                >
+                  {CONDITION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-[13px] text-[#D5D7DC]">
+              <input
+                type="checkbox"
+                checked={isGraded}
+                onChange={(e) => setIsGraded(e.target.checked)}
+                className="h-4 w-4 accent-[#C9A34E]"
+              />
+              ¿Está gradeada?
+            </label>
+
+            {isGraded && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[12px] text-[#9A9DA6]">Empresa</label>
+                  <select
+                    value={gradingCompany}
+                    onChange={(e) => setGradingCompany(e.target.value)}
+                    className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                  >
+                    {GRADING_COMPANY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[12px] text-[#9A9DA6]">Grado</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    placeholder="Ej: 9.5"
+                    className="mt-1.5 w-full rounded-lg border border-[#3A3F4B] bg-[#1B1E24] px-3 py-2.5 text-[14px] text-[#F2EFE9] placeholder:text-[#5A5E68] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A34E]"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         <div>
           <label className="text-[12px] text-[#9A9DA6]">Precio base</label>
           <input
@@ -480,12 +643,29 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
         )}
         {error && <p className="text-[12px] text-[#E38166]">{error}</p>}
         <button
-          disabled={!name || !price || busy}
-          onClick={() => onCreate({ name, price: Number(price), durationMinutes: duration, photoFile })}
+          disabled={!canPublish}
+          onClick={() =>
+            onCreate({
+              name,
+              price: Number(price),
+              durationMinutes: duration,
+              photoFile,
+              setName: setName_,
+              cardNumber,
+              year: year ? Number(year) : null,
+              condition,
+              isGraded,
+              gradingCompany,
+              grade: grade ? Number(grade) : null,
+            })
+          }
           className="w-full rounded-lg bg-[#C9A34E] py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
         >
           {busy ? "Publicando..." : "Publicar subasta"}
         </button>
+        {photoRequired && !photoFile && (
+          <p className="text-center text-[11px] text-[#6B6F79]">Necesitás sacarle una foto antes de publicar.</p>
+        )}
         <p className="text-center text-[12px] text-[#6B6F79]">
           Compartí el link en tu grupo de WhatsApp. La subasta corre acá; la entrega sigue siendo en el stand.
         </p>
@@ -549,6 +729,7 @@ export default function App() {
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
   const [ratingBusy, setRatingBusy] = useState(false);
   const [viewedProfile, setViewedProfile] = useState(null);
+  const [bidHistory, setBidHistory] = useState([]);
 
   const ready = isSupabaseConfigured && auth.session && auth.profile;
 
@@ -568,6 +749,18 @@ export default function App() {
       unsubscribe();
     };
   }, [ready]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || view.name !== "detail") {
+      setBidHistory([]);
+      return;
+    }
+    let cancelled = false;
+    listRecentBids(view.auctionId).then((rows) => !cancelled && setBidHistory(rows));
+    return () => {
+      cancelled = true;
+    };
+  }, [view.name, view.auctionId]);
 
   if (isSupabaseConfigured && auth.loading) {
     return <div className="min-h-screen bg-[#14161A]" />;
@@ -613,7 +806,19 @@ export default function App() {
     setView({ name: "list" });
   }
 
-  async function handleRealCreate({ name, price, durationMinutes, photoFile }) {
+  async function handleRealCreate({
+    name,
+    price,
+    durationMinutes,
+    photoFile,
+    setName,
+    cardNumber,
+    year,
+    condition,
+    isGraded,
+    gradingCompany,
+    grade,
+  }) {
     setCreateBusy(true);
     setCreateError("");
     try {
@@ -624,6 +829,13 @@ export default function App() {
         basePrice: price,
         durationMinutes,
         photoUrl,
+        setName,
+        cardNumber,
+        year,
+        condition,
+        isGraded,
+        gradingCompany,
+        grade,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
@@ -642,6 +854,7 @@ export default function App() {
       setRealRows((rows) =>
         rows.map((r) => (r.id === auctionId ? { ...r, current_bid: amount, bid_count: r.bid_count + 1 } : r))
       );
+      listRecentBids(auctionId).then(setBidHistory);
       return true;
     } catch (e) {
       setBidError(e.message);
@@ -742,6 +955,7 @@ export default function App() {
           bidError={bidError}
           bidBusy={bidBusy}
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
+          bidHistory={bidHistory}
         />
       )}
 

@@ -2,8 +2,34 @@ import { supabase } from "./supabaseClient";
 
 const AUCTION_SELECT = `
   id, card_name, photo_url, base_price, current_bid, bid_count, status, closes_at, winner_id,
+  set_name, card_number, year, condition, is_graded, grading_company, grade,
   seller:profiles!auctions_seller_id_fkey ( id, alias, rating_avg, sales_count )
 `;
+
+export const CONDITION_OPTIONS = [
+  { value: "mint", label: "Mint" },
+  { value: "near_mint", label: "Near Mint" },
+  { value: "lightly_played", label: "Lightly Played" },
+  { value: "moderately_played", label: "Moderately Played" },
+  { value: "heavily_played", label: "Heavily Played" },
+  { value: "damaged", label: "Dañada" },
+];
+
+export const CONDITION_SHORT = {
+  mint: "M",
+  near_mint: "NM",
+  lightly_played: "LP",
+  moderately_played: "MP",
+  heavily_played: "HP",
+  damaged: "DMG",
+};
+
+export const GRADING_COMPANY_OPTIONS = [
+  { value: "psa", label: "PSA" },
+  { value: "bgs", label: "BGS" },
+  { value: "cgc", label: "CGC" },
+  { value: "otra", label: "Otra" },
+];
 
 export async function listLiveAuctions() {
   const { data, error } = await supabase
@@ -53,6 +79,13 @@ export function auctionToVM(row) {
     closesInMin,
     closesAt: row.closes_at,
     status: row.status,
+    setName: row.set_name,
+    cardNumber: row.card_number,
+    year: row.year,
+    condition: row.condition,
+    isGraded: row.is_graded,
+    gradingCompany: row.grading_company,
+    grade: row.grade,
   };
 }
 
@@ -61,6 +94,17 @@ export async function placeBid(auctionId, amount) {
     p_auction_id: auctionId,
     p_amount: amount,
   });
+  if (error) throw error;
+  return data;
+}
+
+export async function listRecentBids(auctionId, limit = 10) {
+  const { data, error } = await supabase
+    .from("bids")
+    .select("id, amount, created_at, bidder:profiles!bids_bidder_id_fkey ( alias )")
+    .eq("auction_id", auctionId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (error) throw error;
   return data;
 }
@@ -74,7 +118,20 @@ export async function uploadAuctionPhoto(file) {
   return data.publicUrl;
 }
 
-export async function createAuction({ sellerId, cardName, basePrice, durationMinutes, photoUrl }) {
+export async function createAuction({
+  sellerId,
+  cardName,
+  basePrice,
+  durationMinutes,
+  photoUrl,
+  setName,
+  cardNumber,
+  year,
+  condition,
+  isGraded,
+  gradingCompany,
+  grade,
+}) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
     .from("auctions")
@@ -85,6 +142,13 @@ export async function createAuction({ sellerId, cardName, basePrice, durationMin
       current_bid: basePrice,
       closes_at: closesAt,
       photo_url: photoUrl,
+      set_name: setName || null,
+      card_number: cardNumber || null,
+      year: year || null,
+      condition,
+      is_graded: isGraded,
+      grading_company: isGraded ? gradingCompany : null,
+      grade: isGraded ? grade : null,
     })
     .select(AUCTION_SELECT)
     .single();
