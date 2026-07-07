@@ -254,3 +254,12 @@ export async function getProfile(userId) {
   if (error) throw error;
   return data;
 }
+
+export async function getProfileBadges(userId) {
+  const { data, error } = await supabase
+    .from("profile_badges")
+    .select("awarded_at, badge:badges ( code, name, description, icon, sort_order )")
+    .eq("profile_id", userId);
+  if (error) throw error;
+  return data.map((row) => row.badge).sort((a, b) => a.sort_order - b.sort_order);
+}

@@ -17,6 +17,7 @@ import {
   submitRating,
   listMyGivenRatingTicketIds,
   getProfile,
+  getProfileBadges,
   listRecentBids,
   listMyPublications,
   listMyBidAuctions,
@@ -1022,7 +1023,7 @@ function ToastStack({ toasts }) {
 // ---------------------------------------------
 // Vista: Perfil
 // ---------------------------------------------
-function ProfileView({ profile, onBack, isOwn = true }) {
+function ProfileView({ profile, onBack, isOwn = true, badges = [] }) {
   return (
     <div className="min-h-screen bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -1050,6 +1051,26 @@ function ProfileView({ profile, onBack, isOwn = true }) {
             <p className="mt-1 text-2xl font-extrabold text-forest-deep">{profile.purchases_count}</p>
           </div>
         </div>
+
+        <div className="mt-6">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Medallas</h3>
+          {badges.length > 0 ? (
+            <div className="mt-3 grid grid-cols-4 gap-3 sm:grid-cols-6">
+              {badges.map((b) => (
+                <div key={b.code} className="flex flex-col items-center gap-1 text-center" title={b.description}>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-gold bg-gold/15 text-2xl shadow-card">
+                    {b.icon}
+                  </div>
+                  <p className="text-[9px] font-bold leading-tight text-ink-soft">{b.name}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[12px] text-ink-soft">
+              {isOwn ? "Todavía no ganaste medallas." : "Todavía no ganó medallas."}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1075,6 +1096,7 @@ export default function App() {
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
   const [ratingBusy, setRatingBusy] = useState(false);
   const [viewedProfile, setViewedProfile] = useState(null);
+  const [viewedBadges, setViewedBadges] = useState([]);
   const [bidHistory, setBidHistory] = useState([]);
   const [myPublications, setMyPublications] = useState([]);
   const [myBids, setMyBids] = useState([]);
@@ -1271,8 +1293,9 @@ export default function App() {
 
   async function openProfile(userId) {
     const targetId = userId ?? auth.session.user.id;
-    const p = await getProfile(targetId);
+    const [p, badges] = await Promise.all([getProfile(targetId), getProfileBadges(targetId)]);
     setViewedProfile(p);
+    setViewedBadges(badges);
     setView({ name: "profile", userId: targetId, back: view });
   }
 
@@ -1362,6 +1385,7 @@ export default function App() {
       {view.name === "profile" && viewedProfile && (
         <ProfileView
           profile={viewedProfile}
+          badges={viewedBadges}
           isOwn={view.userId === auth.session?.user.id}
           onBack={() => setView(view.back ?? { name: "list" })}
         />
