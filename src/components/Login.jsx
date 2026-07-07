@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ShieldCheck, Smartphone } from "lucide-react";
+import { Smartphone } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
+import PokeballIcon from "./PokeballIcon";
 
 export default function Login() {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
@@ -99,7 +100,7 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Entrá con tu WhatsApp" subtitle="Usamos tu número para identificarte, sin contraseñas">
+    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu número de WhatsApp para identificarte, sin contraseñas">
       {!isSupabaseConfigured && (
         <p className="mb-3 rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-3 py-2 text-[12px] font-medium text-[#B9432C]">
           Supabase todavía no está configurado (falta VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
@@ -131,8 +132,8 @@ function AuthShell({ title, subtitle, children }) {
     <div className="flex min-h-screen items-center justify-center bg-cream px-6">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2 text-gold-dark">
-          <ShieldCheck size={18} />
-          <span className="font-pixel text-[9px] tracking-wide">POKECOOL SUBASTAS</span>
+          <PokeballIcon size={18} />
+          <span className="font-pixel text-[9px] tracking-wide">CIUDAD AZULONA</span>
         </div>
         <h1 className="text-2xl font-extrabold text-ink">{title}</h1>
         <p className="mt-1 text-[13px] text-ink-soft">{subtitle}</p>
