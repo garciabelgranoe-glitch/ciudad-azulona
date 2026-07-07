@@ -371,40 +371,40 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
   const delivered = ticket.status === "entregado";
   const [score, setScore] = useState(0);
   return (
-    <div className="pb-10">
-      <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
-        <button onClick={onBack} className="text-[#9A9DA6] hover:text-[#F2EFE9] focus:outline-none">
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Comprobante de retiro</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">COMPROBANTE DE RETIRO</p>
       </header>
 
       <div className="px-5 pt-6">
         {/* Ticket con borde perforado */}
         <div className="relative mx-auto max-w-sm">
-          <div className="rounded-t-2xl border border-b-0 border-[#3A3F4B] bg-[#1B1E24] p-5">
+          <div className="rounded-t-2xl border-2 border-b-0 border-ink bg-paper p-5 shadow-card">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B6F79]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-soft">
                 {ticket.isSeller ? "Vendiste esta carta" : "Ganaste esta carta"}
               </p>
               {delivered ? <Pill tone="live"><Check size={11} /> Entregado</Pill> : <Pill tone="gold">Pendiente de retiro</Pill>}
             </div>
-            <h3 className="mt-3 font-display text-lg text-[#F2EFE9]">{ticket.card}</h3>
-            <p className="mt-1 text-[13px] text-[#9A9DA6]">Vendedor: <span className="text-[#D5D7DC]">{ticket.seller}</span></p>
-            <p className="text-[13px] text-[#9A9DA6]">Precio final: <span className="font-medium text-[#D9BB74]">{formatARS(ticket.price)}</span></p>
-            <p className="mt-1 text-[11px] text-[#6B6F79]">Cerrado {ticket.closedAt}</p>
+            <h3 className="mt-3 text-lg font-extrabold text-ink">{ticket.card}</h3>
+            <p className="mt-1 text-[13px] text-ink-soft">Vendedor: <span className="font-bold text-ink">{ticket.seller}</span></p>
+            <p className="text-[13px] text-ink-soft">Precio final: <span className="font-bold text-forest-deep">{formatARS(ticket.price)}</span></p>
+            <p className="mt-1 text-[11px] text-ink-soft">Cerrado {ticket.closedAt}</p>
           </div>
 
           {/* Perforación */}
-          <div className="relative h-0 border-t border-dashed border-[#3A3F4B]">
-            <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[#0F1115]" />
-            <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[#0F1115]" />
+          <div className="relative h-0 border-t-2 border-dashed border-line">
+            <div className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-cream" />
+            <div className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-cream" />
           </div>
 
-          <div className="flex flex-col items-center rounded-b-2xl border border-t-0 border-[#3A3F4B] bg-[#1B1E24] p-6">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[#6B6F79]">Código de retiro</p>
-            <p className="mt-2 font-display text-4xl tracking-[0.1em] text-[#F2EFE9]">{ticket.code}</p>
-            <div className="mt-4 flex items-center gap-1.5 text-[11px] text-[#6B6F79]">
+          <div className="flex flex-col items-center rounded-b-2xl border-2 border-t-0 border-ink bg-paper p-6 shadow-card">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-soft">Código de retiro</p>
+            <p className="font-pixel mt-3 text-2xl tracking-[0.1em] text-ink">{ticket.code}</p>
+            <div className="mt-4 flex items-center gap-1.5 text-[11px] text-ink-soft">
               <QrCode size={13} /> Mostrá este código en el stand del vendedor
             </div>
           </div>
@@ -414,27 +414,27 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
           <button
             onClick={onMarkDelivered}
             disabled={busy}
-            className="mx-auto mt-6 block rounded-lg bg-[#C9A34E] px-5 py-3 text-[13px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
+            className="mx-auto mt-6 block rounded-lg bg-gold px-5 py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
           >
             {busy ? "Confirmando..." : "Vendedor: confirmar entrega"}
           </button>
         )}
         {!delivered && ticket.isSeller === false && (
-          <p className="mx-auto mt-6 max-w-sm text-center text-[12px] text-[#6B6F79]">
+          <p className="mx-auto mt-6 max-w-sm text-center text-[12px] text-ink-soft">
             Mostrale este código al vendedor cuando vayas a retirar la carta.
           </p>
         )}
 
         {delivered && showRatingPrompt && (
-          <div className="mx-auto mt-6 max-w-sm rounded-xl border border-[#2A2E36] bg-[#1B1E24] p-4 text-center">
-            <p className="text-[12px] text-[#9A9DA6]">¿Cómo te fue con {ticket.seller}?</p>
+          <div className="mx-auto mt-6 max-w-sm rounded-xl border-2 border-line bg-paper p-4 text-center">
+            <p className="text-[12px] text-ink-soft">¿Cómo te fue con {ticket.seller}?</p>
             <div className="mt-2 flex justify-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} onClick={() => setScore(n)} className="p-1">
                   <Star
                     size={22}
                     fill={n <= score ? "currentColor" : "none"}
-                    className={n <= score ? "text-[#D9BB74]" : "text-[#3A3F4B]"}
+                    className={n <= score ? "text-gold-dark" : "text-line"}
                   />
                 </button>
               ))}
@@ -442,14 +442,14 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
             <button
               onClick={() => onSubmitRating(score)}
               disabled={!score || ratingBusy}
-              className="mt-3 rounded-lg bg-[#C9A34E] px-4 py-2 text-[12px] font-semibold text-[#14161A] transition hover:bg-[#D9BB74] disabled:opacity-40"
+              className="mt-3 rounded-lg bg-gold px-4 py-2 text-[12px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
             >
               {ratingBusy ? "Enviando..." : "Calificar"}
             </button>
           </div>
         )}
 
-        <p className="mx-auto mt-5 max-w-sm text-center text-[12px] leading-relaxed text-[#6B6F79]">
+        <p className="mx-auto mt-5 max-w-sm text-center text-[12px] leading-relaxed text-ink-soft">
           Este código es único y de un solo uso. No lo compartas hasta estar frente al vendedor.
         </p>
       </div>
