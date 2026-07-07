@@ -52,8 +52,11 @@ export async function getAuction(id) {
 }
 
 export function subscribeToLiveAuctions(onUpdate) {
+  // Nombre único por suscripción: si dos montajes se solapan (StrictMode,
+  // Fast Refresh), evita que ambos reutilicen el mismo canal y apilen
+  // listeners duplicados sobre el mismo topic.
   const channel = supabase
-    .channel("auctions-live")
+    .channel(`auctions-live-${crypto.randomUUID()}`)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "auctions" },
@@ -64,7 +67,7 @@ export function subscribeToLiveAuctions(onUpdate) {
 }
 
 export function auctionToVM(row) {
-  const closesInMin = Math.max(0, Math.round((new Date(row.closes_at).getTime() - Date.now()) / 60000));
+  const closesInSec = Math.max(0, Math.round((new Date(row.closes_at).getTime() - Date.now()) / 1000));
   return {
     id: row.id,
     card: row.card_name,
@@ -76,7 +79,7 @@ export function auctionToVM(row) {
     basePrice: Number(row.base_price),
     currentBid: Number(row.current_bid),
     bids: row.bid_count,
-    closesInMin,
+    closesInSec,
     closesAt: row.closes_at,
     status: row.status,
     setName: row.set_name,

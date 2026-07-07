@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
@@ -37,7 +37,7 @@ const SEED_AUCTIONS = [
     basePrice: 45000,
     currentBid: 62000,
     bids: 7,
-    closesInMin: 42,
+    closesInSec: 42 * 60,
     status: "live",
   },
   {
@@ -50,7 +50,7 @@ const SEED_AUCTIONS = [
     basePrice: 180000,
     currentBid: 205000,
     bids: 12,
-    closesInMin: 8,
+    closesInSec: 8 * 60,
     status: "live",
   },
   {
@@ -63,7 +63,7 @@ const SEED_AUCTIONS = [
     basePrice: 15000,
     currentBid: 15000,
     bids: 0,
-    closesInMin: 120,
+    closesInSec: 120 * 60,
     status: "live",
   },
 ];
@@ -85,11 +85,14 @@ function formatARS(n) {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 }
 
-function formatCountdown(min) {
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return `${h}h ${m}m`;
+function formatCountdown(totalSeconds) {
+  if (totalSeconds <= 0) return "Cerrada";
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
 }
 
 // ---------------------------------------------
@@ -270,10 +273,10 @@ function AuctionList({
                 <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
                 <span
                   className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
-                    a.closesInMin <= 10 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
+                    a.closesInSec <= 600 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
                   }`}
                 >
-                  {formatCountdown(a.closesInMin)}
+                  {formatCountdown(a.closesInSec)}
                 </span>
               </div>
             </div>
@@ -357,8 +360,8 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
           </div>
           <div>
             <span className="block text-[10px] text-ink-soft">TERMINA EN</span>
-            <span className={`text-lg font-extrabold ${auction.closesInMin <= 10 ? "text-[#B9432C]" : "text-ink"}`}>
-              {formatCountdown(auction.closesInMin)}
+            <span className={`text-lg font-extrabold ${auction.closesInSec <= 600 ? "text-[#B9432C]" : "text-ink"}`}>
+              {formatCountdown(auction.closesInSec)}
             </span>
           </div>
           <div>
@@ -740,6 +743,25 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 }
 
 // ---------------------------------------------
+// Notificaciones flotantes (ej: "te superaron")
+// ---------------------------------------------
+function ToastStack({ toasts }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-4">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className="pointer-events-auto max-w-sm rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-4 py-2.5 text-center text-[13px] font-bold text-[#B9432C] shadow-card"
+        >
+          {t.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Perfil
 // ---------------------------------------------
 function ProfileView({ profile, onBack }) {
@@ -796,8 +818,22 @@ export default function App() {
   const [ratingBusy, setRatingBusy] = useState(false);
   const [viewedProfile, setViewedProfile] = useState(null);
   const [bidHistory, setBidHistory] = useState([]);
+  const [, setClockTick] = useState(0);
+  const [toasts, setToasts] = useState([]);
+  const myBidAmountsRef = useRef({});
 
   const ready = isSupabaseConfigured && auth.session && auth.profile;
+
+  function pushToast(text) {
+    const id = crypto.randomUUID();
+    setToasts((t) => [...t, { id, text }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+  }
+
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -807,6 +843,11 @@ export default function App() {
       .finally(() => !cancelled && setAuctionsLoading(false));
     const unsubscribe = subscribeToLiveAuctions((updatedRow) => {
       setRealRows((rows) => rows.map((r) => (r.id === updatedRow.id ? { ...r, ...updatedRow } : r)));
+      const myAmount = myBidAmountsRef.current[updatedRow.id];
+      if (myAmount != null && Number(updatedRow.current_bid) > myAmount) {
+        pushToast(`Te superaron en "${updatedRow.card_name}" — nueva puja ${formatARS(Number(updatedRow.current_bid))}`);
+        delete myBidAmountsRef.current[updatedRow.id];
+      }
     });
     listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
     listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
@@ -865,7 +906,7 @@ export default function App() {
       basePrice: price,
       currentBid: price,
       bids: 0,
-      closesInMin: 60,
+      closesInSec: 60 * 60,
       status: "live",
     };
     setAuctions((a) => [newAuction, ...a]);
@@ -917,6 +958,7 @@ export default function App() {
     setBidError("");
     try {
       await placeBid(auctionId, amount);
+      myBidAmountsRef.current[auctionId] = amount;
       setRealRows((rows) =>
         rows.map((r) => (r.id === auctionId ? { ...r, current_bid: amount, bid_count: r.bid_count + 1 } : r))
       );
@@ -969,6 +1011,8 @@ export default function App() {
       <style>{`
         input:focus { outline: none; }
       `}</style>
+
+      <ToastStack toasts={toasts} />
 
       {!isSupabaseConfigured && (
         <div className="flex items-center justify-between bg-[#B9432C]/15 px-5 py-2 text-[11px] font-bold text-[#B9432C]">
