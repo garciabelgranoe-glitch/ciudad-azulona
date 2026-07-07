@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -18,6 +18,8 @@ import {
   listMyGivenRatingTicketIds,
   getProfile,
   listRecentBids,
+  listMyPublications,
+  listMyBidAuctions,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -180,6 +182,54 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
+function AccountMenu({ alias, onOpenProfile, onOpenMyBids, onOpenMyPublications }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 font-bold text-cream/80 hover:text-paper"
+      >
+        {alias} <ChevronDown size={12} className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border-2 border-ink bg-paper text-ink shadow-card">
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenProfile();
+              }}
+              className="block w-full px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Mi perfil
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenMyBids();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Mis pujas
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenMyPublications();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Mis publicaciones
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------
 // Vista: Lista de subastas
 // ---------------------------------------------
@@ -191,6 +241,8 @@ function AuctionList({
   onSignOut,
   onOpenProfile,
   onOpenSellerProfile,
+  onOpenMyBids,
+  onOpenMyPublications,
   searchTerm,
   onSearchChange,
   pendingCount = 0,
@@ -211,7 +263,12 @@ function AuctionList({
                 <span className="font-pixel text-[9px] tracking-wide text-gold">CIUDAD AZULONA</span>
               </div>
               <div className="flex items-center gap-3 text-[12px] text-cream/80">
-                <button onClick={onOpenProfile} className="font-bold hover:text-paper">{profile.alias}</button>
+                <AccountMenu
+                  alias={profile.alias}
+                  onOpenProfile={onOpenProfile}
+                  onOpenMyBids={onOpenMyBids}
+                  onOpenMyPublications={onOpenMyPublications}
+                />
                 <button onClick={onSignOut} className="flex items-center gap-1 hover:text-paper">
                   <LogOut size={13} /> Salir
                 </button>
@@ -327,6 +384,80 @@ function AuctionList({
       >
         <Plus size={16} strokeWidth={2.5} /> Publicar carta
       </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Mis pujas / Mis publicaciones
+// ---------------------------------------------
+function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, showMyBid = false }) {
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">{title}</p>
+      </header>
+
+      {auctions.length === 0 ? (
+        <p className="px-5 pt-10 text-center text-[13px] text-ink-soft">{emptyText}</p>
+      ) : (
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+          {auctions.map((a) => {
+            const clickable = a.status === "live" && !!onOpen;
+            return (
+              <div
+                key={a.id}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => onOpen(a) : undefined}
+                onKeyDown={
+                  clickable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") onOpen(a);
+                      }
+                    : undefined
+                }
+                className={`flex flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card ${
+                  clickable ? "cursor-pointer transition hover:-translate-y-1" : "opacity-90"
+                }`}
+              >
+                <div className="relative">
+                  <CardArt label={a.card} photoUrl={a.photoUrl} />
+                  <div className="absolute right-2 top-2">
+                    {a.status === "live" ? <Pill tone="live">En vivo</Pill> : <Pill>Cerrada</Pill>}
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
+                  <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+                  {(a.setName || a.cardNumber || a.year) && (
+                    <p className="line-clamp-1 text-[11px] text-ink-soft">
+                      {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                  {showMyBid && a.myBid != null ? (
+                    <div className="mt-auto flex flex-col gap-0.5 pt-1.5">
+                      <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+                      <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatARS(a.myBid)}</span>
+                    </div>
+                  ) : (
+                    <div className="mt-auto flex items-center justify-between pt-1.5">
+                      <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+                      {a.status === "live" && (
+                        <span className="font-pixel flex items-center gap-1 rounded bg-[#EFE6F5] px-1.5 py-1 text-[8.5px] text-plum">
+                          {formatCountdown(a.closesInSec)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -945,6 +1076,8 @@ export default function App() {
   const [ratingBusy, setRatingBusy] = useState(false);
   const [viewedProfile, setViewedProfile] = useState(null);
   const [bidHistory, setBidHistory] = useState([]);
+  const [myPublications, setMyPublications] = useState([]);
+  const [myBids, setMyBids] = useState([]);
   const [, setClockTick] = useState(0);
   const [toasts, setToasts] = useState([]);
   const myBidAmountsRef = useRef({});
@@ -995,6 +1128,21 @@ export default function App() {
       cancelled = true;
     };
   }, [view.name, view.auctionId]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    if (view.name === "myPublications") {
+      listMyPublications(auth.session.user.id).then((rows) => !cancelled && setMyPublications(rows.map(auctionToVM)));
+    } else if (view.name === "myBids") {
+      listMyBidAuctions(auth.session.user.id).then(
+        (rows) => !cancelled && setMyBids(rows.map((r) => ({ ...auctionToVM(r), myBid: r.myBid })))
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [view.name, ready]);
 
   if (isSupabaseConfigured && auth.loading) {
     return <div className="min-h-screen bg-cream" />;
@@ -1155,12 +1303,14 @@ export default function App() {
       {view.name === "list" && !(isSupabaseConfigured && auctionsLoading) && (
         <AuctionList
           auctions={displayAuctions}
-          onOpen={(a) => setView({ name: "detail", auctionId: a.id })}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
           onCreate={() => setView({ name: "create" })}
           profile={isSupabaseConfigured ? auth.profile : null}
           onSignOut={auth.signOut}
           onOpenProfile={() => openProfile()}
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
+          onOpenMyBids={() => setView({ name: "myBids" })}
+          onOpenMyPublications={() => setView({ name: "myPublications" })}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
@@ -1173,7 +1323,7 @@ export default function App() {
       {view.name === "detail" && activeAuction && (
         <AuctionDetail
           auction={activeAuction}
-          onBack={() => setView({ name: "list" })}
+          onBack={() => setView(view.back ?? { name: "list" })}
           onWin={handleWin}
           onBid={isSupabaseConfigured ? handleRealBid : undefined}
           bidError={bidError}
@@ -1214,6 +1364,27 @@ export default function App() {
           profile={viewedProfile}
           isOwn={view.userId === auth.session?.user.id}
           onBack={() => setView(view.back ?? { name: "list" })}
+        />
+      )}
+
+      {view.name === "myBids" && (
+        <MyAuctionsView
+          title="MIS PUJAS"
+          emptyText="Todavía no pujaste en ninguna subasta."
+          auctions={myBids}
+          showMyBid
+          onBack={() => setView({ name: "list" })}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+        />
+      )}
+
+      {view.name === "myPublications" && (
+        <MyAuctionsView
+          title="MIS PUBLICACIONES"
+          emptyText="Todavía no publicaste ninguna carta."
+          auctions={myPublications}
+          onBack={() => setView({ name: "list" })}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
         />
       )}
 

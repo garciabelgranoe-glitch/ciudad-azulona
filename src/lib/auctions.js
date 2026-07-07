@@ -112,6 +112,36 @@ export async function placeBid(auctionId, amount) {
   return data;
 }
 
+export async function listMyPublications(userId) {
+  const { data, error } = await supabase
+    .from("auctions")
+    .select(AUCTION_SELECT)
+    .eq("seller_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function listMyBidAuctions(userId) {
+  const { data, error } = await supabase
+    .from("bids")
+    .select(`amount, auction:auctions!bids_auction_id_fkey ( ${AUCTION_SELECT} )`)
+    .eq("bidder_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  // Puede haber varias pujas mías por subasta — me quedo con una fila por
+  // subasta, guardando la mayor puja que hice ahí.
+  const byAuction = new Map();
+  for (const row of data) {
+    if (!row.auction) continue;
+    const prev = byAuction.get(row.auction.id);
+    if (!prev || Number(row.amount) > prev.myBid) {
+      byAuction.set(row.auction.id, { ...row.auction, myBid: Number(row.amount) });
+    }
+  }
+  return [...byAuction.values()];
+}
+
 export async function listRecentBids(auctionId, limit = 10) {
   const { data, error } = await supabase
     .from("bids")
