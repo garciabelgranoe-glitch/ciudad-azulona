@@ -112,13 +112,13 @@ function Pill({ children, tone = "default" }) {
 
 function SellerBadge({ name, rating, sales }) {
   return (
-    <div className="flex items-center gap-1.5 text-[12px] text-ink-soft">
-      <span className="font-bold text-ink">{name}</span>
-      <span className="flex items-center gap-0.5 text-gold-dark">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-soft">
+      <span className="whitespace-nowrap font-bold text-ink">{name}</span>
+      <span className="flex items-center gap-0.5 whitespace-nowrap text-gold-dark">
         <Star size={11} fill="currentColor" strokeWidth={0} />
         {rating.toFixed(1)}
       </span>
-      <span>· {sales} ventas</span>
+      <span className="whitespace-nowrap">· {sales} ventas</span>
     </div>
   );
 }
@@ -159,7 +159,18 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
 // ---------------------------------------------
 // Vista: Lista de subastas
 // ---------------------------------------------
-function AuctionList({ auctions, onOpen, onCreate, profile, onSignOut, onOpenProfile, searchTerm, onSearchChange }) {
+function AuctionList({
+  auctions,
+  onOpen,
+  onCreate,
+  profile,
+  onSignOut,
+  onOpenProfile,
+  searchTerm,
+  onSearchChange,
+  pendingCount = 0,
+  onOpenPendingTicket,
+}) {
   const filtered = searchTerm
     ? auctions.filter((a) => a.card.toLowerCase().includes(searchTerm.toLowerCase()))
     : auctions;
@@ -167,66 +178,82 @@ function AuctionList({ auctions, onOpen, onCreate, profile, onSignOut, onOpenPro
   return (
     <div className="min-h-screen bg-cream pb-24">
       <header className="sticky top-0 z-10 border-b-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-4">
-        {profile && (
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <PokeballIcon size={16} />
-              <span className="font-pixel text-[9px] tracking-wide text-gold">CIUDAD AZULONA</span>
+        <div className="mx-auto max-w-5xl">
+          {profile && (
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PokeballIcon size={16} />
+                <span className="font-pixel text-[9px] tracking-wide text-gold">CIUDAD AZULONA</span>
+              </div>
+              <div className="flex items-center gap-3 text-[12px] text-cream/80">
+                <button onClick={onOpenProfile} className="font-bold hover:text-paper">{profile.alias}</button>
+                <button onClick={onSignOut} className="flex items-center gap-1 hover:text-paper">
+                  <LogOut size={13} /> Salir
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-[12px] text-cream/80">
-              <button onClick={onOpenProfile} className="font-bold hover:text-paper">{profile.alias}</button>
-              <button onClick={onSignOut} className="flex items-center gap-1 hover:text-paper">
-                <LogOut size={13} /> Salir
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex items-baseline justify-between">
-          <div>
-            <p className="font-pixel text-[9px] tracking-wide text-gold">SUBASTAS EN VIVO</p>
-            <h1 className="mt-2 text-2xl font-extrabold text-paper">Mesa del evento</h1>
+          <div className="flex items-baseline justify-between">
+            <div>
+              <p className="font-pixel text-[9px] tracking-wide text-gold">SUBASTAS EN VIVO</p>
+              <h1 className="mt-2 text-2xl font-extrabold text-paper">Mesa del evento</h1>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
+              <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
-            <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
-          </span>
+
+          {onSearchChange && (
+            <div className="relative mt-3 sm:max-w-sm">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/50" />
+              <input
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Buscar carta o set..."
+                className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-9 pr-3 text-[13px] font-medium text-cream placeholder:text-cream/50 focus:outline-none focus-visible:border-gold"
+              />
+            </div>
+          )}
         </div>
-
-        {onSearchChange && (
-          <div className="relative mt-3">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/50" />
-            <input
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Buscar carta o set..."
-              className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-9 pr-3 text-[13px] font-medium text-cream placeholder:text-cream/50 focus:outline-none focus-visible:border-gold"
-            />
-          </div>
-        )}
       </header>
 
+      {pendingCount > 0 && (
+        <div className="mx-auto max-w-5xl px-5 pt-4">
+          <button
+            onClick={onOpenPendingTicket}
+            className="flex w-full items-center justify-between rounded-lg border-2 border-[#B9432C]/25 bg-[#FBE6E0] px-4 py-2.5 text-left"
+          >
+            <span className="text-[12px] font-bold text-[#B9432C]">
+              Tenés {pendingCount} carta(s) pendiente(s) de retiro
+            </span>
+            <span className="text-[12px] font-bold text-[#B9432C]">Ver →</span>
+          </button>
+        </div>
+      )}
+
       {searchTerm && filtered.length === 0 && (
-        <div className="px-5 pt-10 text-center text-[13px] text-ink-soft">
+        <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
           No encontramos cartas con "{searchTerm}".
         </div>
       )}
       {!searchTerm && auctions.length === 0 && (
-        <div className="px-5 pt-10 text-center text-[13px] text-ink-soft">
+        <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
           Todavía no hay subastas activas. ¡Sé el primero en publicar una carta!
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4 px-5 pt-5">
+      <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
         {filtered.map((a) => (
           <button
             key={a.id}
             onClick={() => onOpen(a)}
-            className="group flex flex-col text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold rounded-xl"
+            className="group flex flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
-            <div className="relative rounded-t-lg border-2 border-b-0 border-ink bg-paper shadow-card transition group-hover:-translate-y-1">
+            <div className="relative">
               <CardArt label={a.card} photoUrl={a.photoUrl} />
               {(a.condition || a.isGraded) && (
-                <div className="absolute right-1.5 top-1.5 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
+                <div className="absolute right-2 top-2 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
                   <ConditionBadge
                     condition={a.condition}
                     isGraded={a.isGraded}
@@ -236,11 +263,10 @@ function AuctionList({ auctions, onOpen, onCreate, profile, onSignOut, onOpenPro
                 </div>
               )}
             </div>
-            <div className="relative space-y-1 rounded-b-lg border-2 border-ink bg-paper px-3 pb-3 pt-3">
-              <div className="pointer-events-none absolute -top-1.5 left-3 right-3 border-t-2 border-dashed border-line" />
-              <p className="line-clamp-2 text-[13px] font-extrabold leading-tight text-ink">{a.card}</p>
+            <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
+              <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
               <SellerBadge name={a.seller} rating={a.sellerRating} sales={a.sellerSales} />
-              <div className="flex items-center justify-between pt-1">
+              <div className="mt-auto flex items-center justify-between pt-1.5">
                 <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
                 <span
                   className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
@@ -950,18 +976,6 @@ export default function App() {
         </div>
       )}
 
-      {displayTickets.length > 0 && view.name === "list" && (
-        <div className="bg-cream px-5 pt-4">
-          <button
-            onClick={() => setView({ name: "ticket", ticket: displayTickets[0] })}
-            className="flex w-full items-center justify-between rounded-lg border-2 border-gold/40 bg-gold/10 px-4 py-3 text-left"
-          >
-            <span className="text-[12px] font-bold text-gold-dark">Tenés {displayTickets.filter(t=>t.status==="pendiente").length} carta(s) pendiente(s) de retiro</span>
-            <span className="text-[12px] font-bold text-gold-dark">Ver →</span>
-          </button>
-        </div>
-      )}
-
       {view.name === "list" && isSupabaseConfigured && auctionsLoading && (
         <p className="bg-cream px-5 pt-10 text-center text-[12px] text-ink-soft">Cargando subastas...</p>
       )}
@@ -976,6 +990,10 @@ export default function App() {
           onOpenProfile={openProfile}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
+          pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
+          onOpenPendingTicket={() =>
+            setView({ name: "ticket", ticket: displayTickets.find((t) => t.status === "pendiente") })
+          }
         />
       )}
 
