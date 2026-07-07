@@ -315,6 +315,7 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const minBid = auction.currentBid + 1000;
 
   useEffect(() => {
@@ -344,9 +345,35 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
       </header>
 
       <div className="px-5 pt-5">
-        <div className="mx-auto w-40 overflow-hidden rounded-lg border-2 border-ink shadow-card">
+        <button
+          onClick={() => auction.photoUrl && setLightboxOpen(true)}
+          className="mx-auto block w-40 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+        >
           <CardArt label={auction.card} photoUrl={auction.photoUrl} />
-        </div>
+        </button>
+        {auction.photoUrl && (
+          <p className="mt-1.5 text-center text-[11px] text-ink-soft">Tocá la foto para agrandarla</p>
+        )}
+
+        {lightboxOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-6"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute right-4 top-4 rounded-full bg-paper p-2 text-ink"
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={auction.photoUrl}
+              alt={auction.card}
+              className="max-h-full max-w-full rounded-lg object-contain shadow-card"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
 
         <h2 className="mt-4 text-xl font-extrabold text-ink">{auction.card}</h2>
         <div className="mt-1"><SellerBadge name={auction.seller} rating={auction.sellerRating} sales={auction.sellerSales} /></div>
