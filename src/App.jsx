@@ -3,6 +3,7 @@ import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Se
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
+import Landing from "./components/Landing";
 import PokeballIcon from "./components/PokeballIcon";
 import {
   listLiveAuctions,
@@ -1081,6 +1082,7 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [] }) {
 // ---------------------------------------------
 export default function App() {
   const auth = useAuth();
+  const [enteredLanding, setEnteredLanding] = useState(false);
   const [view, setView] = useState({ name: "list" });
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);
   const [tickets, setTickets] = useState(SEED_TICKETS);
@@ -1168,6 +1170,10 @@ export default function App() {
 
   if (isSupabaseConfigured && auth.loading) {
     return <div className="min-h-screen bg-cream" />;
+  }
+
+  if (!enteredLanding && (!isSupabaseConfigured || !auth.session || !auth.profile)) {
+    return <Landing onEnter={() => setEnteredLanding(true)} />;
   }
 
   if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
