@@ -20,6 +20,7 @@ import {
   listRecentBids,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
+  CONDITION_COLORS,
   GRADING_COMPANY_OPTIONS,
 } from "./lib/auctions";
 
@@ -156,7 +157,15 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
     );
   }
   if (!condition) return null;
-  return <Pill>{CONDITION_SHORT[condition] ?? condition}</Pill>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+        CONDITION_COLORS[condition] ?? "border-line bg-paper text-ink-soft"
+      }`}
+    >
+      {CONDITION_SHORT[condition] ?? condition}
+    </span>
+  );
 }
 
 // ---------------------------------------------
@@ -268,6 +277,11 @@ function AuctionList({
             </div>
             <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
               <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+              {(a.setName || a.cardNumber || a.year) && (
+                <p className="line-clamp-1 text-[11px] text-ink-soft">
+                  {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
+                </p>
+              )}
               <SellerBadge name={a.seller} rating={a.sellerRating} sales={a.sellerSales} />
               <div className="mt-auto flex items-center justify-between pt-1.5">
                 <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
@@ -552,15 +566,47 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const [isGraded, setIsGraded] = useState(false);
   const [gradingCompany, setGradingCompany] = useState("psa");
   const [grade, setGrade] = useState("");
+  const [photoConverting, setPhotoConverting] = useState(false);
+  const [photoError, setPhotoError] = useState("");
 
-  function handlePhotoChange(e) {
+  async function handlePhotoChange(e) {
     const file = e.target.files?.[0] ?? null;
-    setPhotoFile(file);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+    setPhotoError("");
+    if (!file) {
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      return;
+    }
+
+    const isHeic =
+      file.type === "image/heic" ||
+      file.type === "image/heif" ||
+      /\.heic$|\.heif$/i.test(file.name);
+
+    if (!isHeic) {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+      return;
+    }
+
+    setPhotoConverting(true);
+    try {
+      const heic2any = (await import("heic2any")).default;
+      const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+      const jpegFile = new File([converted], "foto.jpg", { type: "image/jpeg" });
+      setPhotoFile(jpegFile);
+      setPhotoPreview(URL.createObjectURL(jpegFile));
+    } catch {
+      setPhotoError("No pudimos convertir esta foto. Probá sacándola de nuevo o elegí otra.");
+      setPhotoFile(null);
+      setPhotoPreview(null);
+    } finally {
+      setPhotoConverting(false);
+    }
   }
 
   const photoRequired = showDuration;
-  const canPublish = name && price && (!photoRequired || photoFile) && !busy;
+  const canPublish = name && price && (!photoRequired || photoFile) && !busy && !photoConverting;
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -579,14 +625,17 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
         {showDuration && (
           <div>
             <label className={labelClass}>Foto de la carta (obligatoria)</label>
-            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-line bg-paper text-[11px] text-ink-soft">
-              {photoPreview ? (
+            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-line bg-paper text-center text-[11px] text-ink-soft">
+              {photoConverting ? (
+                "Convirtiendo..."
+              ) : photoPreview ? (
                 <img src={photoPreview} alt="preview" className="h-full w-full object-cover" />
               ) : (
-                "Sacar foto"
+                "Sacar o elegir foto"
               )}
-              <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="hidden" />
+              <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
             </label>
+            {photoError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{photoError}</p>}
           </div>
         )}
         <div>

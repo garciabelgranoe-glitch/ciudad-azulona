@@ -24,6 +24,17 @@ export const CONDITION_SHORT = {
   damaged: "DMG",
 };
 
+// De mejor a peor estado — colores que se puedan distinguir de un vistazo
+// en una card chica, sin depender de leer el texto.
+export const CONDITION_COLORS = {
+  mint: "border-gold/50 bg-gold/15 text-gold-dark",
+  near_mint: "border-forest-mid/40 bg-forest-mid/15 text-forest-deep",
+  lightly_played: "border-teal/40 bg-teal/15 text-teal",
+  moderately_played: "border-plum/40 bg-plum/15 text-plum",
+  heavily_played: "border-[#B9432C]/40 bg-[#FBE6E0] text-[#B9432C]",
+  damaged: "border-ink/40 bg-ink/10 text-ink-soft",
+};
+
 export const GRADING_COMPANY_OPTIONS = [
   { value: "psa", label: "PSA" },
   { value: "bgs", label: "BGS" },
