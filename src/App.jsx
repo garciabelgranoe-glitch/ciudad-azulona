@@ -114,10 +114,22 @@ function Pill({ children, tone = "default" }) {
   );
 }
 
-function SellerBadge({ name, rating, sales }) {
+function SellerBadge({ name, rating, sales, onClick }) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-soft">
-      <span className="whitespace-nowrap font-bold text-ink">{name}</span>
+      {onClick ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          className="whitespace-nowrap font-bold text-ink underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+        >
+          {name}
+        </button>
+      ) : (
+        <span className="whitespace-nowrap font-bold text-ink">{name}</span>
+      )}
       <span className="flex items-center gap-0.5 whitespace-nowrap text-gold-dark">
         <Star size={11} fill="currentColor" strokeWidth={0} />
         {rating.toFixed(1)}
@@ -178,6 +190,7 @@ function AuctionList({
   profile,
   onSignOut,
   onOpenProfile,
+  onOpenSellerProfile,
   searchTerm,
   onSearchChange,
   pendingCount = 0,
@@ -257,10 +270,15 @@ function AuctionList({
 
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
         {filtered.map((a) => (
-          <button
+          <div
             key={a.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onOpen(a)}
-            className="group flex flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onOpen(a);
+            }}
+            className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
           >
             <div className="relative">
               <CardArt label={a.card} photoUrl={a.photoUrl} />
@@ -282,7 +300,12 @@ function AuctionList({
                   {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
                 </p>
               )}
-              <SellerBadge name={a.seller} rating={a.sellerRating} sales={a.sellerSales} />
+              <SellerBadge
+                name={a.seller}
+                rating={a.sellerRating}
+                sales={a.sellerSales}
+                onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
+              />
               <div className="mt-auto flex items-center justify-between pt-1.5">
                 <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
                 <span
@@ -294,7 +317,7 @@ function AuctionList({
                 </span>
               </div>
             </div>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -311,7 +334,7 @@ function AuctionList({
 // ---------------------------------------------
 // Vista: Detalle de subasta + pujar
 // ---------------------------------------------
-function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine, bidHistory = [] }) {
+function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine, bidHistory = [], onOpenUserProfile }) {
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
@@ -376,7 +399,14 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
         )}
 
         <h2 className="mt-4 text-xl font-extrabold text-ink">{auction.card}</h2>
-        <div className="mt-1"><SellerBadge name={auction.seller} rating={auction.sellerRating} sales={auction.sellerSales} /></div>
+        <div className="mt-1">
+          <SellerBadge
+            name={auction.seller}
+            rating={auction.sellerRating}
+            sales={auction.sellerSales}
+            onClick={onOpenUserProfile && auction.sellerId ? () => onOpenUserProfile(auction.sellerId) : undefined}
+          />
+        </div>
 
         {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded) && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -460,7 +490,16 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
             <ul className="mt-2 flex flex-col gap-1.5">
               {bidHistory.map((b) => (
                 <li key={b.id} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
-                  <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
+                  {onOpenUserProfile && b.bidder?.id ? (
+                    <button
+                      onClick={() => onOpenUserProfile(b.bidder.id)}
+                      className="text-ink-soft underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+                    >
+                      {b.bidder?.alias ?? "—"}
+                    </button>
+                  ) : (
+                    <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
+                  )}
                   <span className="font-bold text-forest-deep">{formatARS(Number(b.amount))}</span>
                 </li>
               ))}
@@ -480,7 +519,7 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
 // ---------------------------------------------
 // Vista: Ticket de retiro (signature element)
 // ---------------------------------------------
-function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingPrompt = false, onSubmitRating, ratingBusy = false }) {
+function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingPrompt = false, onSubmitRating, ratingBusy = false, onOpenUserProfile }) {
   const delivered = ticket.status === "entregado";
   const [score, setScore] = useState(0);
   return (
@@ -503,7 +542,19 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
               {delivered ? <Pill tone="live"><Check size={11} /> Entregado</Pill> : <Pill tone="gold">Pendiente de retiro</Pill>}
             </div>
             <h3 className="mt-3 text-lg font-extrabold text-ink">{ticket.card}</h3>
-            <p className="mt-1 text-[13px] text-ink-soft">Vendedor: <span className="font-bold text-ink">{ticket.seller}</span></p>
+            <p className="mt-1 text-[13px] text-ink-soft">
+              Vendedor:{" "}
+              {onOpenUserProfile && ticket.sellerId ? (
+                <button
+                  onClick={() => onOpenUserProfile(ticket.sellerId)}
+                  className="font-bold text-ink underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+                >
+                  {ticket.seller}
+                </button>
+              ) : (
+                <span className="font-bold text-ink">{ticket.seller}</span>
+              )}
+            </p>
             <p className="text-[13px] text-ink-soft">Precio final: <span className="font-bold text-forest-deep">{formatARS(ticket.price)}</span></p>
             <p className="mt-1 text-[11px] text-ink-soft">Cerrado {ticket.closedAt}</p>
           </div>
@@ -840,14 +891,14 @@ function ToastStack({ toasts }) {
 // ---------------------------------------------
 // Vista: Perfil
 // ---------------------------------------------
-function ProfileView({ profile, onBack }) {
+function ProfileView({ profile, onBack, isOwn = true }) {
   return (
     <div className="min-h-screen bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="font-pixel text-[9px] tracking-wide text-gold">TU PERFIL</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">{isOwn ? "TU PERFIL" : "PERFIL"}</p>
       </header>
 
       <div className="px-5 pt-6">
@@ -1070,10 +1121,11 @@ export default function App() {
     }
   }
 
-  async function openProfile() {
-    const p = await getProfile(auth.session.user.id);
+  async function openProfile(userId) {
+    const targetId = userId ?? auth.session.user.id;
+    const p = await getProfile(targetId);
     setViewedProfile(p);
-    setView({ name: "profile" });
+    setView({ name: "profile", userId: targetId, back: view });
   }
 
   const activeAuction =
@@ -1107,7 +1159,8 @@ export default function App() {
           onCreate={() => setView({ name: "create" })}
           profile={isSupabaseConfigured ? auth.profile : null}
           onSignOut={auth.signOut}
-          onOpenProfile={openProfile}
+          onOpenProfile={() => openProfile()}
+          onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
@@ -1127,6 +1180,7 @@ export default function App() {
           bidBusy={bidBusy}
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
           bidHistory={bidHistory}
+          onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
         />
       )}
 
@@ -1151,11 +1205,16 @@ export default function App() {
           onSubmitRating={async (score) => {
             await handleSubmitRating(view.ticket.id, view.ticket.sellerId, score);
           }}
+          onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
         />
       )}
 
       {view.name === "profile" && viewedProfile && (
-        <ProfileView profile={viewedProfile} onBack={() => setView({ name: "list" })} />
+        <ProfileView
+          profile={viewedProfile}
+          isOwn={view.userId === auth.session?.user.id}
+          onBack={() => setView(view.back ?? { name: "list" })}
+        />
       )}
 
       {view.name === "create" && (

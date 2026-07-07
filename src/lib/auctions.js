@@ -115,7 +115,7 @@ export async function placeBid(auctionId, amount) {
 export async function listRecentBids(auctionId, limit = 10) {
   const { data, error } = await supabase
     .from("bids")
-    .select("id, amount, created_at, bidder:profiles!bids_bidder_id_fkey ( alias )")
+    .select("id, amount, created_at, bidder:profiles!bids_bidder_id_fkey ( id, alias )")
     .eq("auction_id", auctionId)
     .order("created_at", { ascending: false })
     .limit(limit);
