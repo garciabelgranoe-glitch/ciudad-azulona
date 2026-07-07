@@ -675,30 +675,30 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 // ---------------------------------------------
 function ProfileView({ profile, onBack }) {
   return (
-    <div className="pb-10">
-      <header className="flex items-center gap-3 border-b border-[#2A2E36] px-5 py-4">
-        <button onClick={onBack} className="text-[#9A9DA6] hover:text-[#F2EFE9] focus:outline-none">
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="text-[11px] uppercase tracking-[0.2em] text-[#C9A34E]">Tu perfil</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">TU PERFIL</p>
       </header>
 
       <div className="px-5 pt-6">
-        <h2 className="font-display text-2xl text-[#F2EFE9]">{profile.alias}</h2>
-        <div className="mt-1 flex items-center gap-1 text-[#D9BB74]">
+        <h2 className="text-2xl font-extrabold text-ink">{profile.alias}</h2>
+        <div className="mt-1 flex items-center gap-1 text-gold-dark">
           <Star size={14} fill="currentColor" strokeWidth={0} />
-          <span className="text-[14px]">{Number(profile.rating_avg).toFixed(1)}</span>
-          <span className="text-[12px] text-[#6B6F79]">de reputación</span>
+          <span className="text-[14px] font-bold">{Number(profile.rating_avg).toFixed(1)}</span>
+          <span className="text-[12px] font-medium text-ink-soft">de reputación</span>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-4">
-            <p className="text-[11px] text-[#9A9DA6]">Ventas completadas</p>
-            <p className="mt-1 font-display text-2xl text-[#F2EFE9]">{profile.sales_count}</p>
+          <div className="rounded-lg border-2 border-ink bg-paper p-4 shadow-card">
+            <p className="text-[11px] font-bold text-ink-soft">Ventas completadas</p>
+            <p className="mt-1 text-2xl font-extrabold text-forest-deep">{profile.sales_count}</p>
           </div>
-          <div className="rounded-lg border border-[#2A2E36] bg-[#1B1E24] p-4">
-            <p className="text-[11px] text-[#9A9DA6]">Compras completadas</p>
-            <p className="mt-1 font-display text-2xl text-[#F2EFE9]">{profile.purchases_count}</p>
+          <div className="rounded-lg border-2 border-ink bg-paper p-4 shadow-card">
+            <p className="text-[11px] font-bold text-ink-soft">Compras completadas</p>
+            <p className="mt-1 text-2xl font-extrabold text-forest-deep">{profile.purchases_count}</p>
           </div>
         </div>
       </div>
@@ -759,7 +759,7 @@ export default function App() {
   }, [view.name, view.auctionId]);
 
   if (isSupabaseConfigured && auth.loading) {
-    return <div className="min-h-screen bg-[#14161A]" />;
+    return <div className="min-h-screen bg-cream" />;
   }
 
   if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
@@ -895,43 +895,42 @@ export default function App() {
     : tickets;
 
   return (
-    <div className="min-h-screen bg-[#14161A] font-sans text-[#F2EFE9]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-cream font-sans text-ink" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
       <style>{`
-        .font-display { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; font-weight: 600; letter-spacing: -0.01em; }
         input:focus { outline: none; }
       `}</style>
 
       {!isSupabaseConfigured && (
-        <div className="flex items-center justify-between bg-[#B5462F]/15 px-5 py-2 text-[11px] text-[#E38166]">
+        <div className="flex items-center justify-between bg-[#B9432C]/15 px-5 py-2 text-[11px] font-bold text-[#B9432C]">
           <span>Modo demo — sin backend conectado (datos de ejemplo, no se guarda nada)</span>
         </div>
       )}
 
       {isSupabaseConfigured && auth.profile && view.name === "list" && (
-        <div className="flex items-center justify-between px-5 pt-4 text-[12px] text-[#9A9DA6]">
-          <button onClick={openProfile} className="hover:text-[#F2EFE9]">
-            Hola, <span className="text-[#F2EFE9]">{auth.profile.alias}</span>
+        <div className="flex items-center justify-between bg-forest-deep px-5 py-2.5 text-[12px] text-cream/80">
+          <button onClick={openProfile} className="hover:text-paper">
+            Hola, <span className="font-bold text-paper">{auth.profile.alias}</span>
           </button>
-          <button onClick={auth.signOut} className="flex items-center gap-1 hover:text-[#F2EFE9]">
+          <button onClick={auth.signOut} className="flex items-center gap-1 hover:text-paper">
             <LogOut size={13} /> Salir
           </button>
         </div>
       )}
 
       {displayTickets.length > 0 && view.name === "list" && (
-        <div className="px-5 pt-4">
+        <div className="bg-cream px-5 pt-4">
           <button
             onClick={() => setView({ name: "ticket", ticket: displayTickets[0] })}
-            className="flex w-full items-center justify-between rounded-lg border border-[#C9A34E]/30 bg-[#C9A34E]/10 px-4 py-3 text-left"
+            className="flex w-full items-center justify-between rounded-lg border-2 border-gold/40 bg-gold/10 px-4 py-3 text-left"
           >
-            <span className="text-[12px] text-[#D9BB74]">Tenés {displayTickets.filter(t=>t.status==="pendiente").length} carta(s) pendiente(s) de retiro</span>
-            <span className="text-[12px] font-medium text-[#D9BB74]">Ver →</span>
+            <span className="text-[12px] font-bold text-gold-dark">Tenés {displayTickets.filter(t=>t.status==="pendiente").length} carta(s) pendiente(s) de retiro</span>
+            <span className="text-[12px] font-bold text-gold-dark">Ver →</span>
           </button>
         </div>
       )}
 
       {view.name === "list" && isSupabaseConfigured && auctionsLoading && (
-        <p className="px-5 pt-10 text-center text-[12px] text-[#6B6F79]">Cargando subastas...</p>
+        <p className="bg-cream px-5 pt-10 text-center text-[12px] text-ink-soft">Cargando subastas...</p>
       )}
 
       {view.name === "list" && !(isSupabaseConfigured && auctionsLoading) && (
