@@ -233,6 +233,44 @@ export async function createAuction({
   return data;
 }
 
+export async function updateOwnAuction(auctionId, {
+  cardName,
+  basePrice,
+  setName,
+  cardNumber,
+  year,
+  condition,
+  isGraded,
+  gradingCompany,
+  grade,
+  rarity,
+  isFeatured,
+  referencePrice,
+}) {
+  const { data, error } = await supabase.rpc("update_own_auction", {
+    p_auction_id: auctionId,
+    p_card_name: cardName,
+    p_base_price: basePrice,
+    p_set_name: setName || null,
+    p_card_number: cardNumber || null,
+    p_year: year || null,
+    p_condition: condition,
+    p_is_graded: isGraded,
+    p_grading_company: isGraded ? gradingCompany : null,
+    p_grade: isGraded ? grade : null,
+    p_rarity: rarity || null,
+    p_is_featured: !!isFeatured,
+    p_reference_price: referencePrice || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function cancelOwnAuction(auctionId) {
+  const { error } = await supabase.rpc("cancel_own_auction", { p_auction_id: auctionId });
+  if (error) throw error;
+}
+
 export async function listMyTickets() {
   // RLS ya restringe esto a tickets donde soy el ganador o el vendedor.
   const { data, error } = await supabase

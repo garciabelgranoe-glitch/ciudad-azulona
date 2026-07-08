@@ -29,6 +29,8 @@ import {
   createReport,
   listAllReports,
   updateReportStatus,
+  updateOwnAuction,
+  cancelOwnAuction,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -701,6 +703,7 @@ function AuctionDetail({
   isMine,
   bidHistory = [],
   onOpenUserProfile,
+  onEdit,
   onReport,
   reportBusy,
   reportError,
@@ -874,9 +877,17 @@ function AuctionDetail({
         </div>
 
         {isMine ? (
-          <p className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
-            Esta es tu publicación — no podés pujar en tu propia carta.
-          </p>
+          <div className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
+            <p>Esta es tu publicación — no podés pujar en tu propia carta.</p>
+            {auction.bids === 0 && onEdit && (
+              <button
+                onClick={onEdit}
+                className="mt-2 font-bold text-forest-deep underline underline-offset-2"
+              >
+                Editar o cancelar esta subasta
+              </button>
+            )}
+          </div>
         ) : !placed ? (
           <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
             <p className="text-[12px] text-ink-soft">Tu puja (mínimo {formatARS(minBid)})</p>
@@ -1439,6 +1450,197 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 }
 
 // ---------------------------------------------
+// Vista: Editar subasta propia (sin pujas todavía)
+// ---------------------------------------------
+function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, cancelBusy = false, error = "" }) {
+  const [name, setName] = useState(auction.card);
+  const [price, setPrice] = useState(String(auction.basePrice));
+  const [referencePrice, setReferencePrice] = useState(auction.referencePrice ? String(auction.referencePrice) : "");
+  const [setName_, setSetName] = useState(auction.setName ?? "");
+  const [cardNumber, setCardNumber] = useState(auction.cardNumber ?? "");
+  const [year, setYear] = useState(auction.year ? String(auction.year) : "");
+  const [condition, setCondition] = useState(auction.condition ?? "near_mint");
+  const [isGraded, setIsGraded] = useState(!!auction.isGraded);
+  const [gradingCompany, setGradingCompany] = useState(auction.gradingCompany ?? "psa");
+  const [grade, setGrade] = useState(auction.grade ? String(auction.grade) : "");
+  const [rarity, setRarity] = useState(auction.rarity ?? "");
+  const [isFeatured, setIsFeatured] = useState(!!auction.isFeatured);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[12px] font-bold text-ink-soft";
+  const canSave = name && price;
+
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">EDITAR PUBLICACION</p>
+      </header>
+
+      <div className="space-y-4 px-5 pt-6">
+        <p className="rounded-lg border-2 border-line bg-paper p-3 text-[12px] leading-relaxed text-ink-soft">
+          Podés corregir estos datos porque todavía no tiene pujas. Las fotos no se pueden cambiar acá.
+        </p>
+
+        <div>
+          <label className={labelClass}>Nombre de la carta</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Colección / set</label>
+            <input value={setName_} onChange={(e) => setSetName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Número</label>
+            <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelClass}>Año</label>
+            <input type="number" value={year} onChange={(e) => setYear(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Condición</label>
+            <select value={condition} onChange={(e) => setCondition(e.target.value)} className={inputClass}>
+              {CONDITION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className={labelClass}>Rareza</label>
+          <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={inputClass}>
+            <option value="">Sin especificar</option>
+            {RARITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
+          <input
+            type="checkbox"
+            checked={isFeatured}
+            onChange={(e) => setIsFeatured(e.target.checked)}
+            className="h-4 w-4 accent-plum"
+          />
+          Destacar esta subasta <span className="text-plum">●</span>
+        </label>
+
+        <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
+          <input
+            type="checkbox"
+            checked={isGraded}
+            onChange={(e) => setIsGraded(e.target.checked)}
+            className="h-4 w-4 accent-gold"
+          />
+          ¿Está gradeada?
+        </label>
+
+        {isGraded && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Empresa</label>
+              <select value={gradingCompany} onChange={(e) => setGradingCompany(e.target.value)} className={inputClass}>
+                {GRADING_COMPANY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Grado</label>
+              <input type="number" step="0.5" value={grade} onChange={(e) => setGrade(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className={labelClass}>Precio base</label>
+          <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} />
+        </div>
+
+        <div>
+          <label className={labelClass}>Precio de referencia (opcional)</label>
+          <input
+            type="number"
+            value={referencePrice}
+            onChange={(e) => setReferencePrice(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
+
+        <button
+          disabled={!canSave || busy}
+          onClick={() =>
+            onSave({
+              name,
+              price: Number(price),
+              setName: setName_,
+              cardNumber,
+              year: year ? Number(year) : null,
+              condition,
+              isGraded,
+              gradingCompany,
+              grade: grade ? Number(grade) : null,
+              rarity,
+              isFeatured,
+              referencePrice: referencePrice ? Number(referencePrice) : null,
+            })
+          }
+          className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+        >
+          {busy ? "Guardando..." : "Guardar cambios"}
+        </button>
+
+        <div className="border-t-2 border-line pt-4">
+          {confirmCancel ? (
+            <div className="rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] p-3">
+              <p className="text-[12px] font-bold text-[#B9432C]">
+                ¿Seguro que querés cancelar esta subasta? No se puede deshacer.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={onCancelAuction}
+                  disabled={cancelBusy}
+                  className="rounded-lg bg-[#B9432C] px-3 py-2 text-[12px] font-bold text-paper disabled:opacity-40"
+                >
+                  {cancelBusy ? "Cancelando..." : "Sí, cancelar"}
+                </button>
+                <button
+                  onClick={() => setConfirmCancel(false)}
+                  className="rounded-lg border-2 border-line px-3 py-2 text-[12px] font-bold text-ink-soft"
+                >
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              className="text-[12px] font-bold text-[#B9432C] underline underline-offset-2"
+            >
+              Cancelar esta subasta
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Notificaciones flotantes (ej: "te superaron")
 // ---------------------------------------------
 function ToastStack({ toasts }) {
@@ -1707,6 +1909,9 @@ export default function App() {
   const [reportError, setReportError] = useState("");
   const [allReports, setAllReports] = useState([]);
   const [resolveReportBusyId, setResolveReportBusyId] = useState(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
   const [, setClockTick] = useState(0);
   const [toasts, setToasts] = useState([]);
   const myBidAmountsRef = useRef({});
@@ -1956,8 +2161,50 @@ export default function App() {
     }
   }
 
+  async function handleEditAuction(auctionId, fields) {
+    setEditBusy(true);
+    setEditError("");
+    try {
+      const row = await updateOwnAuction(auctionId, {
+        cardName: fields.name,
+        basePrice: fields.price,
+        setName: fields.setName,
+        cardNumber: fields.cardNumber,
+        year: fields.year,
+        condition: fields.condition,
+        isGraded: fields.isGraded,
+        gradingCompany: fields.gradingCompany,
+        grade: fields.grade,
+        rarity: fields.rarity,
+        isFeatured: fields.isFeatured,
+        referencePrice: fields.referencePrice,
+      });
+      setRealRows((rows) => rows.map((r) => (r.id === auctionId ? row : r)));
+      setView({ name: "detail", auctionId, back: { name: "list" } });
+    } catch (e) {
+      setEditError(e.message);
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function handleCancelAuction(auctionId) {
+    setCancelAuctionBusy(true);
+    try {
+      await cancelOwnAuction(auctionId);
+      setRealRows((rows) => rows.filter((r) => r.id !== auctionId));
+      setView({ name: "list" });
+    } catch (e) {
+      setEditError(e.message);
+    } finally {
+      setCancelAuctionBusy(false);
+    }
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
+  const activeEditAuction =
+    view.name === "editAuction" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const displayTickets = isSupabaseConfigured
     ? realTickets.map((t) => ticketToVM(t, auth.session?.user.id))
     : tickets;
@@ -2012,9 +2259,24 @@ export default function App() {
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
           bidHistory={bidHistory}
           onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
+          onEdit={
+            isSupabaseConfigured ? () => setView({ name: "editAuction", auctionId: activeAuction.id, back: view }) : undefined
+          }
           onReport={isSupabaseConfigured ? handleReport : undefined}
           reportBusy={reportBusy}
           reportError={reportError}
+        />
+      )}
+
+      {view.name === "editAuction" && activeEditAuction && (
+        <EditAuction
+          auction={activeEditAuction}
+          busy={editBusy}
+          cancelBusy={cancelAuctionBusy}
+          error={editError}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onSave={(fields) => handleEditAuction(activeEditAuction.id, fields)}
+          onCancelAuction={() => handleCancelAuction(activeEditAuction.id)}
         />
       )}
 
