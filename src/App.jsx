@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
 import Landing from "./components/Landing";
 import GenderIcon from "./components/GenderIcon";
+import BadgeIcon from "./components/BadgeIcon";
 import PokeballIcon from "./components/PokeballIcon";
 import {
   listLiveAuctions,
@@ -1240,13 +1241,19 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], onEditPickup 
         <div className="mt-6">
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Medallas</h3>
           {badges.length > 0 ? (
-            <div className="mt-3 grid grid-cols-4 gap-3 sm:grid-cols-6">
+            <div className="mt-3 flex flex-col gap-2">
               {badges.map((b) => (
-                <div key={b.code} className="flex flex-col items-center gap-1 text-center" title={b.description}>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-gold bg-gold/15 text-2xl shadow-card">
-                    {b.icon}
+                <div
+                  key={b.code}
+                  className="flex items-center gap-3 rounded-lg border-2 border-line bg-paper p-2.5 shadow-card"
+                >
+                  <div className="h-11 w-11 shrink-0">
+                    <BadgeIcon icon={b.icon} />
                   </div>
-                  <p className="text-[9px] font-bold leading-tight text-ink-soft">{b.name}</p>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-extrabold text-ink">{b.name}</p>
+                    <p className="text-[11px] leading-tight text-ink-soft">{b.description}</p>
+                  </div>
                 </div>
               ))}
             </div>
