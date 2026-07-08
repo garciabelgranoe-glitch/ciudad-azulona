@@ -3,6 +3,7 @@ import { supabase } from "./supabaseClient";
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
+  reference_price,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count )
 `;
 
@@ -117,6 +118,7 @@ export function auctionToVM(row) {
     grade: row.grade,
     rarity: row.rarity,
     isFeatured: row.is_featured,
+    referencePrice: row.reference_price != null ? Number(row.reference_price) : null,
   };
 }
 
@@ -202,6 +204,7 @@ export async function createAuction({
   grade,
   rarity,
   isFeatured,
+  referencePrice,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -222,6 +225,7 @@ export async function createAuction({
       grade: isGraded ? grade : null,
       rarity: rarity || null,
       is_featured: !!isFeatured,
+      reference_price: referencePrice || null,
     })
     .select(AUCTION_SELECT)
     .single();

@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import Landing from "./components/Landing";
 import GenderIcon from "./components/GenderIcon";
 import BadgeIcon from "./components/BadgeIcon";
+import PriceChart from "./components/PriceChart";
 import PokeballIcon from "./components/PokeballIcon";
 import {
   listLiveAuctions,
@@ -708,6 +709,23 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
 
         {bidHistory.length > 0 && (
           <div className="mt-6">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Evolución del precio</h4>
+              {auction.referencePrice != null && (
+                <span className="text-[11px] font-bold text-plum">
+                  Referencia: {formatARS(auction.referencePrice)}
+                </span>
+              )}
+            </div>
+            <PriceChart
+              points={[auction.basePrice, ...[...bidHistory].reverse().map((b) => Number(b.amount))]}
+              referencePrice={auction.referencePrice}
+            />
+          </div>
+        )}
+
+        {bidHistory.length > 0 && (
+          <div className="mt-6">
             <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Historial de pujas</h4>
             <ul className="mt-2 flex flex-col gap-1.5">
               {bidHistory.map((b) => (
@@ -875,6 +893,7 @@ const DURATION_OPTIONS = [
 function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, error = "" }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [referencePrice, setReferencePrice] = useState("");
   const [duration, setDuration] = useState(60);
   const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [setName_, setSetName] = useState("");
@@ -1095,6 +1114,23 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
             className={inputClass}
           />
         </div>
+
+        {showDuration && (
+          <div>
+            <label className={labelClass}>Precio de referencia (opcional)</label>
+            <input
+              type="number"
+              value={referencePrice}
+              onChange={(e) => setReferencePrice(e.target.value)}
+              placeholder="Ej: lo que vale en PriceCharting u otra fuente"
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Se usa para el gráfico de precio — mostramos qué tan cerca está la puja de este valor.
+            </p>
+          </div>
+        )}
+
         {showDuration && (
           <div>
             <label className={labelClass}>Dura</label>
@@ -1133,6 +1169,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               grade: grade ? Number(grade) : null,
               rarity,
               isFeatured,
+              referencePrice: referencePrice ? Number(referencePrice) : null,
             })
           }
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
@@ -1543,6 +1580,7 @@ export default function App() {
     grade,
     rarity,
     isFeatured,
+    referencePrice,
   }) {
     setCreateBusy(true);
     setCreateError("");
@@ -1563,6 +1601,7 @@ export default function App() {
         grade,
         rarity,
         isFeatured,
+        referencePrice,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
