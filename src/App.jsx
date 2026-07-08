@@ -42,6 +42,10 @@ import {
   setUserSuspended,
   setUserPremium,
   listAllAuctionsForAdmin,
+  listRecommendedSellers,
+  createRecommendedSeller,
+  setRecommendedSellerActive,
+  deleteRecommendedSeller,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -218,7 +222,17 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
-function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenMyTickets, onOpenAdmin }) {
+function AccountMenu({
+  alias,
+  gender,
+  isAdmin,
+  onOpenProfile,
+  onOpenMyBids,
+  onOpenMyPublications,
+  onOpenMyTickets,
+  onOpenRecommended,
+  onOpenAdmin,
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -269,6 +283,15 @@ function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOp
             >
               Mis tickets
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenRecommended();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Vendedores recomendados
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -307,6 +330,7 @@ function AuctionList({
   onSearchChange,
   pendingCount = 0,
   onOpenMyTickets,
+  onOpenRecommended,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -360,6 +384,7 @@ function AuctionList({
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
                   onOpenMyTickets={onOpenMyTickets}
+                  onOpenRecommended={onOpenRecommended}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -836,10 +861,97 @@ function AuctionsTabContent({ auctions }) {
   );
 }
 
+function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createError, onToggleActive, onDelete, busyId }) {
+  const [businessName, setBusinessName] = useState("");
+  const [description, setDescription] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[11px] font-bold text-ink-soft";
+
+  async function handleCreate() {
+    const ok = await onCreate({ businessName, description, contactInfo });
+    if (ok) {
+      setBusinessName("");
+      setDescription("");
+      setContactInfo("");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border-2 border-line bg-paper p-3">
+        <p className="text-[12px] font-extrabold text-ink">Agregar comercio recomendado</p>
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className={labelClass}>Nombre del comercio</label>
+            <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Descripción</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ej: Packs y colecciones originales, envíos a todo el país"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Contacto (WhatsApp, Instagram, etc.)</label>
+            <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} className={inputClass} />
+          </div>
+          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <button
+            onClick={handleCreate}
+            disabled={!businessName || createBusy}
+            className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+          >
+            {createBusy ? "Agregando..." : "Agregar"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {sellers.map((s) => (
+          <div key={s.id} className={`rounded-lg border-2 p-3 ${s.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] font-extrabold text-ink">{s.business_name}</p>
+                {s.description && <p className="text-[11px] text-ink-soft">{s.description}</p>}
+                {s.contact_info && <p className="text-[11px] font-bold text-forest-deep">{s.contact_info}</p>}
+              </div>
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <button
+                  onClick={() => onToggleActive(s.id, !s.is_active)}
+                  disabled={busyId === s.id}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:opacity-40 ${
+                    s.is_active ? "border-2 border-line text-ink-soft" : "bg-forest-mid text-paper"
+                  }`}
+                >
+                  {s.is_active ? "Ocultar" : "Activar"}
+                </button>
+                <button
+                  onClick={() => onDelete(s.id)}
+                  disabled={busyId === s.id}
+                  className="rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
+                >
+                  Borrar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {sellers.length === 0 && <p className="text-[12px] text-ink-soft">Todavía no cargaste ningún comercio.</p>}
+      </div>
+    </div>
+  );
+}
+
 function AdminPanel({
   profiles,
   auctions,
   reports,
+  recommendedSellers,
   onBack,
   onSuspend,
   suspendBusyId,
@@ -847,12 +959,19 @@ function AdminPanel({
   premiumBusyId,
   onResolveReport,
   resolveBusyId,
+  onCreateRecommendedSeller,
+  createRecommendedBusy,
+  createRecommendedError,
+  onToggleRecommendedActive,
+  onDeleteRecommendedSeller,
+  recommendedBusyId,
 }) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
     { value: "usuarios", label: "Usuarios" },
     { value: "subastas", label: "Subastas" },
     { value: "denuncias", label: "Denuncias" },
+    { value: "recomendados", label: "Recomendados" },
   ];
 
   return (
@@ -891,6 +1010,56 @@ function AdminPanel({
         {tab === "subastas" && <AuctionsTabContent auctions={auctions} />}
         {tab === "denuncias" && (
           <ReportsTabContent reports={reports} onResolve={onResolveReport} busyId={resolveBusyId} />
+        )}
+        {tab === "recomendados" && (
+          <RecommendedSellersTabContent
+            sellers={recommendedSellers}
+            onCreate={onCreateRecommendedSeller}
+            createBusy={createRecommendedBusy}
+            createError={createRecommendedError}
+            onToggleActive={onToggleRecommendedActive}
+            onDelete={onDeleteRecommendedSeller}
+            busyId={recommendedBusyId}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Vendedores recomendados (pública)
+// ---------------------------------------------
+function RecommendedSellersView({ sellers, onBack }) {
+  const active = sellers.filter((s) => s.is_active);
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">VENDEDORES RECOMENDADOS</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Comercios de confianza para comprar packs y colecciones originales, fuera de las subastas de la comunidad.
+        </p>
+
+        {active.length === 0 ? (
+          <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay comercios recomendados cargados.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2.5">
+            {active.map((s) => (
+              <div key={s.id} className="rounded-lg border-2 border-gold/50 bg-gold/10 p-3.5">
+                <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
+                  <Trophy size={13} className="text-gold-dark" /> {s.business_name}
+                </p>
+                {s.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{s.description}</p>}
+                {s.contact_info && <p className="mt-1.5 text-[12px] font-bold text-forest-deep">{s.contact_info}</p>}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -2614,6 +2783,10 @@ export default function App() {
   const [adminAuctions, setAdminAuctions] = useState([]);
   const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [premiumBusyId, setPremiumBusyId] = useState(null);
+  const [recommendedSellers, setRecommendedSellers] = useState([]);
+  const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
+  const [createRecommendedError, setCreateRecommendedError] = useState("");
+  const [recommendedBusyId, setRecommendedBusyId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
@@ -2687,6 +2860,9 @@ export default function App() {
       listAllReports().then((rows) => !cancelled && setAllReports(rows));
       listAllProfilesForAdmin().then((rows) => !cancelled && setAdminProfiles(rows));
       listAllAuctionsForAdmin().then((rows) => !cancelled && setAdminAuctions(rows.map(auctionToVM)));
+      listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
+    } else if (view.name === "recommended") {
+      listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     }
     return () => {
       cancelled = true;
@@ -2923,6 +3099,41 @@ export default function App() {
     }
   }
 
+  async function handleCreateRecommendedSeller(fields) {
+    setCreateRecommendedBusy(true);
+    setCreateRecommendedError("");
+    try {
+      const row = await createRecommendedSeller(fields);
+      setRecommendedSellers((rows) => [row, ...rows]);
+      return true;
+    } catch (e) {
+      setCreateRecommendedError(e.message);
+      return false;
+    } finally {
+      setCreateRecommendedBusy(false);
+    }
+  }
+
+  async function handleToggleRecommendedActive(id, isActive) {
+    setRecommendedBusyId(id);
+    try {
+      await setRecommendedSellerActive(id, isActive);
+      setRecommendedSellers((rows) => rows.map((s) => (s.id === id ? { ...s, is_active: isActive } : s)));
+    } finally {
+      setRecommendedBusyId(null);
+    }
+  }
+
+  async function handleDeleteRecommendedSeller(id) {
+    setRecommendedBusyId(id);
+    try {
+      await deleteRecommendedSeller(id);
+      setRecommendedSellers((rows) => rows.filter((s) => s.id !== id));
+    } finally {
+      setRecommendedBusyId(null);
+    }
+  }
+
   async function handleEditAuction(auctionId, fields) {
     setEditBusy(true);
     setEditError("");
@@ -3020,6 +3231,7 @@ export default function App() {
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
           onOpenMyTickets={() => setView({ name: "myTickets" })}
+          onOpenRecommended={() => setView({ name: "recommended", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -3148,6 +3360,7 @@ export default function App() {
           profiles={adminProfiles}
           auctions={adminAuctions}
           reports={allReports}
+          recommendedSellers={recommendedSellers}
           resolveBusyId={resolveReportBusyId}
           suspendBusyId={suspendBusyId}
           premiumBusyId={premiumBusyId}
@@ -3155,7 +3368,17 @@ export default function App() {
           onResolveReport={handleResolveReport}
           onSuspend={handleSuspendUser}
           onSetPremium={handleSetPremium}
+          onCreateRecommendedSeller={handleCreateRecommendedSeller}
+          createRecommendedBusy={createRecommendedBusy}
+          createRecommendedError={createRecommendedError}
+          onToggleRecommendedActive={handleToggleRecommendedActive}
+          onDeleteRecommendedSeller={handleDeleteRecommendedSeller}
+          recommendedBusyId={recommendedBusyId}
         />
+      )}
+
+      {view.name === "recommended" && (
+        <RecommendedSellersView sellers={recommendedSellers} onBack={() => setView(view.back ?? { name: "list" })} />
       )}
 
       {view.name === "notifications" && (

@@ -475,6 +475,42 @@ export async function setUserPremium(userId, premium) {
   if (error) throw error;
 }
 
+export async function listRecommendedSellers() {
+  // RLS: admins ven todos (activos e inactivos), el resto solo los activos.
+  const { data, error } = await supabase
+    .from("recommended_sellers")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createRecommendedSeller({ businessName, description, contactInfo, photoUrl }) {
+  const { data, error } = await supabase
+    .from("recommended_sellers")
+    .insert({
+      business_name: businessName,
+      description: description || null,
+      contact_info: contactInfo || null,
+      photo_url: photoUrl || null,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setRecommendedSellerActive(id, isActive) {
+  const { error } = await supabase.from("recommended_sellers").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteRecommendedSeller(id) {
+  const { error } = await supabase.from("recommended_sellers").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listAllAuctionsForAdmin() {
   const { data, error } = await supabase
     .from("auctions")
