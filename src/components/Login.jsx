@@ -3,6 +3,7 @@ import { Smartphone } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import PokeballIcon from "./PokeballIcon";
+import GenderIcon from "./GenderIcon";
 
 export default function Login() {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
@@ -10,6 +11,7 @@ export default function Login() {
   const [phone, setPhone] = useState("+549");
   const [token, setToken] = useState("");
   const [alias, setAlias] = useState("");
+  const [gender, setGender] = useState("masculino");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +44,7 @@ export default function Login() {
     setError("");
     setBusy(true);
     try {
-      await createProfile(alias);
+      await createProfile(alias, gender);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -59,6 +61,29 @@ export default function Login() {
           placeholder="Ej: Fede_Cards"
           className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
         />
+
+        <p className="mb-2 mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+          Elegí tu ícono de entrenador
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { value: "masculino", label: "Entrenador" },
+            { value: "femenino", label: "Entrenadora" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setGender(opt.value)}
+              className={`flex flex-col items-center gap-2 rounded-lg border-2 py-3 transition ${
+                gender === opt.value ? "border-forest-mid bg-forest-mid/10" : "border-line bg-white"
+              }`}
+            >
+              <GenderIcon gender={opt.value} size={30} />
+              <span className="text-[11px] font-bold text-ink">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+
         {error && <p className="mt-2 text-[12px] text-[#B9432C]">{error}</p>}
         <button
           onClick={handleCreateProfile}

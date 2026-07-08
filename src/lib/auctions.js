@@ -1,9 +1,9 @@
 import { supabase } from "./supabaseClient";
 
 const AUCTION_SELECT = `
-  id, card_name, photo_url, base_price, current_bid, bid_count, status, closes_at, winner_id,
-  set_name, card_number, year, condition, is_graded, grading_company, grade,
-  seller:profiles!auctions_seller_id_fkey ( id, alias, rating_avg, sales_count )
+  id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
+  set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
+  seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count )
 `;
 
 export const CONDITION_OPTIONS = [
@@ -41,6 +41,18 @@ export const GRADING_COMPANY_OPTIONS = [
   { value: "cgc", label: "CGC" },
   { value: "otra", label: "Otra" },
 ];
+
+export const RARITY_OPTIONS = [
+  { value: "comun", label: "Común", symbol: "●" },
+  { value: "poco_comun", label: "Poco común", symbol: "◆" },
+  { value: "rara", label: "Rara", symbol: "★" },
+  { value: "rara_doble", label: "Rara doble", symbol: "★★" },
+];
+
+export const RARITY_SYMBOL = Object.fromEntries(RARITY_OPTIONS.map((r) => [r.value, r.symbol]));
+export const RARITY_LABEL = Object.fromEntries(RARITY_OPTIONS.map((r) => [r.value, r.label]));
+
+export const MAX_PHOTOS = 5;
 
 export async function listLiveAuctions() {
   const { data, error } = await supabase
@@ -86,7 +98,9 @@ export function auctionToVM(row) {
     sellerRating: Number(row.seller?.rating_avg ?? 5),
     sellerSales: row.seller?.sales_count ?? 0,
     sellerId: row.seller?.id,
-    photoUrl: row.photo_url,
+    sellerGender: row.seller?.gender ?? null,
+    photoUrls: row.photo_urls ?? [],
+    photoUrl: row.photo_urls?.[0] ?? null,
     basePrice: Number(row.base_price),
     currentBid: Number(row.current_bid),
     bids: row.bid_count,
@@ -100,6 +114,8 @@ export function auctionToVM(row) {
     isGraded: row.is_graded,
     gradingCompany: row.grading_company,
     grade: row.grade,
+    rarity: row.rarity,
+    isFeatured: row.is_featured,
   };
 }
 
@@ -145,7 +161,7 @@ export async function listMyBidAuctions(userId) {
 export async function listRecentBids(auctionId, limit = 10) {
   const { data, error } = await supabase
     .from("bids")
-    .select("id, amount, created_at, bidder:profiles!bids_bidder_id_fkey ( id, alias )")
+    .select("id, amount, created_at, bidder:profiles!bids_bidder_id_fkey ( id, alias, gender )")
     .eq("auction_id", auctionId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -162,12 +178,20 @@ export async function uploadAuctionPhoto(file) {
   return data.publicUrl;
 }
 
+export async function uploadAuctionPhotos(files) {
+  const urls = [];
+  for (const file of files) {
+    urls.push(await uploadAuctionPhoto(file));
+  }
+  return urls;
+}
+
 export async function createAuction({
   sellerId,
   cardName,
   basePrice,
   durationMinutes,
-  photoUrl,
+  photoUrls,
   setName,
   cardNumber,
   year,
@@ -175,6 +199,8 @@ export async function createAuction({
   isGraded,
   gradingCompany,
   grade,
+  rarity,
+  isFeatured,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -185,7 +211,7 @@ export async function createAuction({
       base_price: basePrice,
       current_bid: basePrice,
       closes_at: closesAt,
-      photo_url: photoUrl,
+      photo_urls: photoUrls ?? [],
       set_name: setName || null,
       card_number: cardNumber || null,
       year: year || null,
@@ -193,6 +219,8 @@ export async function createAuction({
       is_graded: isGraded,
       grading_company: isGraded ? gradingCompany : null,
       grade: isGraded ? grade : null,
+      rarity: rarity || null,
+      is_featured: !!isFeatured,
     })
     .select(AUCTION_SELECT)
     .single();
@@ -207,7 +235,7 @@ export async function listMyTickets() {
     .select(
       `id, code, status, redeemed_at, created_at,
        auction:auctions!tickets_auction_id_fkey ( card_name, current_bid, winner_id, seller_id,
-         seller:profiles!auctions_seller_id_fkey ( alias ) )`
+         seller:profiles!auctions_seller_id_fkey ( alias, gender, has_stand, stand_number, pickup_day, pickup_time, contact_phone ) )`
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -220,6 +248,12 @@ export function ticketToVM(row, currentUserId) {
     card: row.auction.card_name,
     seller: row.auction.seller?.alias ?? "—",
     sellerId: row.auction.seller_id,
+    sellerGender: row.auction.seller?.gender ?? null,
+    sellerHasStand: row.auction.seller?.has_stand ?? false,
+    sellerStandNumber: row.auction.seller?.stand_number ?? null,
+    sellerPickupDay: row.auction.seller?.pickup_day ?? null,
+    sellerPickupTime: row.auction.seller?.pickup_time ?? null,
+    sellerContactPhone: row.auction.seller?.contact_phone ?? null,
     price: Number(row.auction.current_bid),
     code: row.code,
     status: row.status === "redeemed" ? "entregado" : "pendiente",
@@ -251,6 +285,23 @@ export async function listMyGivenRatingTicketIds() {
 
 export async function getProfile(userId) {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateProfile(userId, { hasStand, standNumber, pickupDay, pickupTime, contactPhone }) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      has_stand: hasStand,
+      stand_number: hasStand ? standNumber || null : null,
+      pickup_day: !hasStand ? pickupDay || null : null,
+      pickup_time: !hasStand ? pickupTime || null : null,
+      contact_phone: !hasStand ? contactPhone || null : null,
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
   if (error) throw error;
   return data;
 }

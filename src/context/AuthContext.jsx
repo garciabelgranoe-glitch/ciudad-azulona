@@ -47,10 +47,10 @@ export function AuthProvider({ children }) {
     setSession(data.session);
   }
 
-  async function createProfile(alias) {
+  async function createProfile(alias, gender) {
     const { data, error } = await supabase
       .from("profiles")
-      .insert({ id: session.user.id, alias })
+      .insert({ id: session.user.id, alias, gender: gender || null })
       .select()
       .single();
     if (error) throw error;

@@ -4,12 +4,13 @@ import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
 import Landing from "./components/Landing";
+import GenderIcon from "./components/GenderIcon";
 import PokeballIcon from "./components/PokeballIcon";
 import {
   listLiveAuctions,
   subscribeToLiveAuctions,
   placeBid,
-  uploadAuctionPhoto,
+  uploadAuctionPhotos,
   createAuction,
   auctionToVM,
   listMyTickets,
@@ -26,6 +27,10 @@ import {
   CONDITION_SHORT,
   CONDITION_COLORS,
   GRADING_COMPANY_OPTIONS,
+  RARITY_OPTIONS,
+  RARITY_SYMBOL,
+  RARITY_LABEL,
+  MAX_PHOTOS,
 } from "./lib/auctions";
 
 // ---------------------------------------------
@@ -118,9 +123,10 @@ function Pill({ children, tone = "default" }) {
   );
 }
 
-function SellerBadge({ name, rating, sales, onClick }) {
+function SellerBadge({ name, rating, sales, onClick, gender }) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-soft">
+      <GenderIcon gender={gender} size={14} />
       {onClick ? (
         <button
           onClick={(e) => {
@@ -184,14 +190,15 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
-function AccountMenu({ alias, onOpenProfile, onOpenMyBids, onOpenMyPublications }) {
+function AccountMenu({ alias, gender, onOpenProfile, onOpenMyBids, onOpenMyPublications }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 font-bold text-cream/80 hover:text-paper"
+        className="flex items-center gap-1.5 font-bold text-cream/80 hover:text-paper"
       >
+        <GenderIcon gender={gender} size={14} />
         {alias} <ChevronDown size={12} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -250,9 +257,11 @@ function AuctionList({
   pendingCount = 0,
   onOpenPendingTicket,
 }) {
-  const filtered = searchTerm
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const bySearch = searchTerm
     ? auctions.filter((a) => a.card.toLowerCase().includes(searchTerm.toLowerCase()))
     : auctions;
+  const filtered = featuredOnly ? bySearch.filter((a) => a.isFeatured) : bySearch;
 
   return (
     <div className="min-h-screen bg-cream pb-24">
@@ -267,6 +276,7 @@ function AuctionList({
               <div className="flex items-center gap-3 text-[12px] text-cream/80">
                 <AccountMenu
                   alias={profile.alias}
+                  gender={profile.gender}
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
@@ -278,14 +288,24 @@ function AuctionList({
             </div>
           )}
 
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-y-2">
             <div>
               <p className="font-pixel text-[9px] tracking-wide text-gold">SUBASTAS EN VIVO</p>
               <h1 className="mt-2 text-2xl font-extrabold text-paper">Mesa del evento</h1>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
-              <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
+                <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
+              </span>
+              <button
+                onClick={() => setFeaturedOnly((f) => !f)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
+                  featuredOnly ? "border-plum bg-plum/30 text-cream" : "border-forest-light/40 bg-white/10 text-cream/80"
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-plum" /> Destacadas
+              </button>
+            </div>
           </div>
 
           {onSearchChange && (
@@ -337,10 +357,17 @@ function AuctionList({
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") onOpen(a);
             }}
-            className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+            className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
+              a.isFeatured ? "border-plum" : "border-ink"
+            }`}
           >
             <div className="relative">
               <CardArt label={a.card} photoUrl={a.photoUrl} />
+              {a.isFeatured && (
+                <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
+                  <span className="h-1.5 w-1.5 rounded-full bg-gold" /> DESTACADA
+                </div>
+              )}
               {(a.condition || a.isGraded) && (
                 <div className="absolute right-2 top-2 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
                   <ConditionBadge
@@ -349,6 +376,14 @@ function AuctionList({
                     gradingCompany={a.gradingCompany}
                     grade={a.grade}
                   />
+                </div>
+              )}
+              {a.rarity && (
+                <div
+                  className="absolute bottom-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-paper/90 px-1 text-[11px] font-bold text-ink backdrop-blur-sm"
+                  title={RARITY_LABEL[a.rarity]}
+                >
+                  {RARITY_SYMBOL[a.rarity]}
                 </div>
               )}
             </div>
@@ -363,6 +398,7 @@ function AuctionList({
                 name={a.seller}
                 rating={a.sellerRating}
                 sales={a.sellerSales}
+                gender={a.sellerGender}
                 onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
               />
               <div className="mt-auto flex items-center justify-between pt-1.5">
@@ -472,6 +508,8 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const photos = auction.photoUrls?.length ? auction.photoUrls : auction.photoUrl ? [auction.photoUrl] : [];
   const minBid = auction.currentBid + 1000;
 
   useEffect(() => {
@@ -502,13 +540,26 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
 
       <div className="px-5 pt-5">
         <button
-          onClick={() => auction.photoUrl && setLightboxOpen(true)}
+          onClick={() => photos.length > 0 && setLightboxOpen(true)}
           className="mx-auto block w-40 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
         >
-          <CardArt label={auction.card} photoUrl={auction.photoUrl} />
+          <CardArt label={auction.card} photoUrl={photos[activePhoto]} />
         </button>
-        {auction.photoUrl && (
+        {photos.length > 0 && (
           <p className="mt-1.5 text-center text-[11px] text-ink-soft">Tocá la foto para agrandarla</p>
+        )}
+
+        {photos.length > 1 && (
+          <div className="mx-auto mt-2 flex w-40 justify-center gap-1.5">
+            {photos.map((url, i) => (
+              <button
+                key={url}
+                onClick={() => setActivePhoto(i)}
+                className={`h-2 w-2 rounded-full transition ${i === activePhoto ? "bg-forest-mid" : "bg-line"}`}
+                aria-label={`Foto ${i + 1}`}
+              />
+            ))}
+          </div>
         )}
 
         {lightboxOpen && (
@@ -522,12 +573,39 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
             >
               <X size={18} />
             </button>
+            {photos.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePhoto((i) => (i - 1 + photos.length) % photos.length);
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-paper p-2 text-ink"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePhoto((i) => (i + 1) % photos.length);
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-paper p-2 text-ink"
+                >
+                  <ArrowLeft size={18} className="rotate-180" />
+                </button>
+              </>
+            )}
             <img
-              src={auction.photoUrl}
+              src={photos[activePhoto]}
               alt={auction.card}
               className="max-h-full max-w-full rounded-lg object-contain shadow-card"
               onClick={(e) => e.stopPropagation()}
             />
+            {photos.length > 1 && (
+              <span className="absolute bottom-6 rounded-full bg-ink/60 px-2.5 py-1 text-[11px] font-bold text-paper">
+                {activePhoto + 1} / {photos.length}
+              </span>
+            )}
           </div>
         )}
 
@@ -537,11 +615,12 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
             name={auction.seller}
             rating={auction.sellerRating}
             sales={auction.sellerSales}
+            gender={auction.sellerGender}
             onClick={onOpenUserProfile && auction.sellerId ? () => onOpenUserProfile(auction.sellerId) : undefined}
           />
         </div>
 
-        {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded) && (
+        {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded || auction.rarity) && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {(auction.setName || auction.cardNumber || auction.year) && (
               <span className="text-[12px] text-ink-soft">
@@ -554,6 +633,14 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
               gradingCompany={auction.gradingCompany}
               grade={auction.grade}
             />
+            {auction.rarity && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2 py-1 text-[12px] font-bold text-ink"
+                title={RARITY_LABEL[auction.rarity]}
+              >
+                {RARITY_SYMBOL[auction.rarity]} {RARITY_LABEL[auction.rarity]}
+              </span>
+            )}
           </div>
         )}
 
@@ -623,16 +710,19 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
             <ul className="mt-2 flex flex-col gap-1.5">
               {bidHistory.map((b) => (
                 <li key={b.id} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
-                  {onOpenUserProfile && b.bidder?.id ? (
-                    <button
-                      onClick={() => onOpenUserProfile(b.bidder.id)}
-                      className="text-ink-soft underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
-                    >
-                      {b.bidder?.alias ?? "—"}
-                    </button>
-                  ) : (
-                    <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
-                  )}
+                  <span className="flex items-center gap-1.5">
+                    <GenderIcon gender={b.bidder?.gender} size={13} />
+                    {onOpenUserProfile && b.bidder?.id ? (
+                      <button
+                        onClick={() => onOpenUserProfile(b.bidder.id)}
+                        className="text-ink-soft underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+                      >
+                        {b.bidder?.alias ?? "—"}
+                      </button>
+                    ) : (
+                      <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
+                    )}
+                  </span>
                   <span className="font-bold text-forest-deep">{formatARS(Number(b.amount))}</span>
                 </li>
               ))}
@@ -675,8 +765,9 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
               {delivered ? <Pill tone="live"><Check size={11} /> Entregado</Pill> : <Pill tone="gold">Pendiente de retiro</Pill>}
             </div>
             <h3 className="mt-3 text-lg font-extrabold text-ink">{ticket.card}</h3>
-            <p className="mt-1 text-[13px] text-ink-soft">
-              Vendedor:{" "}
+            <p className="mt-1 flex items-center gap-1.5 text-[13px] text-ink-soft">
+              Vendedor:
+              <GenderIcon gender={ticket.sellerGender} size={13} />
               {onOpenUserProfile && ticket.sellerId ? (
                 <button
                   onClick={() => onOpenUserProfile(ticket.sellerId)}
@@ -768,8 +859,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState(60);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [setName_, setSetName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [year, setYear] = useState("");
@@ -777,47 +867,50 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const [isGraded, setIsGraded] = useState(false);
   const [gradingCompany, setGradingCompany] = useState("psa");
   const [grade, setGrade] = useState("");
+  const [rarity, setRarity] = useState("");
+  const [isFeatured, setIsFeatured] = useState(false);
   const [photoConverting, setPhotoConverting] = useState(false);
   const [photoError, setPhotoError] = useState("");
 
   async function handlePhotoChange(e) {
-    const file = e.target.files?.[0] ?? null;
+    const files = [...(e.target.files ?? [])];
+    e.target.value = "";
     setPhotoError("");
-    if (!file) {
-      setPhotoFile(null);
-      setPhotoPreview(null);
+    if (files.length === 0) return;
+
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) {
+      setPhotoError(`Ya tenés el máximo de ${MAX_PHOTOS} fotos.`);
       return;
     }
-
-    const isHeic =
-      file.type === "image/heic" ||
-      file.type === "image/heif" ||
-      /\.heic$|\.heif$/i.test(file.name);
-
-    if (!isHeic) {
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-      return;
-    }
+    const toAdd = files.slice(0, room);
 
     setPhotoConverting(true);
     try {
-      const heic2any = (await import("heic2any")).default;
-      const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
-      const jpegFile = new File([converted], "foto.jpg", { type: "image/jpeg" });
-      setPhotoFile(jpegFile);
-      setPhotoPreview(URL.createObjectURL(jpegFile));
+      const converted = await Promise.all(
+        toAdd.map(async (file) => {
+          const isHeic =
+            file.type === "image/heic" || file.type === "image/heif" || /\.heic$|\.heif$/i.test(file.name);
+          if (!isHeic) return file;
+          const heic2any = (await import("heic2any")).default;
+          const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+          return new File([blob], "foto.jpg", { type: "image/jpeg" });
+        })
+      );
+      setPhotos((prev) => [...prev, ...converted.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     } catch {
-      setPhotoError("No pudimos convertir esta foto. Probá sacándola de nuevo o elegí otra.");
-      setPhotoFile(null);
-      setPhotoPreview(null);
+      setPhotoError("No pudimos convertir alguna foto. Probá sacándola de nuevo o elegí otra.");
     } finally {
       setPhotoConverting(false);
     }
   }
 
+  function removePhoto(index) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
   const photoRequired = showDuration;
-  const canPublish = name && price && (!photoRequired || photoFile) && !busy && !photoConverting;
+  const canPublish = name && price && (!photoRequired || photos.length > 0) && !busy && !photoConverting;
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -835,17 +928,33 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
       <div className="space-y-4 px-5 pt-6">
         {showDuration && (
           <div>
-            <label className={labelClass}>Foto de la carta (obligatoria)</label>
-            <label className="mt-1.5 flex h-32 w-32 cursor-pointer items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-line bg-paper text-center text-[11px] text-ink-soft">
-              {photoConverting ? (
-                "Convirtiendo..."
-              ) : photoPreview ? (
-                <img src={photoPreview} alt="preview" className="h-full w-full object-cover" />
-              ) : (
-                "Sacar o elegir foto"
-              )}
-              <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+            <label className={labelClass}>
+              Fotos de la carta (obligatoria, hasta {MAX_PHOTOS} — la primera es la portada)
             </label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {photos.map((p, i) => (
+                <div key={i} className="relative h-24 w-24 overflow-hidden rounded-lg border-2 border-ink">
+                  <img src={p.preview} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                  {i === 0 && (
+                    <span className="absolute left-0 top-0 bg-gold px-1 py-0.5 text-[8px] font-extrabold text-forest-deep">
+                      PORTADA
+                    </span>
+                  )}
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-paper"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <label className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-line bg-paper text-center text-[11px] text-ink-soft">
+                  {photoConverting ? "Convirtiendo..." : "Sacar o elegir foto"}
+                  <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+                </label>
+              )}
+            </div>
             {photoError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{photoError}</p>}
           </div>
         )}
@@ -902,6 +1011,26 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
                 </select>
               </div>
             </div>
+
+            <div>
+              <label className={labelClass}>Rareza</label>
+              <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={inputClass}>
+                <option value="">Sin especificar</option>
+                {RARITY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
+              <input
+                type="checkbox"
+                checked={isFeatured}
+                onChange={(e) => setIsFeatured(e.target.checked)}
+                className="h-4 w-4 accent-plum"
+              />
+              Destacar esta subasta <span className="text-plum">●</span>
+            </label>
 
             <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
               <input
@@ -977,7 +1106,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               name,
               price: Number(price),
               durationMinutes: duration,
-              photoFile,
+              photoFiles: photos.map((p) => p.file),
               setName: setName_,
               cardNumber,
               year: year ? Number(year) : null,
@@ -985,14 +1114,16 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               isGraded,
               gradingCompany,
               grade: grade ? Number(grade) : null,
+              rarity,
+              isFeatured,
             })
           }
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           {busy ? "Publicando..." : "Publicar subasta"}
         </button>
-        {photoRequired && !photoFile && (
-          <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle una foto antes de publicar.</p>
+        {photoRequired && photos.length === 0 && (
+          <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle al menos una foto antes de publicar.</p>
         )}
         <p className="text-center text-[12px] text-ink-soft">
           Compartí el link en tu grupo de WhatsApp. La subasta corre acá; la entrega sigue siendo en el stand.
@@ -1035,7 +1166,10 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [] }) {
       </header>
 
       <div className="px-5 pt-6">
-        <h2 className="text-2xl font-extrabold text-ink">{profile.alias}</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-extrabold text-ink">
+          <GenderIcon gender={profile.gender} size={22} />
+          {profile.alias}
+        </h2>
         <div className="mt-1 flex items-center gap-1 text-gold-dark">
           <Star size={14} fill="currentColor" strokeWidth={0} />
           <span className="text-[14px] font-bold">{Number(profile.rating_avg).toFixed(1)}</span>
@@ -1220,7 +1354,7 @@ export default function App() {
     name,
     price,
     durationMinutes,
-    photoFile,
+    photoFiles,
     setName,
     cardNumber,
     year,
@@ -1228,17 +1362,19 @@ export default function App() {
     isGraded,
     gradingCompany,
     grade,
+    rarity,
+    isFeatured,
   }) {
     setCreateBusy(true);
     setCreateError("");
     try {
-      const photoUrl = photoFile ? await uploadAuctionPhoto(photoFile) : null;
+      const photoUrls = photoFiles?.length ? await uploadAuctionPhotos(photoFiles) : [];
       const row = await createAuction({
         sellerId: auth.session.user.id,
         cardName: name,
         basePrice: price,
         durationMinutes,
-        photoUrl,
+        photoUrls,
         setName,
         cardNumber,
         year,
@@ -1246,6 +1382,8 @@ export default function App() {
         isGraded,
         gradingCompany,
         grade,
+        rarity,
+        isFeatured,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
