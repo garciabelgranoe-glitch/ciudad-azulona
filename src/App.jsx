@@ -26,6 +26,9 @@ import {
   listRecentBids,
   listMyPublications,
   listMyBidAuctions,
+  createReport,
+  listAllReports,
+  updateReportStatus,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -193,7 +196,7 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
-function AccountMenu({ alias, gender, onOpenProfile, onOpenMyBids, onOpenMyPublications }) {
+function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenReports }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -235,6 +238,17 @@ function AccountMenu({ alias, gender, onOpenProfile, onOpenMyBids, onOpenMyPubli
             >
               Mis publicaciones
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onOpenReports();
+                }}
+                className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold text-[#B9432C] hover:bg-cream"
+              >
+                Denuncias
+              </button>
+            )}
           </div>
         </>
       )}
@@ -255,6 +269,7 @@ function AuctionList({
   onOpenSellerProfile,
   onOpenMyBids,
   onOpenMyPublications,
+  onOpenReports,
   searchTerm,
   onSearchChange,
   pendingCount = 0,
@@ -280,9 +295,11 @@ function AuctionList({
                 <AccountMenu
                   alias={profile.alias}
                   gender={profile.gender}
+                  isAdmin={profile.is_admin}
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
+                  onOpenReports={onOpenReports}
                 />
                 <button onClick={onSignOut} className="flex items-center gap-1 hover:text-paper">
                   <LogOut size={13} /> Salir
@@ -504,16 +521,109 @@ function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, showMyBid 
 }
 
 // ---------------------------------------------
+// Vista: Denuncias (admin)
+// ---------------------------------------------
+function AdminReportsView({ reports, onBack, onResolve, busyId }) {
+  const open = reports.filter((r) => r.status === "open");
+  const resolved = reports.filter((r) => r.status !== "open");
+
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">DENUNCIAS</p>
+      </header>
+
+      <div className="space-y-3 px-5 pt-6">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+          Abiertas ({open.length})
+        </h3>
+        {open.length === 0 && <p className="text-[12px] text-ink-soft">No hay denuncias pendientes.</p>}
+        {open.map((r) => (
+          <div key={r.id} className="rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] p-3">
+            <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
+            <p className="text-[11px] text-ink-soft">Vendedor: {r.auction?.seller?.alias ?? "—"}</p>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-ink">{r.reason}</p>
+            <p className="mt-1 text-[10px] text-ink-soft">
+              Denunciado por {r.reporter?.alias ?? "—"} · {new Date(r.created_at).toLocaleString("es-AR")}
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={() => onResolve(r.id, "resolved")}
+                disabled={busyId === r.id}
+                className="rounded-lg bg-forest-mid px-3 py-1.5 text-[11px] font-bold text-paper disabled:opacity-40"
+              >
+                Marcar resuelta
+              </button>
+              <button
+                onClick={() => onResolve(r.id, "dismissed")}
+                disabled={busyId === r.id}
+                className="rounded-lg border-2 border-line px-3 py-1.5 text-[11px] font-bold text-ink-soft disabled:opacity-40"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {resolved.length > 0 && (
+          <>
+            <h3 className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Resueltas</h3>
+            {resolved.map((r) => (
+              <div key={r.id} className="rounded-lg border-2 border-line bg-paper p-3 opacity-70">
+                <div className="flex items-center justify-between">
+                  <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
+                  <Pill tone={r.status === "resolved" ? "live" : "default"}>
+                    {r.status === "resolved" ? "Resuelta" : "Descartada"}
+                  </Pill>
+                </div>
+                <p className="mt-1 text-[12px] text-ink-soft">{r.reason}</p>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Detalle de subasta + pujar
 // ---------------------------------------------
-function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMine, bidHistory = [], onOpenUserProfile }) {
+function AuctionDetail({
+  auction,
+  onBack,
+  onWin,
+  onBid,
+  bidError,
+  bidBusy,
+  isMine,
+  bidHistory = [],
+  onOpenUserProfile,
+  onReport,
+  reportBusy,
+  reportError,
+}) {
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSent, setReportSent] = useState(false);
   const photos = auction.photoUrls?.length ? auction.photoUrls : auction.photoUrl ? [auction.photoUrl] : [];
   const minBid = auction.currentBid + 1000;
+
+  async function handleReport() {
+    const ok = await onReport(auction.id, reportReason);
+    if (ok) {
+      setReportSent(true);
+      setReportOpen(false);
+    }
+  }
 
   useEffect(() => {
     if (!placed) setBid(auction.currentBid + 1000);
@@ -754,6 +864,48 @@ function AuctionDetail({ auction, onBack, onWin, onBid, bidError, bidBusy, isMin
           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
           El pago se hace en persona en el stand del vendedor. La plataforma no procesa dinero — solo confirma la identidad de la entrega con un código único.
         </p>
+
+        {!isMine && onReport && (
+          <div className="mt-4">
+            {reportSent ? (
+              <p className="text-center text-[12px] text-ink-soft">Gracias, recibimos tu denuncia.</p>
+            ) : reportOpen ? (
+              <div className="rounded-lg border-2 border-line bg-paper p-3">
+                <label className="text-[12px] font-bold text-ink-soft">Contanos qué pasó</label>
+                <textarea
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  rows={3}
+                  placeholder="Ej: la publicación no parece una carta real, el vendedor no responde, etc."
+                  className="mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+                />
+                {reportError && <p className="mt-1 text-[11px] text-[#B9432C]">{reportError}</p>}
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={handleReport}
+                    disabled={!reportReason || reportBusy}
+                    className="rounded-lg bg-[#B9432C] px-3 py-2 text-[12px] font-bold text-paper disabled:opacity-40"
+                  >
+                    {reportBusy ? "Enviando..." : "Enviar denuncia"}
+                  </button>
+                  <button
+                    onClick={() => setReportOpen(false)}
+                    className="rounded-lg border-2 border-line px-3 py-2 text-[12px] font-bold text-ink-soft"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setReportOpen(true)}
+                className="text-[11px] font-bold text-ink-soft underline underline-offset-2"
+              >
+                Denunciar esta subasta
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1452,6 +1604,10 @@ export default function App() {
   const [bidHistory, setBidHistory] = useState([]);
   const [myPublications, setMyPublications] = useState([]);
   const [myBids, setMyBids] = useState([]);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [allReports, setAllReports] = useState([]);
+  const [resolveReportBusyId, setResolveReportBusyId] = useState(null);
   const [, setClockTick] = useState(0);
   const [toasts, setToasts] = useState([]);
   const myBidAmountsRef = useRef({});
@@ -1512,6 +1668,8 @@ export default function App() {
       listMyBidAuctions(auth.session.user.id).then(
         (rows) => !cancelled && setMyBids(rows.map((r) => ({ ...auctionToVM(r), myBid: r.myBid })))
       );
+    } else if (view.name === "reports") {
+      listAllReports().then((rows) => !cancelled && setAllReports(rows));
     }
     return () => {
       cancelled = true;
@@ -1675,6 +1833,30 @@ export default function App() {
     }
   }
 
+  async function handleReport(auctionId, reason) {
+    setReportBusy(true);
+    setReportError("");
+    try {
+      await createReport({ auctionId, reporterId: auth.session.user.id, reason });
+      return true;
+    } catch (e) {
+      setReportError(e.message);
+      return false;
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
+  async function handleResolveReport(reportId, status) {
+    setResolveReportBusyId(reportId);
+    try {
+      await updateReportStatus(reportId, status);
+      setAllReports((rows) => rows.map((r) => (r.id === reportId ? { ...r, status } : r)));
+    } finally {
+      setResolveReportBusyId(null);
+    }
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const displayTickets = isSupabaseConfigured
@@ -1710,6 +1892,7 @@ export default function App() {
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
+          onOpenReports={() => setView({ name: "reports" })}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
@@ -1730,6 +1913,9 @@ export default function App() {
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
           bidHistory={bidHistory}
           onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
+          onReport={isSupabaseConfigured ? handleReport : undefined}
+          reportBusy={reportBusy}
+          reportError={reportError}
         />
       )}
 
@@ -1796,6 +1982,15 @@ export default function App() {
           auctions={myPublications}
           onBack={() => setView({ name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+        />
+      )}
+
+      {view.name === "reports" && (
+        <AdminReportsView
+          reports={allReports}
+          busyId={resolveReportBusyId}
+          onBack={() => setView({ name: "list" })}
+          onResolve={handleResolveReport}
         />
       )}
 

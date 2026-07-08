@@ -319,3 +319,29 @@ export async function getProfileBadges(userId) {
   if (error) throw error;
   return data.map((row) => row.badge).sort((a, b) => a.sort_order - b.sort_order);
 }
+
+export async function createReport({ auctionId, reporterId, reason }) {
+  const { error } = await supabase
+    .from("reports")
+    .insert({ auction_id: auctionId, reporter_id: reporterId, reason });
+  if (error) throw error;
+}
+
+export async function listAllReports() {
+  // RLS solo deja ver todo esto si profiles.is_admin = true para el usuario actual.
+  const { data, error } = await supabase
+    .from("reports")
+    .select(
+      `id, reason, status, created_at,
+       reporter:profiles!reports_reporter_id_fkey ( alias ),
+       auction:auctions!reports_auction_id_fkey ( card_name, seller_id, seller:profiles!auctions_seller_id_fkey ( alias ) )`
+    )
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function updateReportStatus(reportId, status) {
+  const { error } = await supabase.from("reports").update({ status }).eq("id", reportId);
+  if (error) throw error;
+}
