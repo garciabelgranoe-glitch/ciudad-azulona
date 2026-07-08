@@ -4,7 +4,7 @@ const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
   reference_price, reserve_price, buy_now_price,
-  seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count )
+  seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
 `;
 
 export const CONDITION_OPTIONS = [
@@ -101,6 +101,7 @@ export function auctionToVM(row) {
     sellerSales: row.seller?.sales_count ?? 0,
     sellerId: row.seller?.id,
     sellerGender: row.seller?.gender ?? null,
+    sellerIsPremium: row.seller?.is_premium ?? false,
     photoUrls: row.photo_urls ?? [],
     photoUrl: row.photo_urls?.[0] ?? null,
     basePrice: Number(row.base_price),
@@ -458,7 +459,7 @@ export function subscribeToMyNotifications(userId, onInsert) {
 export async function listAllProfilesForAdmin() {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, alias, sales_count, purchases_count, rating_avg, is_admin, is_suspended, created_at")
+    .select("id, alias, sales_count, purchases_count, rating_avg, is_admin, is_suspended, is_premium, created_at")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
@@ -466,6 +467,11 @@ export async function listAllProfilesForAdmin() {
 
 export async function setUserSuspended(userId, suspended) {
   const { error } = await supabase.rpc("set_user_suspended", { p_user_id: userId, p_suspended: suspended });
+  if (error) throw error;
+}
+
+export async function setUserPremium(userId, premium) {
+  const { error } = await supabase.rpc("set_user_premium", { p_user_id: userId, p_premium: premium });
   if (error) throw error;
 }
 

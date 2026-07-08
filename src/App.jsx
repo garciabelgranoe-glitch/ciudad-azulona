@@ -40,6 +40,7 @@ import {
   subscribeToMyNotifications,
   listAllProfilesForAdmin,
   setUserSuspended,
+  setUserPremium,
   listAllAuctionsForAdmin,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
@@ -142,7 +143,7 @@ function Pill({ children, tone = "default" }) {
   );
 }
 
-function SellerBadge({ name, rating, sales, onClick, gender }) {
+function SellerBadge({ name, rating, sales, onClick, gender, isPremium = false }) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-soft">
       <GenderIcon gender={gender} size={14} />
@@ -158,6 +159,14 @@ function SellerBadge({ name, rating, sales, onClick, gender }) {
         </button>
       ) : (
         <span className="whitespace-nowrap font-bold text-ink">{name}</span>
+      )}
+      {isPremium && (
+        <span
+          className="flex items-center gap-0.5 whitespace-nowrap rounded-full bg-gold/20 px-1.5 py-0.5 text-[9px] font-extrabold text-gold-dark"
+          title="Vendedor verificado"
+        >
+          <Trophy size={9} /> VERIFICADO
+        </span>
       )}
       <span className="flex items-center gap-0.5 whitespace-nowrap text-gold-dark">
         <Star size={11} fill="currentColor" strokeWidth={0} />
@@ -621,6 +630,7 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
             rating={a.sellerRating}
             sales={a.sellerSales}
             gender={a.sellerGender}
+            isPremium={a.sellerIsPremium}
             onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
           />
         )}
@@ -760,20 +770,21 @@ function ReportsTabContent({ reports, onResolve, busyId }) {
   );
 }
 
-function UsersTabContent({ profiles, onSuspend, busyId }) {
+function UsersTabContent({ profiles, onSuspend, busyId, onSetPremium, premiumBusyId }) {
   return (
     <div className="space-y-2">
       {profiles.map((p) => (
         <div
           key={p.id}
-          className={`flex items-center justify-between rounded-lg border-2 p-3 ${
+          className={`flex items-center justify-between gap-2 rounded-lg border-2 p-3 ${
             p.is_suspended ? "border-[#B9432C]/30 bg-[#FBE6E0]" : "border-line bg-paper"
           }`}
         >
-          <div>
-            <p className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-extrabold text-ink">
               {p.alias}
               {p.is_admin && <span className="text-[9px] font-bold text-gold-dark">ADMIN</span>}
+              {p.is_premium && <span className="text-[9px] font-bold text-gold-dark">PREMIUM</span>}
               {p.is_suspended && <span className="text-[9px] font-bold text-[#B9432C]">SUSPENDIDO</span>}
             </p>
             <p className="text-[11px] text-ink-soft">
@@ -781,15 +792,26 @@ function UsersTabContent({ profiles, onSuspend, busyId }) {
             </p>
           </div>
           {!p.is_admin && (
-            <button
-              onClick={() => onSuspend(p.id, !p.is_suspended)}
-              disabled={busyId === p.id}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold disabled:opacity-40 ${
-                p.is_suspended ? "bg-forest-mid text-paper" : "border-2 border-[#B9432C]/40 text-[#B9432C]"
-              }`}
-            >
-              {p.is_suspended ? "Reactivar" : "Suspender"}
-            </button>
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <button
+                onClick={() => onSetPremium(p.id, !p.is_premium)}
+                disabled={premiumBusyId === p.id}
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold disabled:opacity-40 ${
+                  p.is_premium ? "bg-gold text-forest-deep" : "border-2 border-gold/50 text-gold-dark"
+                }`}
+              >
+                {p.is_premium ? "Quitar premium" : "Hacer premium"}
+              </button>
+              <button
+                onClick={() => onSuspend(p.id, !p.is_suspended)}
+                disabled={busyId === p.id}
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold disabled:opacity-40 ${
+                  p.is_suspended ? "bg-forest-mid text-paper" : "border-2 border-[#B9432C]/40 text-[#B9432C]"
+                }`}
+              >
+                {p.is_suspended ? "Reactivar" : "Suspender"}
+              </button>
+            </div>
           )}
         </div>
       ))}
@@ -814,7 +836,18 @@ function AuctionsTabContent({ auctions }) {
   );
 }
 
-function AdminPanel({ profiles, auctions, reports, onBack, onSuspend, suspendBusyId, onResolveReport, resolveBusyId }) {
+function AdminPanel({
+  profiles,
+  auctions,
+  reports,
+  onBack,
+  onSuspend,
+  suspendBusyId,
+  onSetPremium,
+  premiumBusyId,
+  onResolveReport,
+  resolveBusyId,
+}) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
     { value: "usuarios", label: "Usuarios" },
@@ -846,7 +879,15 @@ function AdminPanel({ profiles, auctions, reports, onBack, onSuspend, suspendBus
       </div>
 
       <div className="px-5 pt-4">
-        {tab === "usuarios" && <UsersTabContent profiles={profiles} onSuspend={onSuspend} busyId={suspendBusyId} />}
+        {tab === "usuarios" && (
+          <UsersTabContent
+            profiles={profiles}
+            onSuspend={onSuspend}
+            busyId={suspendBusyId}
+            onSetPremium={onSetPremium}
+            premiumBusyId={premiumBusyId}
+          />
+        )}
         {tab === "subastas" && <AuctionsTabContent auctions={auctions} />}
         {tab === "denuncias" && (
           <ReportsTabContent reports={reports} onResolve={onResolveReport} busyId={resolveBusyId} />
@@ -1009,6 +1050,7 @@ function AuctionDetail({
             rating={auction.sellerRating}
             sales={auction.sellerSales}
             gender={auction.sellerGender}
+            isPremium={auction.sellerIsPremium}
             onClick={onOpenUserProfile && auction.sellerId ? () => onOpenUserProfile(auction.sellerId) : undefined}
           />
         </div>
@@ -2231,6 +2273,11 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], stats, onEdit
         <h2 className="flex items-center gap-2 text-2xl font-extrabold text-ink">
           <GenderIcon gender={profile.gender} size={22} />
           {profile.alias}
+          {profile.is_premium && (
+            <span className="flex items-center gap-1 rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-extrabold text-gold-dark">
+              <Trophy size={11} /> VENDEDOR VERIFICADO
+            </span>
+          )}
           {isOwn && onUpdateGender && !editingGender && (
             <button
               onClick={() => setEditingGender(true)}
@@ -2566,6 +2613,7 @@ export default function App() {
   const [adminProfiles, setAdminProfiles] = useState([]);
   const [adminAuctions, setAdminAuctions] = useState([]);
   const [suspendBusyId, setSuspendBusyId] = useState(null);
+  const [premiumBusyId, setPremiumBusyId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
@@ -2865,6 +2913,16 @@ export default function App() {
     }
   }
 
+  async function handleSetPremium(userId, premium) {
+    setPremiumBusyId(userId);
+    try {
+      await setUserPremium(userId, premium);
+      setAdminProfiles((rows) => rows.map((p) => (p.id === userId ? { ...p, is_premium: premium } : p)));
+    } finally {
+      setPremiumBusyId(null);
+    }
+  }
+
   async function handleEditAuction(auctionId, fields) {
     setEditBusy(true);
     setEditError("");
@@ -3092,9 +3150,11 @@ export default function App() {
           reports={allReports}
           resolveBusyId={resolveReportBusyId}
           suspendBusyId={suspendBusyId}
+          premiumBusyId={premiumBusyId}
           onBack={() => setView({ name: "list" })}
           onResolveReport={handleResolveReport}
           onSuspend={handleSuspendUser}
+          onSetPremium={handleSetPremium}
         />
       )}
 
