@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -276,10 +276,37 @@ function AuctionList({
   onOpenPendingTicket,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSet, setFilterSet] = useState("");
+  const [filterRarity, setFilterRarity] = useState("");
+  const [filterCondition, setFilterCondition] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+
+  const availableSets = useMemo(
+    () => [...new Set(auctions.map((a) => a.setName).filter(Boolean))].sort(),
+    [auctions]
+  );
+
   const bySearch = searchTerm
     ? auctions.filter((a) => a.card.toLowerCase().includes(searchTerm.toLowerCase()))
     : auctions;
-  const filtered = featuredOnly ? bySearch.filter((a) => a.isFeatured) : bySearch;
+  let filtered = featuredOnly ? bySearch.filter((a) => a.isFeatured) : bySearch;
+  if (filterSet) filtered = filtered.filter((a) => a.setName === filterSet);
+  if (filterRarity) filtered = filtered.filter((a) => a.rarity === filterRarity);
+  if (filterCondition) filtered = filtered.filter((a) => a.condition === filterCondition);
+  if (minPrice) filtered = filtered.filter((a) => a.currentBid >= Number(minPrice));
+  if (maxPrice) filtered = filtered.filter((a) => a.currentBid <= Number(maxPrice));
+
+  const activeFilterCount = [filterSet, filterRarity, filterCondition, minPrice, maxPrice].filter(Boolean).length;
+
+  function clearFilters() {
+    setFilterSet("");
+    setFilterRarity("");
+    setFilterCondition("");
+    setMinPrice("");
+    setMaxPrice("");
+  }
 
   return (
     <div className="min-h-screen bg-cream pb-24">
@@ -329,14 +356,86 @@ function AuctionList({
           </div>
 
           {onSearchChange && (
-            <div className="relative mt-3 sm:max-w-sm">
-              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/50" />
-              <input
-                value={searchTerm}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Buscar carta o set..."
-                className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-9 pr-3 text-[13px] font-medium text-cream placeholder:text-cream/50 focus:outline-none focus-visible:border-gold"
-              />
+            <div className="mt-3 flex items-center gap-2 sm:max-w-lg">
+              <div className="relative flex-1">
+                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/50" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  placeholder="Buscar carta o set..."
+                  className="w-full rounded-lg border border-white/20 bg-white/10 py-2 pl-9 pr-3 text-[13px] font-medium text-cream placeholder:text-cream/50 focus:outline-none focus-visible:border-gold"
+                />
+              </div>
+              <button
+                onClick={() => setShowFilters((f) => !f)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-bold transition ${
+                  showFilters || activeFilterCount > 0
+                    ? "border-gold bg-gold/20 text-gold"
+                    : "border-white/20 bg-white/10 text-cream/80"
+                }`}
+              >
+                <SlidersHorizontal size={14} />
+                Filtros{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+              </button>
+            </div>
+          )}
+
+          {showFilters && (
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-white/15 bg-white/5 p-3 sm:max-w-lg sm:grid-cols-4">
+              <select
+                value={filterSet}
+                onChange={(e) => setFilterSet(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="">Cualquier set</option>
+                {availableSets.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                value={filterRarity}
+                onChange={(e) => setFilterRarity(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="">Cualquier rareza</option>
+                {RARITY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
+                ))}
+              </select>
+              <select
+                value={filterCondition}
+                onChange={(e) => setFilterCondition(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="">Cualquier condición</option>
+                {CONDITION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <div className="flex gap-1.5">
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="Min $"
+                  className="w-full rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream placeholder:text-cream/50"
+                />
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="Max $"
+                  className="w-full rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream placeholder:text-cream/50"
+                />
+              </div>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearFilters}
+                  className="col-span-2 text-left text-[11px] font-bold text-gold underline underline-offset-2 sm:col-span-4"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -356,12 +455,12 @@ function AuctionList({
         </div>
       )}
 
-      {searchTerm && filtered.length === 0 && (
+      {auctions.length > 0 && filtered.length === 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
-          No encontramos cartas con "{searchTerm}".
+          No encontramos cartas con esos criterios.
         </div>
       )}
-      {!searchTerm && auctions.length === 0 && (
+      {auctions.length === 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
           Todavía no hay subastas activas. ¡Sé el primero en publicar una carta!
         </div>
