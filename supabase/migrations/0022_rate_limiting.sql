@@ -100,7 +100,12 @@ language plpgsql
 security definer
 as $$
 begin
-  perform public.check_rate_limit('create_auction', 5, interval '10 minutes');
+  -- auth.uid() es null en inserts administrativos/directos (service_role,
+  -- scripts, seeds) — esos no son un usuario real pujando/publicando desde
+  -- la app, así que no tiene sentido limitarlos.
+  if auth.uid() is not null then
+    perform public.check_rate_limit('create_auction', 5, interval '10 minutes');
+  end if;
   return new;
 end;
 $$;
