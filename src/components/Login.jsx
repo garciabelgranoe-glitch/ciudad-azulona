@@ -5,7 +5,7 @@ import { isSupabaseConfigured } from "../lib/supabaseClient";
 import PokeballIcon from "./PokeballIcon";
 import GenderIcon from "./GenderIcon";
 
-export default function Login() {
+export default function Login({ onOpenLegal }) {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
   const [step, setStep] = useState("phone"); // phone | otp | alias
   const [phone, setPhone] = useState("+549");
@@ -54,7 +54,7 @@ export default function Login() {
 
   if (session?.user && !profile) {
     return (
-      <AuthShell title="Elegí tu alias" subtitle="Así te van a ver otros en las subastas">
+      <AuthShell title="Elegí tu alias" subtitle="Así te van a ver otros en las subastas" onOpenLegal={onOpenLegal}>
         <input
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
@@ -98,7 +98,7 @@ export default function Login() {
 
   if (step === "otp") {
     return (
-      <AuthShell title="Ingresá el código" subtitle={`Te lo enviamos por SMS a ${phone}`}>
+      <AuthShell title="Ingresá el código" subtitle={`Te lo enviamos por SMS a ${phone}`} onOpenLegal={onOpenLegal}>
         <input
           value={token}
           onChange={(e) => setToken(e.target.value)}
@@ -125,7 +125,7 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu número de WhatsApp para identificarte, sin contraseñas">
+    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu número de WhatsApp para identificarte, sin contraseñas" onOpenLegal={onOpenLegal}>
       {!isSupabaseConfigured && (
         <p className="mb-3 rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-3 py-2 text-[12px] font-medium text-[#B9432C]">
           Supabase todavía no está configurado (falta VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
@@ -152,7 +152,7 @@ export default function Login() {
   );
 }
 
-function AuthShell({ title, subtitle, children }) {
+function AuthShell({ title, subtitle, children, onOpenLegal }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream px-6">
       <div className="w-full max-w-sm">
@@ -163,6 +163,14 @@ function AuthShell({ title, subtitle, children }) {
         <h1 className="text-2xl font-extrabold text-ink">{title}</h1>
         <p className="mt-1 text-[13px] text-ink-soft">{subtitle}</p>
         <div className="mt-6">{children}</div>
+        {onOpenLegal && (
+          <button
+            onClick={onOpenLegal}
+            className="mt-6 text-[11px] font-medium text-ink-soft underline underline-offset-2"
+          >
+            Términos de uso y privacidad
+          </button>
+        )}
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ function FeatureRow({ icon, text }) {
   );
 }
 
-export default function Landing({ onEnter }) {
+export default function Landing({ onEnter, onOpenLegal }) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-b from-forest-deeper via-forest-deep to-forest-mid">
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-32 pt-16 text-center">
@@ -34,6 +34,15 @@ export default function Landing({ onEnter }) {
         >
           Entrar
         </button>
+
+        {onOpenLegal && (
+          <button
+            onClick={onOpenLegal}
+            className="mt-6 text-[11px] font-medium text-cream/60 underline underline-offset-2"
+          >
+            Términos de uso y privacidad
+          </button>
+        )}
       </div>
 
       <PixelTrees />
