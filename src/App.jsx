@@ -487,70 +487,7 @@ function AuctionList({
 
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
         {filtered.map((a) => (
-          <div
-            key={a.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen(a)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") onOpen(a);
-            }}
-            className={`group flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${
-              a.isFeatured ? "border-plum" : "border-ink"
-            }`}
-          >
-            <div className="relative">
-              <CardArt label={a.card} photoUrl={a.photoUrl} />
-              {a.isFeatured && (
-                <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
-                  <span className="h-1.5 w-1.5 rounded-full bg-gold" /> DESTACADA
-                </div>
-              )}
-              {(a.condition || a.isGraded) && (
-                <div className="absolute right-2 top-2 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
-                  <ConditionBadge
-                    condition={a.condition}
-                    isGraded={a.isGraded}
-                    gradingCompany={a.gradingCompany}
-                    grade={a.grade}
-                  />
-                </div>
-              )}
-              {a.rarity && (
-                <div
-                  className="absolute bottom-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-paper/90 px-1 text-[11px] font-bold text-ink backdrop-blur-sm"
-                  title={RARITY_LABEL[a.rarity]}
-                >
-                  {RARITY_SYMBOL[a.rarity]}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
-              <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
-              {(a.setName || a.cardNumber || a.year) && (
-                <p className="line-clamp-1 text-[11px] text-ink-soft">
-                  {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
-                </p>
-              )}
-              <SellerBadge
-                name={a.seller}
-                rating={a.sellerRating}
-                sales={a.sellerSales}
-                gender={a.sellerGender}
-                onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
-              />
-              <div className="mt-auto flex items-center justify-between pt-1.5">
-                <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
-                <span
-                  className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
-                    a.closesInSec <= 600 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
-                  }`}
-                >
-                  {formatCountdown(a.closesInSec)}
-                </span>
-              </div>
-            </div>
-          </div>
+          <AuctionCard key={a.id} auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} />
         ))}
       </div>
 
@@ -567,7 +504,7 @@ function AuctionList({
 // ---------------------------------------------
 // Vista: Mis pujas / Mis publicaciones
 // ---------------------------------------------
-function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, showMyBid = false }) {
+function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, onOpenSellerProfile, showMyBid = false }) {
   return (
     <div className="min-h-screen bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -581,59 +518,113 @@ function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, showMyBid 
         <p className="px-5 pt-10 text-center text-[13px] text-ink-soft">{emptyText}</p>
       ) : (
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-          {auctions.map((a) => {
-            const clickable = a.status === "live" && !!onOpen;
-            return (
-              <div
-                key={a.id}
-                role={clickable ? "button" : undefined}
-                tabIndex={clickable ? 0 : undefined}
-                onClick={clickable ? () => onOpen(a) : undefined}
-                onKeyDown={
-                  clickable
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") onOpen(a);
-                      }
-                    : undefined
-                }
-                className={`flex flex-col overflow-hidden rounded-xl border-2 border-ink bg-paper text-left shadow-card ${
-                  clickable ? "cursor-pointer transition hover:-translate-y-1" : "opacity-90"
-                }`}
-              >
-                <div className="relative">
-                  <CardArt label={a.card} photoUrl={a.photoUrl} />
-                  <div className="absolute right-2 top-2">
-                    {a.status === "live" ? <Pill tone="live">En vivo</Pill> : <Pill>Cerrada</Pill>}
-                  </div>
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
-                  <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
-                  {(a.setName || a.cardNumber || a.year) && (
-                    <p className="line-clamp-1 text-[11px] text-ink-soft">
-                      {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                  {showMyBid && a.myBid != null ? (
-                    <div className="mt-auto flex flex-col gap-0.5 pt-1.5">
-                      <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
-                      <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatARS(a.myBid)}</span>
-                    </div>
-                  ) : (
-                    <div className="mt-auto flex items-center justify-between pt-1.5">
-                      <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
-                      {a.status === "live" && (
-                        <span className="font-pixel flex items-center gap-1 rounded bg-[#EFE6F5] px-1.5 py-1 text-[8.5px] text-plum">
-                          {formatCountdown(a.closesInSec)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {auctions.map((a) => (
+            <AuctionCard
+              key={a.id}
+              auction={a}
+              onOpen={onOpen}
+              onOpenSellerProfile={onOpenSellerProfile}
+              showSeller={showMyBid}
+              showMyBid={showMyBid}
+              showStatusPill
+            />
+          ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Card de subasta — compartida entre la mesa del evento y
+// Mis pujas/Mis publicaciones, para que luzcan siempre igual.
+// ---------------------------------------------
+function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = true, showMyBid = false, showStatusPill = false }) {
+  const clickable = a.status === "live" && !!onOpen;
+
+  return (
+    <div
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onOpen(a) : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") onOpen(a);
+            }
+          : undefined
+      }
+      className={`flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
+        a.isFeatured ? "border-plum" : "border-ink"
+      } ${clickable ? "cursor-pointer hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" : "opacity-90"}`}
+    >
+      <div className="relative">
+        <CardArt label={a.card} photoUrl={a.photoUrl} />
+        {a.isFeatured && (
+          <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> DESTACADA
+          </div>
+        )}
+        {(a.condition || a.isGraded) && (
+          <div className="absolute right-2 top-2 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
+            <ConditionBadge
+              condition={a.condition}
+              isGraded={a.isGraded}
+              gradingCompany={a.gradingCompany}
+              grade={a.grade}
+            />
+          </div>
+        )}
+        {a.rarity && (
+          <div
+            className="absolute bottom-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-paper/90 px-1 text-[11px] font-bold text-ink backdrop-blur-sm"
+            title={RARITY_LABEL[a.rarity]}
+          >
+            {RARITY_SYMBOL[a.rarity]}
+          </div>
+        )}
+        {showStatusPill && (
+          <div className="absolute bottom-2 right-2">
+            {a.status === "live" ? <Pill tone="live">En vivo</Pill> : <Pill>Cerrada</Pill>}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
+        <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+        {(a.setName || a.cardNumber || a.year) && (
+          <p className="line-clamp-1 text-[11px] text-ink-soft">
+            {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {showSeller && (
+          <SellerBadge
+            name={a.seller}
+            rating={a.sellerRating}
+            sales={a.sellerSales}
+            gender={a.sellerGender}
+            onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
+          />
+        )}
+        {showMyBid && a.myBid != null ? (
+          <div className="mt-auto flex flex-col gap-0.5 pt-1.5">
+            <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+            <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatARS(a.myBid)}</span>
+          </div>
+        ) : (
+          <div className="mt-auto flex items-center justify-between pt-1.5">
+            <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+            {a.status === "live" && (
+              <span
+                className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
+                  a.closesInSec <= 600 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
+                }`}
+              >
+                {formatCountdown(a.closesInSec)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2529,6 +2520,7 @@ export default function App() {
           showMyBid
           onBack={() => setView({ name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+          onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
         />
       )}
 
