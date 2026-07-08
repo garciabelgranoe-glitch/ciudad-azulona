@@ -2,13 +2,13 @@
 // balanceo sutil e independiente por árbol (como si soplara una brisa).
 // Verdes más oscuros que el fondo (forest-mid) para que las copas se
 // recorten como silueta.
-const TREE_GREENS = ["#173822", "#1F4A30", "#122C1C", "#254F32"];
+const TREE_GREENS = ["#173822", "#1F4A30", "#122C1C", "#254F32", "#1B4025"];
 
-function PixelTree({ scale, green, delay }) {
+function PixelTree({ scale, green, delay, className = "" }) {
   return (
     <svg
       viewBox="0 0 24 40"
-      className="h-full w-auto"
+      className={`h-full w-auto ${className}`}
       style={{
         transform: `scale(${scale})`,
         transformOrigin: "bottom center",
@@ -30,6 +30,10 @@ function PixelTree({ scale, green, delay }) {
   );
 }
 
+// Los primeros son siempre visibles (línea base en mobile). Los que tienen
+// `md` solo aparecen desde tablet en adelante, y los `lg` recién en
+// desktop — así la fila se ve pareja de densidad en vez de vacía cuando
+// la pantalla es ancha.
 const TREES = [
   { scale: 1.05, delay: 0 },
   { scale: 0.8, delay: 0.4 },
@@ -38,7 +42,21 @@ const TREES = [
   { scale: 1.15, delay: 0.25 },
   { scale: 0.85, delay: 0.7 },
   { scale: 1.1, delay: 0.35 },
+  { scale: 0.95, delay: 0.1, from: "md" },
+  { scale: 1.2, delay: 0.5, from: "md" },
+  { scale: 0.85, delay: 0.3, from: "md" },
+  { scale: 1.05, delay: 0.6, from: "md" },
+  { scale: 0.9, delay: 0.2, from: "lg" },
+  { scale: 1.15, delay: 0.45, from: "lg" },
+  { scale: 0.8, delay: 0.65, from: "lg" },
+  { scale: 1.1, delay: 0.05, from: "lg" },
+  { scale: 0.95, delay: 0.55, from: "lg" },
 ];
+
+const VISIBILITY_CLASS = {
+  md: "hidden md:block",
+  lg: "hidden lg:block",
+};
 
 export default function PixelTrees() {
   return (
@@ -51,7 +69,13 @@ export default function PixelTrees() {
       `}</style>
       <div className="flex h-full items-end justify-around px-2 pb-2">
         {TREES.map((t, i) => (
-          <PixelTree key={i} scale={t.scale} delay={t.delay} green={TREE_GREENS[i % TREE_GREENS.length]} />
+          <PixelTree
+            key={i}
+            scale={t.scale}
+            delay={t.delay}
+            green={TREE_GREENS[i % TREE_GREENS.length]}
+            className={t.from ? VISIBILITY_CLASS[t.from] : ""}
+          />
         ))}
       </div>
     </div>

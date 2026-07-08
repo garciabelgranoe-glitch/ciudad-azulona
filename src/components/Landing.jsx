@@ -1,10 +1,11 @@
 import PokeballIcon from "./PokeballIcon";
 import PixelTrees from "./PixelTrees";
+import FeatureIcon from "./FeatureIcon";
 
-function FeatureRow({ icon, text }) {
+function FeatureRow({ variant, text }) {
   return (
-    <div className="flex items-center gap-2.5 text-left">
-      <span className="text-[16px]">{icon}</span>
+    <div className="flex items-center gap-3 text-left">
+      <FeatureIcon variant={variant} size={20} />
       <span className="text-[12.5px] font-medium text-cream/80">{text}</span>
     </div>
   );
@@ -23,9 +24,9 @@ export default function Landing({ onEnter, onOpenLegal }) {
         </p>
 
         <div className="mt-8 flex flex-col gap-3">
-          <FeatureRow icon="⚡" text="Subastas en vivo con cierre automático" />
-          <FeatureRow icon="🤝" text="Coordinás la entrega en persona, vos manejás el pago" />
-          <FeatureRow icon="🏅" text="Reputación y medallas por tus ventas" />
+          <FeatureRow variant="bolt" text="Subastas en vivo con cierre automático" />
+          <FeatureRow variant="trade" text="Coordinás la entrega en persona, vos manejás el pago" />
+          <FeatureRow variant="medal" text="Reputación y medallas por tus ventas" />
         </div>
 
         <button
