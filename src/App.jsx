@@ -43,6 +43,7 @@ import {
   setUserPremium,
   listAllAuctionsForAdmin,
   listRecommendedSellers,
+  listTopAuctionsThisMonth,
   createRecommendedSeller,
   setRecommendedSellerActive,
   deleteRecommendedSeller,
@@ -231,6 +232,7 @@ function AccountMenu({
   onOpenMyPublications,
   onOpenMyTickets,
   onOpenRecommended,
+  onOpenTopMonthly,
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
@@ -292,6 +294,15 @@ function AccountMenu({
             >
               Vendedores recomendados
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenTopMonthly();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Destacadas del mes
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -331,6 +342,7 @@ function AuctionList({
   pendingCount = 0,
   onOpenMyTickets,
   onOpenRecommended,
+  onOpenTopMonthly,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -385,6 +397,7 @@ function AuctionList({
                   onOpenMyPublications={onOpenMyPublications}
                   onOpenMyTickets={onOpenMyTickets}
                   onOpenRecommended={onOpenRecommended}
+                  onOpenTopMonthly={onOpenTopMonthly}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -1057,6 +1070,45 @@ function RecommendedSellersView({ sellers, onBack }) {
                 </p>
                 {s.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{s.description}</p>}
                 {s.contact_info && <p className="mt-1.5 text-[12px] font-bold text-forest-deep">{s.contact_info}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Destacadas del mes (ranking real por pujas, no manual)
+// ---------------------------------------------
+function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile }) {
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">DESTACADAS DEL MES</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Las subastas con más pujas de este mes — ranking automático, no elegido a mano.
+        </p>
+
+        {auctions.length === 0 ? (
+          <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay pujas este mes.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {auctions.map((a, i) => (
+              <div key={a.id} className="flex items-center gap-3">
+                <span className="font-pixel flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-[11px] text-forest-deep">
+                  #{i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showStatusPill />
+                </div>
               </div>
             ))}
           </div>
@@ -2784,6 +2836,7 @@ export default function App() {
   const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [premiumBusyId, setPremiumBusyId] = useState(null);
   const [recommendedSellers, setRecommendedSellers] = useState([]);
+  const [topMonthlyAuctions, setTopMonthlyAuctions] = useState([]);
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
@@ -2863,6 +2916,8 @@ export default function App() {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
+    } else if (view.name === "topMonthly") {
+      listTopAuctionsThisMonth().then((rows) => !cancelled && setTopMonthlyAuctions(rows.map(auctionToVM)));
     }
     return () => {
       cancelled = true;
@@ -3194,7 +3249,12 @@ export default function App() {
   }
 
   const activeAuction =
-    view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
+    view.name === "detail"
+      ? displayAuctions.find((a) => a.id === view.auctionId) ||
+        topMonthlyAuctions.find((a) => a.id === view.auctionId) ||
+        myPublications.find((a) => a.id === view.auctionId) ||
+        myBids.find((a) => a.id === view.auctionId)
+      : null;
   const activeEditAuction =
     view.name === "editAuction" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const displayTickets = isSupabaseConfigured
@@ -3232,6 +3292,7 @@ export default function App() {
           onOpenMyPublications={() => setView({ name: "myPublications" })}
           onOpenMyTickets={() => setView({ name: "myTickets" })}
           onOpenRecommended={() => setView({ name: "recommended", back: view })}
+          onOpenTopMonthly={() => setView({ name: "topMonthly", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -3379,6 +3440,15 @@ export default function App() {
 
       {view.name === "recommended" && (
         <RecommendedSellersView sellers={recommendedSellers} onBack={() => setView(view.back ?? { name: "list" })} />
+      )}
+
+      {view.name === "topMonthly" && (
+        <TopMonthlyAuctionsView
+          auctions={topMonthlyAuctions}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+          onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
+        />
       )}
 
       {view.name === "notifications" && (

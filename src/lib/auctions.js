@@ -511,6 +511,21 @@ export async function deleteRecommendedSeller(id) {
   if (error) throw error;
 }
 
+export async function listTopAuctionsThisMonth(limit = 10) {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase
+    .from("auctions")
+    .select(AUCTION_SELECT)
+    .gte("created_at", startOfMonth.toISOString())
+    .order("bid_count", { ascending: false })
+    .order("current_bid", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
 export async function listAllAuctionsForAdmin() {
   const { data, error } = await supabase
     .from("auctions")
