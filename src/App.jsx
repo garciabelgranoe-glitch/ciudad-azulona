@@ -49,6 +49,7 @@ import {
   RARITY_LABEL,
   MAX_PHOTOS,
 } from "./lib/auctions";
+import { POKEMON_SET_ERAS } from "./lib/pokemonSets";
 
 // ---------------------------------------------
 // Datos de ejemplo (mock) — reemplazar por backend real
@@ -1453,6 +1454,18 @@ const DURATION_OPTIONS = [
   { label: "3 horas", value: 180 },
 ];
 
+// Sugerencias de sets reales para el campo "Colección / set" — sigue
+// siendo texto libre, esto solo autocompleta los nombres más comunes.
+function PokemonSetDatalist() {
+  return (
+    <datalist id="pokemon-set-options">
+      {POKEMON_SET_ERAS.flatMap((era) => era.sets).map((set) => (
+        <option key={set} value={set} />
+      ))}
+    </datalist>
+  );
+}
+
 function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, error = "" }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -1525,6 +1538,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 
   return (
     <div className="min-h-screen bg-cream pb-10">
+      <PokemonSetDatalist />
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1584,6 +1598,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
                   value={setName_}
                   onChange={(e) => setSetName(e.target.value)}
                   placeholder="Ej: Obsidian Flames"
+                  list="pokemon-set-options"
                   className={inputClass}
                 />
               </div>
@@ -1830,6 +1845,7 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
 
   return (
     <div className="min-h-screen bg-cream pb-10">
+      <PokemonSetDatalist />
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1850,7 +1866,7 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Colección / set</label>
-            <input value={setName_} onChange={(e) => setSetName(e.target.value)} className={inputClass} />
+            <input value={setName_} onChange={(e) => setSetName(e.target.value)} list="pokemon-set-options" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Número</label>
