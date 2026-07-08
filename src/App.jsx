@@ -20,6 +20,7 @@ import {
   listMyGivenRatingTicketIds,
   getProfile,
   getProfileBadges,
+  updateProfile,
   listRecentBids,
   listMyPublications,
   listMyBidAuctions,
@@ -798,6 +799,21 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
           </div>
         </div>
 
+        {!delivered && ticket.isSeller === false && (
+          <div className="mx-auto mt-6 max-w-sm rounded-lg border-2 border-line bg-paper p-3 text-[12px] leading-relaxed text-ink-soft">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Cómo coordinar el retiro</p>
+            <PickupInfoText
+              profile={{
+                has_stand: ticket.sellerHasStand,
+                stand_number: ticket.sellerStandNumber,
+                pickup_day: ticket.sellerPickupDay,
+                pickup_time: ticket.sellerPickupTime,
+                contact_phone: ticket.sellerContactPhone,
+              }}
+            />
+          </div>
+        )}
+
         {!delivered && (ticket.isSeller || ticket.isSeller === undefined) && (
           <button
             onClick={onMarkDelivered}
@@ -1155,7 +1171,41 @@ function ToastStack({ toasts }) {
 // ---------------------------------------------
 // Vista: Perfil
 // ---------------------------------------------
-function ProfileView({ profile, onBack, isOwn = true, badges = [] }) {
+function PickupInfoText({ profile }) {
+  if (profile.has_stand) {
+    return profile.stand_number ? (
+      <>Tiene stand fijo: <span className="font-bold text-ink">{profile.stand_number}</span></>
+    ) : (
+      <>Tiene stand fijo en el evento.</>
+    );
+  }
+  if (profile.pickup_day || profile.pickup_time || profile.contact_phone) {
+    return (
+      <>
+        Prefiere coordinar el retiro
+        {profile.pickup_day && (
+          <>
+            {" "}— <span className="font-bold text-ink">{profile.pickup_day}</span>
+          </>
+        )}
+        {profile.pickup_time && (
+          <>
+            {" "}a las <span className="font-bold text-ink">{profile.pickup_time}</span>
+          </>
+        )}
+        {profile.contact_phone && (
+          <>
+            <br />
+            Contacto: <span className="font-bold text-ink">{profile.contact_phone}</span>
+          </>
+        )}
+      </>
+    );
+  }
+  return "Todavía no cargó cómo prefiere coordinar el retiro.";
+}
+
+function ProfileView({ profile, onBack, isOwn = true, badges = [], onEditPickup }) {
   return (
     <div className="min-h-screen bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -1206,6 +1256,126 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [] }) {
             </p>
           )}
         </div>
+
+        <div className="mt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Retiro de la carta</h3>
+            {isOwn && (
+              <button
+                onClick={onEditPickup}
+                className="text-[11px] font-bold text-forest-deep underline underline-offset-2"
+              >
+                Editar
+              </button>
+            )}
+          </div>
+          <div className="mt-2 rounded-lg border-2 border-line bg-paper p-3 text-[12px] leading-relaxed text-ink-soft">
+            <PickupInfoText profile={profile} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Editar info de retiro
+// ---------------------------------------------
+function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
+  const [hasStand, setHasStand] = useState(profile.has_stand ?? false);
+  const [standNumber, setStandNumber] = useState(profile.stand_number ?? "");
+  const [pickupDay, setPickupDay] = useState(profile.pickup_day ?? "");
+  const [pickupTime, setPickupTime] = useState(profile.pickup_time ?? "");
+  const [contactPhone, setContactPhone] = useState(profile.contact_phone ?? "");
+
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[12px] font-bold text-ink-soft";
+
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">INFO DE RETIRO</p>
+      </header>
+
+      <div className="space-y-4 px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Contale a quien te gane la subasta cómo coordinar el retiro de la carta.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setHasStand(true)}
+            className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+              hasStand ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+            }`}
+          >
+            Tengo stand fijo
+          </button>
+          <button
+            onClick={() => setHasStand(false)}
+            className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+              !hasStand ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+            }`}
+          >
+            Prefiero coordinar
+          </button>
+        </div>
+
+        {hasStand ? (
+          <div>
+            <label className={labelClass}>Número o nombre del stand</label>
+            <input
+              value={standNumber}
+              onChange={(e) => setStandNumber(e.target.value)}
+              placeholder="Ej: Stand 14"
+              className={inputClass}
+            />
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className={labelClass}>Día de la semana</label>
+              <input
+                value={pickupDay}
+                onChange={(e) => setPickupDay(e.target.value)}
+                placeholder="Ej: Sábados"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Horario preferido</label>
+              <input
+                value={pickupTime}
+                onChange={(e) => setPickupTime(e.target.value)}
+                placeholder="Ej: 15 a 18hs"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Teléfono de contacto</label>
+              <input
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="Ej: 1122334455"
+                className={inputClass}
+              />
+            </div>
+          </>
+        )}
+
+        {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
+
+        <button
+          disabled={busy}
+          onClick={() => onSave({ hasStand, standNumber, pickupDay, pickupTime, contactPhone })}
+          className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+        >
+          {busy ? "Guardando..." : "Guardar"}
+        </button>
       </div>
     </div>
   );
@@ -1233,6 +1403,8 @@ export default function App() {
   const [ratingBusy, setRatingBusy] = useState(false);
   const [viewedProfile, setViewedProfile] = useState(null);
   const [viewedBadges, setViewedBadges] = useState([]);
+  const [pickupBusy, setPickupBusy] = useState(false);
+  const [pickupError, setPickupError] = useState("");
   const [bidHistory, setBidHistory] = useState([]);
   const [myPublications, setMyPublications] = useState([]);
   const [myBids, setMyBids] = useState([]);
@@ -1443,6 +1615,20 @@ export default function App() {
     setView({ name: "profile", userId: targetId, back: view });
   }
 
+  async function handleSavePickup(fields) {
+    setPickupBusy(true);
+    setPickupError("");
+    try {
+      const updated = await updateProfile(auth.session.user.id, fields);
+      setViewedProfile(updated);
+      setView({ name: "profile", userId: auth.session.user.id, back: { name: "list" } });
+    } catch (e) {
+      setPickupError(e.message);
+    } finally {
+      setPickupBusy(false);
+    }
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const displayTickets = isSupabaseConfigured
@@ -1532,6 +1718,17 @@ export default function App() {
           badges={viewedBadges}
           isOwn={view.userId === auth.session?.user.id}
           onBack={() => setView(view.back ?? { name: "list" })}
+          onEditPickup={() => setView({ name: "editPickup", back: view })}
+        />
+      )}
+
+      {view.name === "editPickup" && (
+        <EditPickupInfo
+          profile={viewedProfile}
+          busy={pickupBusy}
+          error={pickupError}
+          onBack={() => setView(view.back ?? { name: "profile", userId: auth.session?.user.id })}
+          onSave={handleSavePickup}
         />
       )}
 
