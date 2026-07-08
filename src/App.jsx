@@ -31,6 +31,7 @@ import {
   updateReportStatus,
   updateOwnAuction,
   cancelOwnAuction,
+  updateGender,
   listMyNotifications,
   markNotificationRead,
   markAllNotificationsRead,
@@ -367,7 +368,7 @@ function AuctionList({
           <div className="flex flex-wrap items-center justify-between gap-y-2">
             <div>
               <p className="font-pixel text-[9px] tracking-wide text-gold">SUBASTAS EN VIVO</p>
-              <h1 className="mt-2 text-2xl font-extrabold text-paper">Mesa del evento</h1>
+              <h1 className="mt-2 text-2xl font-extrabold text-paper">Plaza Azulona</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
@@ -2018,7 +2019,24 @@ function PickupInfoText({ profile }) {
   return "Todavía no cargó cómo prefiere coordinar el retiro.";
 }
 
-function ProfileView({ profile, onBack, isOwn = true, badges = [], onEditPickup, onOpenLegal }) {
+function ProfileView({ profile, onBack, isOwn = true, badges = [], onEditPickup, onOpenLegal, onUpdateGender }) {
+  const [editingGender, setEditingGender] = useState(false);
+  const [savingGender, setSavingGender] = useState(false);
+
+  async function handlePickGender(g) {
+    if (g === profile.gender) {
+      setEditingGender(false);
+      return;
+    }
+    setSavingGender(true);
+    try {
+      await onUpdateGender(g);
+    } finally {
+      setSavingGender(false);
+      setEditingGender(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -2032,7 +2050,38 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], onEditPickup,
         <h2 className="flex items-center gap-2 text-2xl font-extrabold text-ink">
           <GenderIcon gender={profile.gender} size={22} />
           {profile.alias}
+          {isOwn && onUpdateGender && !editingGender && (
+            <button
+              onClick={() => setEditingGender(true)}
+              className="text-[11px] font-bold text-forest-deep underline underline-offset-2"
+            >
+              Editar ícono
+            </button>
+          )}
         </h2>
+
+        {editingGender && (
+          <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border-2 border-line bg-paper p-2.5">
+            {[
+              { value: "masculino", label: "Entrenador" },
+              { value: "femenino", label: "Entrenadora" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={savingGender}
+                onClick={() => handlePickGender(opt.value)}
+                className={`flex flex-col items-center gap-1.5 rounded-lg border-2 py-2.5 transition disabled:opacity-50 ${
+                  profile.gender === opt.value ? "border-forest-mid bg-forest-mid/10" : "border-line bg-white"
+                }`}
+              >
+                <GenderIcon gender={opt.value} size={24} />
+                <span className="text-[10px] font-bold text-ink">{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mt-1 flex items-center gap-1 text-gold-dark">
           <Star size={14} fill="currentColor" strokeWidth={0} />
           <span className="text-[14px] font-bold">{Number(profile.rating_avg).toFixed(1)}</span>
@@ -2518,6 +2567,11 @@ export default function App() {
     }
   }
 
+  async function handleUpdateGender(gender) {
+    const updated = await updateGender(auth.session.user.id, gender);
+    setViewedProfile(updated);
+  }
+
   async function handleReport(auctionId, reason) {
     setReportBusy(true);
     setReportError("");
@@ -2721,6 +2775,7 @@ export default function App() {
           onBack={() => setView(view.back ?? { name: "list" })}
           onEditPickup={() => setView({ name: "editPickup", back: view })}
           onOpenLegal={() => setShowLegal(true)}
+          onUpdateGender={isSupabaseConfigured ? handleUpdateGender : undefined}
         />
       )}
 

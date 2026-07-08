@@ -349,6 +349,17 @@ export async function updateProfile(userId, { hasStand, standNumber, pickupDay, 
   return data;
 }
 
+export async function updateGender(userId, gender) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ gender })
+    .eq("id", userId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function getProfileBadges(userId) {
   const { data, error } = await supabase
     .from("profile_badges")
