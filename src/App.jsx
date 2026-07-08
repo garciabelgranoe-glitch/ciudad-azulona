@@ -35,6 +35,9 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   subscribeToMyNotifications,
+  listAllProfilesForAdmin,
+  setUserSuspended,
+  listAllAuctionsForAdmin,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -202,7 +205,7 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
-function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenReports }) {
+function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenAdmin }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -248,11 +251,11 @@ function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOp
               <button
                 onClick={() => {
                   setOpen(false);
-                  onOpenReports();
+                  onOpenAdmin();
                 }}
                 className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold text-[#B9432C] hover:bg-cream"
               >
-                Denuncias
+                Panel admin
               </button>
             )}
           </div>
@@ -275,7 +278,7 @@ function AuctionList({
   onOpenSellerProfile,
   onOpenMyBids,
   onOpenMyPublications,
-  onOpenReports,
+  onOpenAdmin,
   onOpenNotifications,
   unreadNotifCount = 0,
   searchTerm,
@@ -334,7 +337,7 @@ function AuctionList({
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
-                  onOpenReports={onOpenReports}
+                  onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
                   <Bell size={15} />
@@ -688,11 +691,126 @@ function NotificationsView({ notifications, onBack, onOpenNotification, onMarkAl
 }
 
 // ---------------------------------------------
-// Vista: Denuncias (admin)
+// Vista: Panel de administración (usuarios, subastas, denuncias)
 // ---------------------------------------------
-function AdminReportsView({ reports, onBack, onResolve, busyId }) {
+function ReportsTabContent({ reports, onResolve, busyId }) {
   const open = reports.filter((r) => r.status === "open");
   const resolved = reports.filter((r) => r.status !== "open");
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+        Abiertas ({open.length})
+      </h3>
+      {open.length === 0 && <p className="text-[12px] text-ink-soft">No hay denuncias pendientes.</p>}
+      {open.map((r) => (
+        <div key={r.id} className="rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] p-3">
+          <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
+          <p className="text-[11px] text-ink-soft">Vendedor: {r.auction?.seller?.alias ?? "—"}</p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-ink">{r.reason}</p>
+          <p className="mt-1 text-[10px] text-ink-soft">
+            Denunciado por {r.reporter?.alias ?? "—"} · {new Date(r.created_at).toLocaleString("es-AR")}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => onResolve(r.id, "resolved")}
+              disabled={busyId === r.id}
+              className="rounded-lg bg-forest-mid px-3 py-1.5 text-[11px] font-bold text-paper disabled:opacity-40"
+            >
+              Marcar resuelta
+            </button>
+            <button
+              onClick={() => onResolve(r.id, "dismissed")}
+              disabled={busyId === r.id}
+              className="rounded-lg border-2 border-line px-3 py-1.5 text-[11px] font-bold text-ink-soft disabled:opacity-40"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {resolved.length > 0 && (
+        <>
+          <h3 className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Resueltas</h3>
+          {resolved.map((r) => (
+            <div key={r.id} className="rounded-lg border-2 border-line bg-paper p-3 opacity-70">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
+                <Pill tone={r.status === "resolved" ? "live" : "default"}>
+                  {r.status === "resolved" ? "Resuelta" : "Descartada"}
+                </Pill>
+              </div>
+              <p className="mt-1 text-[12px] text-ink-soft">{r.reason}</p>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function UsersTabContent({ profiles, onSuspend, busyId }) {
+  return (
+    <div className="space-y-2">
+      {profiles.map((p) => (
+        <div
+          key={p.id}
+          className={`flex items-center justify-between rounded-lg border-2 p-3 ${
+            p.is_suspended ? "border-[#B9432C]/30 bg-[#FBE6E0]" : "border-line bg-paper"
+          }`}
+        >
+          <div>
+            <p className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
+              {p.alias}
+              {p.is_admin && <span className="text-[9px] font-bold text-gold-dark">ADMIN</span>}
+              {p.is_suspended && <span className="text-[9px] font-bold text-[#B9432C]">SUSPENDIDO</span>}
+            </p>
+            <p className="text-[11px] text-ink-soft">
+              {p.sales_count} ventas · {p.purchases_count} compras · {Number(p.rating_avg).toFixed(1)}★
+            </p>
+          </div>
+          {!p.is_admin && (
+            <button
+              onClick={() => onSuspend(p.id, !p.is_suspended)}
+              disabled={busyId === p.id}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold disabled:opacity-40 ${
+                p.is_suspended ? "bg-forest-mid text-paper" : "border-2 border-[#B9432C]/40 text-[#B9432C]"
+              }`}
+            >
+              {p.is_suspended ? "Reactivar" : "Suspender"}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AuctionsTabContent({ auctions }) {
+  return (
+    <div className="space-y-2">
+      {auctions.map((a) => (
+        <div key={a.id} className="rounded-lg border-2 border-line bg-paper p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-extrabold text-ink">{a.card}</p>
+            <Pill tone={a.status === "live" ? "live" : "default"}>{a.status}</Pill>
+          </div>
+          <p className="text-[11px] text-ink-soft">Vendedor: {a.seller}</p>
+          <p className="text-[11px] text-ink-soft">{formatARS(a.currentBid)} · {a.bids} pujas</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdminPanel({ profiles, auctions, reports, onBack, onSuspend, suspendBusyId, onResolveReport, resolveBusyId }) {
+  const [tab, setTab] = useState("usuarios");
+  const tabs = [
+    { value: "usuarios", label: "Usuarios" },
+    { value: "subastas", label: "Subastas" },
+    { value: "denuncias", label: "Denuncias" },
+  ];
 
   return (
     <div className="min-h-screen bg-cream pb-10">
@@ -700,56 +818,28 @@ function AdminReportsView({ reports, onBack, onResolve, busyId }) {
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="font-pixel text-[9px] tracking-wide text-gold">DENUNCIAS</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">PANEL ADMIN</p>
       </header>
 
-      <div className="space-y-3 px-5 pt-6">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
-          Abiertas ({open.length})
-        </h3>
-        {open.length === 0 && <p className="text-[12px] text-ink-soft">No hay denuncias pendientes.</p>}
-        {open.map((r) => (
-          <div key={r.id} className="rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] p-3">
-            <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
-            <p className="text-[11px] text-ink-soft">Vendedor: {r.auction?.seller?.alias ?? "—"}</p>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-ink">{r.reason}</p>
-            <p className="mt-1 text-[10px] text-ink-soft">
-              Denunciado por {r.reporter?.alias ?? "—"} · {new Date(r.created_at).toLocaleString("es-AR")}
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                onClick={() => onResolve(r.id, "resolved")}
-                disabled={busyId === r.id}
-                className="rounded-lg bg-forest-mid px-3 py-1.5 text-[11px] font-bold text-paper disabled:opacity-40"
-              >
-                Marcar resuelta
-              </button>
-              <button
-                onClick={() => onResolve(r.id, "dismissed")}
-                disabled={busyId === r.id}
-                className="rounded-lg border-2 border-line px-3 py-1.5 text-[11px] font-bold text-ink-soft disabled:opacity-40"
-              >
-                Descartar
-              </button>
-            </div>
-          </div>
+      <div className="flex gap-2 px-5 pt-4">
+        {tabs.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={`rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
+              tab === t.value ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
+      </div>
 
-        {resolved.length > 0 && (
-          <>
-            <h3 className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Resueltas</h3>
-            {resolved.map((r) => (
-              <div key={r.id} className="rounded-lg border-2 border-line bg-paper p-3 opacity-70">
-                <div className="flex items-center justify-between">
-                  <p className="text-[13px] font-extrabold text-ink">{r.auction?.card_name ?? "Subasta eliminada"}</p>
-                  <Pill tone={r.status === "resolved" ? "live" : "default"}>
-                    {r.status === "resolved" ? "Resuelta" : "Descartada"}
-                  </Pill>
-                </div>
-                <p className="mt-1 text-[12px] text-ink-soft">{r.reason}</p>
-              </div>
-            ))}
-          </>
+      <div className="px-5 pt-4">
+        {tab === "usuarios" && <UsersTabContent profiles={profiles} onSuspend={onSuspend} busyId={suspendBusyId} />}
+        {tab === "subastas" && <AuctionsTabContent auctions={auctions} />}
+        {tab === "denuncias" && (
+          <ReportsTabContent reports={reports} onResolve={onResolveReport} busyId={resolveBusyId} />
         )}
       </div>
     </div>
@@ -1975,6 +2065,9 @@ export default function App() {
   const [reportError, setReportError] = useState("");
   const [allReports, setAllReports] = useState([]);
   const [resolveReportBusyId, setResolveReportBusyId] = useState(null);
+  const [adminProfiles, setAdminProfiles] = useState([]);
+  const [adminAuctions, setAdminAuctions] = useState([]);
+  const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
@@ -2044,8 +2137,10 @@ export default function App() {
       listMyBidAuctions(auth.session.user.id).then(
         (rows) => !cancelled && setMyBids(rows.map((r) => ({ ...auctionToVM(r), myBid: r.myBid })))
       );
-    } else if (view.name === "reports") {
+    } else if (view.name === "admin") {
       listAllReports().then((rows) => !cancelled && setAllReports(rows));
+      listAllProfilesForAdmin().then((rows) => !cancelled && setAdminProfiles(rows));
+      listAllAuctionsForAdmin().then((rows) => !cancelled && setAdminAuctions(rows.map(auctionToVM)));
     }
     return () => {
       cancelled = true;
@@ -2233,6 +2328,16 @@ export default function App() {
     }
   }
 
+  async function handleSuspendUser(userId, suspended) {
+    setSuspendBusyId(userId);
+    try {
+      await setUserSuspended(userId, suspended);
+      setAdminProfiles((rows) => rows.map((p) => (p.id === userId ? { ...p, is_suspended: suspended } : p)));
+    } finally {
+      setSuspendBusyId(null);
+    }
+  }
+
   async function handleEditAuction(auctionId, fields) {
     setEditBusy(true);
     setEditError("");
@@ -2327,7 +2432,7 @@ export default function App() {
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
-          onOpenReports={() => setView({ name: "reports" })}
+          onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
           searchTerm={searchTerm}
@@ -2437,12 +2542,16 @@ export default function App() {
         />
       )}
 
-      {view.name === "reports" && (
-        <AdminReportsView
+      {view.name === "admin" && (
+        <AdminPanel
+          profiles={adminProfiles}
+          auctions={adminAuctions}
           reports={allReports}
-          busyId={resolveReportBusyId}
+          resolveBusyId={resolveReportBusyId}
+          suspendBusyId={suspendBusyId}
           onBack={() => setView({ name: "list" })}
-          onResolve={handleResolveReport}
+          onResolveReport={handleResolveReport}
+          onSuspend={handleSuspendUser}
         />
       )}
 

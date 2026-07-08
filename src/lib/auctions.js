@@ -421,3 +421,27 @@ export function subscribeToMyNotifications(userId, onInsert) {
     .subscribe();
   return () => supabase.removeChannel(channel);
 }
+
+export async function listAllProfilesForAdmin() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, alias, sales_count, purchases_count, rating_avg, is_admin, is_suspended, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function setUserSuspended(userId, suspended) {
+  const { error } = await supabase.rpc("set_user_suspended", { p_user_id: userId, p_suspended: suspended });
+  if (error) throw error;
+}
+
+export async function listAllAuctionsForAdmin() {
+  const { data, error } = await supabase
+    .from("auctions")
+    .select(`${AUCTION_SELECT}, created_at`)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data;
+}
