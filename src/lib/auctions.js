@@ -47,6 +47,7 @@ export const RARITY_OPTIONS = [
   { value: "poco_comun", label: "Poco común", symbol: "◆" },
   { value: "rara", label: "Rara", symbol: "★" },
   { value: "rara_doble", label: "Rara doble", symbol: "★★" },
+  { value: "promo", label: "Promo", symbol: "P" },
 ];
 
 export const RARITY_SYMBOL = Object.fromEntries(RARITY_OPTIONS.map((r) => [r.value, r.symbol]));
