@@ -383,3 +383,41 @@ export async function updateReportStatus(reportId, status) {
   const { error } = await supabase.from("reports").update({ status }).eq("id", reportId);
   if (error) throw error;
 }
+
+export async function listMyNotifications() {
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, kind, message, auction_id, read_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return data;
+}
+
+export async function markNotificationRead(notificationId) {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationId);
+  if (error) throw error;
+}
+
+export async function markAllNotificationsRead(notificationIds) {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .in("id", notificationIds);
+  if (error) throw error;
+}
+
+export function subscribeToMyNotifications(userId, onInsert) {
+  const channel = supabase
+    .channel(`notifications-${userId}-${crypto.randomUUID()}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+      (payload) => onInsert(payload.new)
+    )
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -31,6 +31,10 @@ import {
   updateReportStatus,
   updateOwnAuction,
   cancelOwnAuction,
+  listMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  subscribeToMyNotifications,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -272,6 +276,8 @@ function AuctionList({
   onOpenMyBids,
   onOpenMyPublications,
   onOpenReports,
+  onOpenNotifications,
+  unreadNotifCount = 0,
   searchTerm,
   onSearchChange,
   pendingCount = 0,
@@ -330,6 +336,14 @@ function AuctionList({
                   onOpenMyPublications={onOpenMyPublications}
                   onOpenReports={onOpenReports}
                 />
+                <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
+                  <Bell size={15} />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#B9432C] px-1 text-[9px] font-bold text-paper">
+                      {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                    </span>
+                  )}
+                </button>
                 <button onClick={onSignOut} className="flex items-center gap-1 hover:text-paper">
                   <LogOut size={13} /> Salir
                 </button>
@@ -617,6 +631,58 @@ function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, showMyBid 
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Notificaciones
+// ---------------------------------------------
+function NotificationsView({ notifications, onBack, onOpenNotification, onMarkAllRead }) {
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">NOTIFICACIONES</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        {unreadCount > 0 && (
+          <button
+            onClick={onMarkAllRead}
+            className="mb-3 text-[11px] font-bold text-forest-deep underline underline-offset-2"
+          >
+            Marcar todas como leídas
+          </button>
+        )}
+
+        {notifications.length === 0 && (
+          <p className="text-[12px] text-ink-soft">Todavía no tenés notificaciones.</p>
+        )}
+
+        <div className="flex flex-col gap-2">
+          {notifications.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => onOpenNotification(n)}
+              className={`rounded-lg border-2 p-3 text-left transition ${
+                n.read_at ? "border-line bg-paper" : "border-[#B9432C]/30 bg-[#FBE6E0]"
+              }`}
+            >
+              <p className={`text-[13px] leading-relaxed ${n.read_at ? "text-ink-soft" : "font-bold text-[#B9432C]"}`}>
+                {n.message}
+              </p>
+              <p className="mt-1 text-[10px] text-ink-soft">
+                {new Date(n.created_at).toLocaleString("es-AR")}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1912,6 +1978,7 @@ export default function App() {
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [, setClockTick] = useState(0);
   const [toasts, setToasts] = useState([]);
   const myBidAmountsRef = useRef({});
@@ -1945,9 +2012,14 @@ export default function App() {
     });
     listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
     listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
+    listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
+    const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
+      setNotifications((rows) => [newNotif, ...rows]);
+    });
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeNotifications();
     };
   }, [ready]);
 
@@ -2201,6 +2273,23 @@ export default function App() {
     }
   }
 
+  async function handleOpenNotification(n) {
+    if (!n.read_at) {
+      setNotifications((rows) => rows.map((r) => (r.id === n.id ? { ...r, read_at: new Date().toISOString() } : r)));
+      markNotificationRead(n.id).catch(() => {});
+    }
+    if (n.auction_id) {
+      setView({ name: "detail", auctionId: n.auction_id, back: { name: "notifications" } });
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    const unreadIds = notifications.filter((n) => !n.read_at).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    setNotifications((rows) => rows.map((r) => (unreadIds.includes(r.id) ? { ...r, read_at: new Date().toISOString() } : r)));
+    markAllNotificationsRead(unreadIds).catch(() => {});
+  }
+
   const activeAuction =
     view.name === "detail" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
   const activeEditAuction =
@@ -2239,6 +2328,8 @@ export default function App() {
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
           onOpenReports={() => setView({ name: "reports" })}
+          onOpenNotifications={() => setView({ name: "notifications", back: view })}
+          unreadNotifCount={notifications.filter((n) => !n.read_at).length}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
@@ -2352,6 +2443,15 @@ export default function App() {
           busyId={resolveReportBusyId}
           onBack={() => setView({ name: "list" })}
           onResolve={handleResolveReport}
+        />
+      )}
+
+      {view.name === "notifications" && (
+        <NotificationsView
+          notifications={notifications}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onOpenNotification={handleOpenNotification}
+          onMarkAllRead={handleMarkAllNotificationsRead}
         />
       )}
 
