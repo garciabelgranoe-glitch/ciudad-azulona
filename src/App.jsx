@@ -2123,6 +2123,40 @@ export default function App() {
   const [enteredLanding, setEnteredLanding] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [view, setView] = useState({ name: "list" });
+  const isPoppingRef = useRef(false);
+  const isFirstHistoryRender = useRef(true);
+
+  // Sincroniza todo lo que decide "qué pantalla se ve" (view, y también
+  // enteredLanding/showLegal que viven fuera del view state machine) con
+  // el historial del navegador: cada cambio pushea una entrada, y "atrás"
+  // del navegador vuelve a la pantalla anterior en vez de no hacer nada.
+  useEffect(() => {
+    if (isPoppingRef.current) {
+      isPoppingRef.current = false;
+      return;
+    }
+    const historyState = { view, enteredLanding, showLegal };
+    if (isFirstHistoryRender.current) {
+      isFirstHistoryRender.current = false;
+      window.history.replaceState(historyState, "");
+    } else {
+      window.history.pushState(historyState, "");
+    }
+  }, [view, enteredLanding, showLegal]);
+
+  useEffect(() => {
+    function onPopState(e) {
+      if (e.state) {
+        isPoppingRef.current = true;
+        setView(e.state.view);
+        setEnteredLanding(e.state.enteredLanding);
+        setShowLegal(e.state.showLegal);
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);
   const [tickets, setTickets] = useState(SEED_TICKETS);
   const [realRows, setRealRows] = useState([]);
