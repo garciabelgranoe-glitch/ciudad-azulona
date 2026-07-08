@@ -376,6 +376,12 @@ export async function updateGender(userId, gender) {
   return data;
 }
 
+export async function getProfileStats(userId) {
+  const { data, error } = await supabase.rpc("get_profile_stats", { p_user_id: userId });
+  if (error) throw error;
+  return data;
+}
+
 export async function getProfileBadges(userId) {
   const { data, error } = await supabase
     .from("profile_badges")
