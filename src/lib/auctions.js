@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
-  reference_price,
+  reference_price, reserve_price, buy_now_price,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count )
 `;
 
@@ -119,6 +119,8 @@ export function auctionToVM(row) {
     rarity: row.rarity,
     isFeatured: row.is_featured,
     referencePrice: row.reference_price != null ? Number(row.reference_price) : null,
+    reservePrice: row.reserve_price != null ? Number(row.reserve_price) : null,
+    buyNowPrice: row.buy_now_price != null ? Number(row.buy_now_price) : null,
   };
 }
 
@@ -127,6 +129,12 @@ export async function placeBid(auctionId, amount) {
     p_auction_id: auctionId,
     p_amount: amount,
   });
+  if (error) throw error;
+  return data;
+}
+
+export async function buyNowAuction(auctionId) {
+  const { data, error } = await supabase.rpc("buy_now_auction", { p_auction_id: auctionId });
   if (error) throw error;
   return data;
 }
@@ -205,6 +213,8 @@ export async function createAuction({
   rarity,
   isFeatured,
   referencePrice,
+  reservePrice,
+  buyNowPrice,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -226,6 +236,8 @@ export async function createAuction({
       rarity: rarity || null,
       is_featured: !!isFeatured,
       reference_price: referencePrice || null,
+      reserve_price: reservePrice || null,
+      buy_now_price: buyNowPrice || null,
     })
     .select(AUCTION_SELECT)
     .single();
@@ -246,6 +258,8 @@ export async function updateOwnAuction(auctionId, {
   rarity,
   isFeatured,
   referencePrice,
+  reservePrice,
+  buyNowPrice,
 }) {
   const { data, error } = await supabase.rpc("update_own_auction", {
     p_auction_id: auctionId,
@@ -261,6 +275,8 @@ export async function updateOwnAuction(auctionId, {
     p_rarity: rarity || null,
     p_is_featured: !!isFeatured,
     p_reference_price: referencePrice || null,
+    p_reserve_price: reservePrice || null,
+    p_buy_now_price: buyNowPrice || null,
   });
   if (error) throw error;
   return data;

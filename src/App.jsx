@@ -12,6 +12,7 @@ import {
   listLiveAuctions,
   subscribeToLiveAuctions,
   placeBid,
+  buyNowAuction,
   uploadAuctionPhotos,
   createAuction,
   auctionToVM,
@@ -602,6 +603,11 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
       </div>
       <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
         <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+        {a.buyNowPrice != null && a.status === "live" && (
+          <span className="w-fit rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
+            Comprar ya: {formatARS(a.buyNowPrice)}
+          </span>
+        )}
         {(a.setName || a.cardNumber || a.year) && (
           <p className="line-clamp-1 text-[11px] text-ink-soft">
             {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
@@ -858,6 +864,10 @@ function AuctionDetail({
   onBid,
   bidError,
   bidBusy,
+  onBuyNow,
+  buyNowBusy,
+  buyNowError,
+  onGoToMyTickets,
   isMine,
   bidHistory = [],
   onOpenUserProfile,
@@ -869,6 +879,8 @@ function AuctionDetail({
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
+  const [bought, setBought] = useState(false);
+  const reserveMet = auction.reservePrice == null || auction.currentBid >= auction.reservePrice;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
   const [reportOpen, setReportOpen] = useState(false);
@@ -900,6 +912,12 @@ function AuctionDetail({
       setConfirmedBid(bid);
       setPlaced(true);
     }
+  }
+
+  async function handleBuyNow() {
+    if (!onBuyNow) return;
+    const ok = await onBuyNow(auction.id);
+    if (ok) setBought(true);
   }
 
   return (
@@ -1034,15 +1052,42 @@ function AuctionDetail({
           </div>
         </div>
 
+        {auction.status === "live" && auction.reservePrice != null && (
+          <p className={`mt-2 text-[11px] font-bold ${reserveMet ? "text-forest-deep" : "text-[#B9432C]"}`}>
+            {reserveMet ? "Reserva alcanzada" : "Todavía no se alcanzó el precio mínimo del vendedor"}
+            {isMine && ` (${formatARS(auction.reservePrice)})`}
+          </p>
+        )}
+
         {isMine ? (
           <div className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
             <p>Esta es tu publicación — no podés pujar en tu propia carta.</p>
+            {auction.buyNowPrice != null && (
+              <p className="mt-1">Compra inmediata en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
+            )}
             {auction.bids === 0 && onEdit && (
               <button
                 onClick={onEdit}
                 className="mt-2 font-bold text-forest-deep underline underline-offset-2"
               >
                 Editar o cancelar esta subasta
+              </button>
+            )}
+          </div>
+        ) : bought ? (
+          <div className="mt-6 rounded-xl border-2 border-gold bg-gold/10 p-4">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-gold-dark">
+              <Check size={15} /> ¡Comprada al instante!
+            </p>
+            <p className="mt-1 text-[12px] text-ink-soft">
+              La subasta cerró a tu favor. Encontrás el código de retiro en Mis tickets.
+            </p>
+            {onGoToMyTickets && (
+              <button
+                onClick={onGoToMyTickets}
+                className="mt-3 text-[12px] font-bold text-gold-dark underline underline-offset-2"
+              >
+                Ver Mis tickets →
               </button>
             )}
           </div>
@@ -1067,6 +1112,20 @@ function AuctionDetail({
               </button>
             </div>
             {bidError && <p className="mt-2 text-[12px] text-[#B9432C]">{bidError}</p>}
+
+            {auction.buyNowPrice != null && onBuyNow && (
+              <div className="mt-3 border-t-2 border-line pt-3">
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyNowBusy}
+                  className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+                >
+                  {buyNowBusy ? "Comprando..." : `Comprar ya por ${formatARS(auction.buyNowPrice)}`}
+                </button>
+                <p className="mt-1.5 text-center text-[11px] text-ink-soft">Cierra la subasta al instante a tu favor.</p>
+                {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
+              </div>
+            )}
           </div>
         ) : (
           <div className="mt-6 rounded-xl border-2 border-forest-mid bg-forest-mid/10 p-4">
@@ -1398,6 +1457,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
+  const [reservePrice, setReservePrice] = useState("");
+  const [buyNowPrice, setBuyNowPrice] = useState("");
   const [duration, setDuration] = useState(60);
   const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [setName_, setSetName] = useState("");
@@ -1450,7 +1511,13 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
   }
 
   const photoRequired = showDuration;
-  const canPublish = name && price && (!photoRequired || photos.length > 0) && !busy && !photoConverting;
+  const reserveInvalid = reservePrice !== "" && Number(reservePrice) < Number(price || 0);
+  const buyNowInvalid =
+    buyNowPrice !== "" &&
+    (Number(buyNowPrice) <= Number(price || 0) ||
+      (reservePrice !== "" && Number(buyNowPrice) <= Number(reservePrice)));
+  const canPublish =
+    name && price && (!photoRequired || photos.length > 0) && !busy && !photoConverting && !reserveInvalid && !buyNowInvalid;
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -1637,6 +1704,44 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
 
         {showDuration && (
           <div>
+            <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
+            <input
+              type="number"
+              value={reservePrice}
+              onChange={(e) => setReservePrice(e.target.value)}
+              placeholder="Ej: no vender por menos de este monto"
+              className={inputClass}
+            />
+            {reserveInvalid && (
+              <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor o igual al precio base.</p>
+            )}
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Si al cerrar la subasta la puja más alta no lo alcanza, no se genera ganador. No se lo mostramos al público, solo si se alcanzó o no.
+            </p>
+          </div>
+        )}
+
+        {showDuration && (
+          <div>
+            <label className={labelClass}>Precio de compra inmediata (opcional)</label>
+            <input
+              type="number"
+              value={buyNowPrice}
+              onChange={(e) => setBuyNowPrice(e.target.value)}
+              placeholder="Ej: quien pague esto se lleva la carta ya"
+              className={inputClass}
+            />
+            {buyNowInvalid && (
+              <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor al precio base{reservePrice ? " y a la reserva" : ""}.</p>
+            )}
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Si alguien paga este precio antes de que termine el tiempo, la subasta cierra al instante a su favor.
+            </p>
+          </div>
+        )}
+
+        {showDuration && (
+          <div>
             <label className={labelClass}>Dura</label>
             <div className="mt-1.5 grid grid-cols-4 gap-2">
               {DURATION_OPTIONS.map((opt) => (
@@ -1674,6 +1779,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
+              reservePrice: reservePrice ? Number(reservePrice) : null,
+              buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
             })
           }
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
@@ -1698,6 +1805,8 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
   const [name, setName] = useState(auction.card);
   const [price, setPrice] = useState(String(auction.basePrice));
   const [referencePrice, setReferencePrice] = useState(auction.referencePrice ? String(auction.referencePrice) : "");
+  const [reservePrice, setReservePrice] = useState(auction.reservePrice ? String(auction.reservePrice) : "");
+  const [buyNowPrice, setBuyNowPrice] = useState(auction.buyNowPrice ? String(auction.buyNowPrice) : "");
   const [setName_, setSetName] = useState(auction.setName ?? "");
   const [cardNumber, setCardNumber] = useState(auction.cardNumber ?? "");
   const [year, setYear] = useState(auction.year ? String(auction.year) : "");
@@ -1712,7 +1821,12 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[12px] font-bold text-ink-soft";
-  const canSave = name && price;
+  const reserveInvalid = reservePrice !== "" && Number(reservePrice) < Number(price || 0);
+  const buyNowInvalid =
+    buyNowPrice !== "" &&
+    (Number(buyNowPrice) <= Number(price || 0) ||
+      (reservePrice !== "" && Number(buyNowPrice) <= Number(reservePrice)));
+  const canSave = name && price && !reserveInvalid && !buyNowInvalid;
 
   return (
     <div className="min-h-screen bg-cream pb-10">
@@ -1821,6 +1935,32 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
           />
         </div>
 
+        <div>
+          <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
+          <input
+            type="number"
+            value={reservePrice}
+            onChange={(e) => setReservePrice(e.target.value)}
+            className={inputClass}
+          />
+          {reserveInvalid && (
+            <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor o igual al precio base.</p>
+          )}
+        </div>
+
+        <div>
+          <label className={labelClass}>Precio de compra inmediata (opcional)</label>
+          <input
+            type="number"
+            value={buyNowPrice}
+            onChange={(e) => setBuyNowPrice(e.target.value)}
+            className={inputClass}
+          />
+          {buyNowInvalid && (
+            <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor al precio base{reservePrice ? " y a la reserva" : ""}.</p>
+          )}
+        </div>
+
         {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
 
         <button
@@ -1839,6 +1979,8 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
+              reservePrice: reservePrice ? Number(reservePrice) : null,
+              buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
             })
           }
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
@@ -2309,6 +2451,8 @@ export default function App() {
   const [createError, setCreateError] = useState("");
   const [bidError, setBidError] = useState("");
   const [bidBusy, setBidBusy] = useState(false);
+  const [buyNowError, setBuyNowError] = useState("");
+  const [buyNowBusy, setBuyNowBusy] = useState(false);
   const [realTickets, setRealTickets] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
@@ -2473,6 +2617,8 @@ export default function App() {
     rarity,
     isFeatured,
     referencePrice,
+    reservePrice,
+    buyNowPrice,
   }) {
     setCreateBusy(true);
     setCreateError("");
@@ -2494,6 +2640,8 @@ export default function App() {
         rarity,
         isFeatured,
         referencePrice,
+        reservePrice,
+        buyNowPrice,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
@@ -2520,6 +2668,21 @@ export default function App() {
       return false;
     } finally {
       setBidBusy(false);
+    }
+  }
+
+  async function handleRealBuyNow(auctionId) {
+    setBuyNowBusy(true);
+    setBuyNowError("");
+    try {
+      const row = await buyNowAuction(auctionId);
+      setRealRows((rows) => rows.map((r) => (r.id === auctionId ? row : r)));
+      return row;
+    } catch (e) {
+      setBuyNowError(e.message);
+      return null;
+    } finally {
+      setBuyNowBusy(false);
     }
   }
 
@@ -2623,6 +2786,8 @@ export default function App() {
         rarity: fields.rarity,
         isFeatured: fields.isFeatured,
         referencePrice: fields.referencePrice,
+        reservePrice: fields.reservePrice,
+        buyNowPrice: fields.buyNowPrice,
       });
       setRealRows((rows) => rows.map((r) => (r.id === auctionId ? row : r)));
       setView({ name: "detail", auctionId, back: { name: "list" } });
@@ -2718,6 +2883,10 @@ export default function App() {
           onBid={isSupabaseConfigured ? handleRealBid : undefined}
           bidError={bidError}
           bidBusy={bidBusy}
+          onBuyNow={isSupabaseConfigured ? handleRealBuyNow : undefined}
+          buyNowBusy={buyNowBusy}
+          buyNowError={buyNowError}
+          onGoToMyTickets={() => setView({ name: "myTickets" })}
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
           bidHistory={bidHistory}
           onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
