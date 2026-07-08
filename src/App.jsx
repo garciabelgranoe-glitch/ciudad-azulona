@@ -205,7 +205,7 @@ function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
   );
 }
 
-function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenAdmin }) {
+function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOpenMyPublications, onOpenMyTickets, onOpenAdmin }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -247,6 +247,15 @@ function AccountMenu({ alias, gender, isAdmin, onOpenProfile, onOpenMyBids, onOp
             >
               Mis publicaciones
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenMyTickets();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Mis tickets
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -284,7 +293,7 @@ function AuctionList({
   searchTerm,
   onSearchChange,
   pendingCount = 0,
-  onOpenPendingTicket,
+  onOpenMyTickets,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -337,6 +346,7 @@ function AuctionList({
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
+                  onOpenMyTickets={onOpenMyTickets}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -463,11 +473,11 @@ function AuctionList({
       {pendingCount > 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-4">
           <button
-            onClick={onOpenPendingTicket}
+            onClick={onOpenMyTickets}
             className="flex w-full items-center justify-between rounded-lg border-2 border-[#B9432C]/25 bg-[#FBE6E0] px-4 py-2.5 text-left"
           >
             <span className="text-[12px] font-bold text-[#B9432C]">
-              Tenés {pendingCount} carta(s) pendiente(s) de retiro
+              Tenés {pendingCount} ticket(s) pendiente(s)
             </span>
             <span className="text-[12px] font-bold text-[#B9432C]">Ver →</span>
           </button>
@@ -1161,6 +1171,90 @@ function AuctionDetail({
                 Denunciar esta subasta
               </button>
             )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Mis tickets (todos, no solo el primero pendiente)
+// ---------------------------------------------
+function TicketRow({ ticket, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center justify-between rounded-lg border-2 border-line bg-paper p-3 text-left transition hover:-translate-y-0.5"
+    >
+      <div className="min-w-0">
+        <p className="line-clamp-1 text-[13px] font-extrabold text-ink">{ticket.card}</p>
+        <p className="text-[11px] text-ink-soft">
+          {ticket.isSeller ? "Vos vendiste" : `Vendedor: ${ticket.seller}`} · {formatARS(ticket.price)}
+        </p>
+      </div>
+      {ticket.status === "pendiente" ? (
+        <Pill tone="gold">Pendiente</Pill>
+      ) : (
+        <Pill tone="live">Entregado</Pill>
+      )}
+    </button>
+  );
+}
+
+function MyTicketsView({ tickets, onBack, onOpenTicket }) {
+  const toPickup = tickets.filter((t) => !t.isSeller && t.status === "pendiente");
+  const toDeliver = tickets.filter((t) => t.isSeller && t.status === "pendiente");
+  const delivered = tickets.filter((t) => t.status === "entregado");
+
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">MIS TICKETS</p>
+      </header>
+
+      <div className="space-y-5 px-5 pt-6">
+        {tickets.length === 0 && <p className="text-[13px] text-ink-soft">Todavía no tenés tickets.</p>}
+
+        {toPickup.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+              Para retirar ({toPickup.length})
+            </h3>
+            <div className="flex flex-col gap-2">
+              {toPickup.map((t) => (
+                <TicketRow key={t.id} ticket={t} onClick={() => onOpenTicket(t)} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {toDeliver.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+              Para entregar ({toDeliver.length})
+            </h3>
+            <div className="flex flex-col gap-2">
+              {toDeliver.map((t) => (
+                <TicketRow key={t.id} ticket={t} onClick={() => onOpenTicket(t)} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {delivered.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+              Entregados ({delivered.length})
+            </h3>
+            <div className="flex flex-col gap-2 opacity-70">
+              {delivered.map((t) => (
+                <TicketRow key={t.id} ticket={t} onClick={() => onOpenTicket(t)} />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -2552,15 +2646,13 @@ export default function App() {
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
+          onOpenMyTickets={() => setView({ name: "myTickets" })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
-          onOpenPendingTicket={() =>
-            setView({ name: "ticket", ticket: displayTickets.find((t) => t.status === "pendiente") })
-          }
         />
       )}
 
@@ -2600,14 +2692,14 @@ export default function App() {
         <TicketView
           ticket={view.ticket}
           busy={redeemBusy}
-          onBack={() => setView({ name: "list" })}
+          onBack={() => setView(view.back ?? { name: "list" })}
           onMarkDelivered={async () => {
             if (isSupabaseConfigured) {
               await handleRedeem(view.ticket.id);
-              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
+              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" }, back: view.back });
             } else {
               setTickets((ts) => ts.map((t) => (t.id === view.ticket.id ? { ...t, status: "entregado" } : t)));
-              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" } });
+              setView({ name: "ticket", ticket: { ...view.ticket, status: "entregado" }, back: view.back });
             }
           }}
           showRatingPrompt={
@@ -2661,6 +2753,14 @@ export default function App() {
           auctions={myPublications}
           onBack={() => setView({ name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+        />
+      )}
+
+      {view.name === "myTickets" && (
+        <MyTicketsView
+          tickets={displayTickets}
+          onBack={() => setView({ name: "list" })}
+          onOpenTicket={(t) => setView({ name: "ticket", ticket: t, back: view })}
         />
       )}
 
