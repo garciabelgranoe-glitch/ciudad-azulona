@@ -26,7 +26,10 @@ export default function Landing({ onEnter, onOpenLegal }) {
         <div className="mt-8 flex flex-col gap-3">
           <FeatureRow variant="bolt" text="Subastas en vivo con cierre automático" />
           <FeatureRow variant="trade" text="Coordinás la entrega en persona, vos manejás el pago" />
-          <FeatureRow variant="medal" text="Reputación y medallas por tus ventas" />
+          <FeatureRow variant="medal" text="Reputación, medallas e insignia de vendedor verificado" />
+          <FeatureRow variant="store" text="Vendedores recomendados y destacadas del mes" />
+          <FeatureRow variant="gift" text="Sorteos exclusivos para la comunidad" />
+          <FeatureRow variant="news" text="Novedades y contenido de coleccionismo Pokémon" />
         </div>
 
         <button

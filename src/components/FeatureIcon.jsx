@@ -38,7 +38,60 @@ function MedalGlyph() {
   );
 }
 
-const VARIANTS = { bolt: BoltGlyph, trade: TradeGlyph, medal: MedalGlyph };
+function StoreGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" width="100%" height="100%">
+      <polygon points="2,9 18,9 16,3 4,3" fill="#B9432C" stroke="#20291C" strokeWidth="1" strokeLinejoin="round" />
+      <rect x="3" y="9" width="14" height="9" fill="#F3C868" stroke="#20291C" strokeWidth="1" />
+      <rect x="8" y="12" width="4" height="6" fill="#2E8B8B" stroke="#20291C" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+function GiftGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" width="100%" height="100%">
+      <path
+        d="M10 6 C7 6 6 3 8 2 C9.5 1.5 10 4 10 6 Z"
+        fill="#B9432C"
+        stroke="#20291C"
+        strokeWidth="0.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 6 C13 6 14 3 12 2 C10.5 1.5 10 4 10 6 Z"
+        fill="#B9432C"
+        stroke="#20291C"
+        strokeWidth="0.7"
+        strokeLinejoin="round"
+      />
+      <rect x="2" y="6" width="16" height="4" fill="#F3C868" stroke="#20291C" strokeWidth="1" />
+      <rect x="3" y="10" width="14" height="8" fill="#2E8B8B" stroke="#20291C" strokeWidth="1" />
+      <rect x="8.5" y="6" width="3" height="12" fill="#D9A441" stroke="#20291C" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+function NewsGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" width="100%" height="100%">
+      <rect x="3" y="2" width="14" height="16" fill="#F3C868" stroke="#20291C" strokeWidth="1" />
+      <rect x="5" y="5" width="10" height="2" fill="#20291C" opacity="0.65" />
+      <rect x="5" y="8.5" width="10" height="1.4" fill="#2E8B8B" />
+      <rect x="5" y="11" width="10" height="1.4" fill="#2E8B8B" />
+      <rect x="5" y="13.5" width="6" height="1.4" fill="#B9432C" />
+    </svg>
+  );
+}
+
+const VARIANTS = {
+  bolt: BoltGlyph,
+  trade: TradeGlyph,
+  medal: MedalGlyph,
+  store: StoreGlyph,
+  gift: GiftGlyph,
+  news: NewsGlyph,
+};
 
 export default function FeatureIcon({ variant, size = 18 }) {
   const Glyph = VARIANTS[variant];
