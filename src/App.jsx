@@ -1399,12 +1399,12 @@ function AdminPanel({
         <p className="font-pixel text-[9px] tracking-wide text-gold">PANEL ADMIN</p>
       </header>
 
-      <div className="flex gap-2 px-5 pt-4">
+      <div className="flex gap-2 overflow-x-auto px-5 pt-4 pb-1">
         {tabs.map((t) => (
           <button
             key={t.value}
             onClick={() => setTab(t.value)}
-            className={`rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
+            className={`shrink-0 rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
               tab === t.value ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
             }`}
           >
