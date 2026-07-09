@@ -511,6 +511,36 @@ export async function deleteRecommendedSeller(id) {
   if (error) throw error;
 }
 
+export async function listBlogPosts() {
+  // RLS: admins ven todo (publicado y no), el resto solo lo publicado.
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .select("id, title, body, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createBlogPost({ title, body, authorId }) {
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .insert({ title, body, author_id: authorId })
+    .select("id, title, body, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setBlogPostPublished(id, isPublished) {
+  const { error } = await supabase.from("blog_posts").update({ is_published: isPublished }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteBlogPost(id) {
+  const { error } = await supabase.from("blog_posts").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listTopAuctionsThisMonth(limit = 10) {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
