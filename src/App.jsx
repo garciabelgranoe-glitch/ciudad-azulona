@@ -48,6 +48,13 @@ import {
   createBlogPost,
   setBlogPostPublished,
   deleteBlogPost,
+  listGiveaways,
+  createGiveaway,
+  closeGiveaway,
+  deleteGiveaway,
+  enterGiveaway,
+  listMyGiveawayEntryIds,
+  listGiveawayEntrantsForAdmin,
   createRecommendedSeller,
   setRecommendedSellerActive,
   deleteRecommendedSeller,
@@ -238,6 +245,7 @@ function AccountMenu({
   onOpenRecommended,
   onOpenTopMonthly,
   onOpenBlog,
+  onOpenGiveaways,
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
@@ -317,6 +325,15 @@ function AccountMenu({
             >
               Novedades
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenGiveaways();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Sorteos
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -358,6 +375,7 @@ function AuctionList({
   onOpenRecommended,
   onOpenTopMonthly,
   onOpenBlog,
+  onOpenGiveaways,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -414,6 +432,7 @@ function AuctionList({
                   onOpenRecommended={onOpenRecommended}
                   onOpenTopMonthly={onOpenTopMonthly}
                   onOpenBlog={onOpenBlog}
+                  onOpenGiveaways={onOpenGiveaways}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -1053,6 +1072,169 @@ function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePubl
   );
 }
 
+const GIVEAWAY_DURATION_OPTIONS = [
+  { value: 3, label: "3 días" },
+  { value: 7, label: "7 días" },
+  { value: 14, label: "14 días" },
+  { value: 30, label: "30 días" },
+];
+
+function GiveawayEntrantsPicker({ giveawayId, onLoadEntrants, onPickWinner, closeBusy }) {
+  const [entrants, setEntrants] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleOpen() {
+    setLoading(true);
+    try {
+      const rows = await onLoadEntrants(giveawayId);
+      setEntrants(rows);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (entrants === null) {
+    return (
+      <button
+        onClick={handleOpen}
+        disabled={loading}
+        className="rounded-lg bg-gold px-2.5 py-1 text-[11px] font-bold text-forest-deep disabled:opacity-40"
+      >
+        {loading ? "Cargando..." : "Elegir ganador"}
+      </button>
+    );
+  }
+
+  if (entrants.length === 0) {
+    return <p className="text-[11px] text-ink-soft">Todavía no hay inscriptos.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {entrants.map((e) => (
+        <button
+          key={e.user_id}
+          onClick={() => onPickWinner(giveawayId, e.user_id)}
+          disabled={closeBusy}
+          className="rounded-lg border-2 border-gold/50 px-2.5 py-1 text-left text-[11px] font-bold text-gold-dark disabled:opacity-40"
+        >
+          {e.alias} →
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onLoadEntrants, onClose, closeBusyId, onDelete, deleteBusyId }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [prizeDescription, setPrizeDescription] = useState("");
+  const [durationDays, setDurationDays] = useState(7);
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[11px] font-bold text-ink-soft";
+
+  async function handleCreate() {
+    const ok = await onCreate({ title, description, prizeDescription, durationDays });
+    if (ok) {
+      setTitle("");
+      setDescription("");
+      setPrizeDescription("");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border-2 border-line bg-paper p-3">
+        <p className="text-[12px] font-extrabold text-ink">Nuevo sorteo</p>
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className={labelClass}>Título</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Descripción</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Premio</label>
+            <input
+              value={prizeDescription}
+              onChange={(e) => setPrizeDescription(e.target.value)}
+              placeholder="Ej: 1 booster box Scarlet & Violet"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Dura</label>
+            <div className="mt-1.5 grid grid-cols-4 gap-2">
+              {GIVEAWAY_DURATION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDurationDays(opt.value)}
+                  className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition ${
+                    durationDays === opt.value ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <button
+            onClick={handleCreate}
+            disabled={!title || createBusy}
+            className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+          >
+            {createBusy ? "Creando..." : "Crear sorteo"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {giveaways.map((g) => (
+          <div key={g.id} className="rounded-lg border-2 border-line bg-paper p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
+                  {g.title}
+                  <Pill tone={g.status === "open" ? "live" : "default"}>{g.status === "open" ? "Abierto" : "Cerrado"}</Pill>
+                </p>
+                {g.prize_description && <p className="text-[11px] text-ink-soft">Premio: {g.prize_description}</p>}
+                <p className="text-[10px] text-ink-soft">
+                  Cierra: {new Date(g.closes_at).toLocaleDateString("es-AR")}
+                </p>
+                {g.status === "closed" && (
+                  <p className="mt-1 text-[11px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
+                )}
+              </div>
+              <button
+                onClick={() => onDelete(g.id)}
+                disabled={deleteBusyId === g.id}
+                className="shrink-0 rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
+              >
+                Borrar
+              </button>
+            </div>
+            {g.status === "open" && (
+              <div className="mt-2">
+                <GiveawayEntrantsPicker
+                  giveawayId={g.id}
+                  onLoadEntrants={onLoadEntrants}
+                  onPickWinner={onClose}
+                  closeBusy={closeBusyId === g.id}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+        {giveaways.length === 0 && <p className="text-[12px] text-ink-soft">Todavía no creaste ningún sorteo.</p>}
+      </div>
+    </div>
+  );
+}
+
 function AdminPanel({
   profiles,
   auctions,
@@ -1078,6 +1260,15 @@ function AdminPanel({
   onToggleBlogPublished,
   onDeleteBlogPost,
   blogBusyId,
+  giveaways,
+  onCreateGiveaway,
+  createGiveawayBusy,
+  createGiveawayError,
+  onLoadGiveawayEntrants,
+  onCloseGiveaway,
+  closeGiveawayBusyId,
+  onDeleteGiveaway,
+  deleteGiveawayBusyId,
 }) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
@@ -1086,6 +1277,7 @@ function AdminPanel({
     { value: "denuncias", label: "Denuncias" },
     { value: "recomendados", label: "Recomendados" },
     { value: "blog", label: "Blog" },
+    { value: "sorteos", label: "Sorteos" },
   ];
 
   return (
@@ -1147,6 +1339,19 @@ function AdminPanel({
             busyId={blogBusyId}
           />
         )}
+        {tab === "sorteos" && (
+          <GiveawaysTabContent
+            giveaways={giveaways}
+            onCreate={onCreateGiveaway}
+            createBusy={createGiveawayBusy}
+            createError={createGiveawayError}
+            onLoadEntrants={onLoadGiveawayEntrants}
+            onClose={onCloseGiveaway}
+            closeBusyId={closeGiveawayBusyId}
+            onDelete={onDeleteGiveaway}
+            deleteBusyId={deleteGiveawayBusyId}
+          />
+        )}
       </div>
     </div>
   );
@@ -1181,6 +1386,74 @@ function BlogView({ posts, onBack }) {
                 <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-ink-soft">{p.body}</p>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Sorteos para la comunidad (pública)
+// ---------------------------------------------
+function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) {
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">SORTEOS</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Sorteos para la comunidad — los organiza el equipo de Ciudad Azulona, inscribite y esperá el resultado.
+        </p>
+
+        {giveaways.length === 0 ? (
+          <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay sorteos activos.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3">
+            {giveaways.map((g) => {
+              const entered = myEntryIds.has(g.id);
+              const open = g.status === "open" && new Date(g.closes_at) > new Date();
+              return (
+                <div key={g.id} className="rounded-lg border-2 border-line bg-paper p-3.5">
+                  <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
+                    <Trophy size={13} className="text-gold-dark" /> {g.title}
+                  </p>
+                  {g.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{g.description}</p>}
+                  {g.prize_description && (
+                    <p className="mt-1.5 text-[12px] font-bold text-forest-deep">Premio: {g.prize_description}</p>
+                  )}
+                  {g.status === "closed" ? (
+                    <p className="mt-2 text-[12px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-[11px] text-ink-soft">
+                        Cierra el {new Date(g.closes_at).toLocaleDateString("es-AR")}
+                      </p>
+                      {entered ? (
+                        <p className="mt-2 flex items-center gap-1.5 text-[12px] font-bold text-forest-deep">
+                          <Check size={13} /> Ya estás inscripto
+                        </p>
+                      ) : open ? (
+                        <button
+                          onClick={() => onEnter(g.id)}
+                          disabled={enterBusyId === g.id}
+                          className="mt-2 rounded-lg bg-gold px-3 py-1.5 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+                        >
+                          {enterBusyId === g.id ? "Inscribiendo..." : "Inscribirme"}
+                        </button>
+                      ) : (
+                        <p className="mt-2 text-[11px] text-ink-soft">Cerrado, esperando resultado.</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -2989,6 +3262,13 @@ export default function App() {
   const [createBlogBusy, setCreateBlogBusy] = useState(false);
   const [createBlogError, setCreateBlogError] = useState("");
   const [blogBusyId, setBlogBusyId] = useState(null);
+  const [giveaways, setGiveaways] = useState([]);
+  const [myGiveawayEntryIds, setMyGiveawayEntryIds] = useState(new Set());
+  const [createGiveawayBusy, setCreateGiveawayBusy] = useState(false);
+  const [createGiveawayError, setCreateGiveawayError] = useState("");
+  const [closeGiveawayBusyId, setCloseGiveawayBusyId] = useState(null);
+  const [deleteGiveawayBusyId, setDeleteGiveawayBusyId] = useState(null);
+  const [enterGiveawayBusyId, setEnterGiveawayBusyId] = useState(null);
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
@@ -3067,12 +3347,16 @@ export default function App() {
       listAllAuctionsForAdmin().then((rows) => !cancelled && setAdminAuctions(rows.map(auctionToVM)));
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
       listBlogPosts().then((rows) => !cancelled && setBlogPosts(rows));
+      listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "topMonthly") {
       listTopAuctionsThisMonth().then((rows) => !cancelled && setTopMonthlyAuctions(rows.map(auctionToVM)));
     } else if (view.name === "blog") {
       listBlogPosts().then((rows) => !cancelled && setBlogPosts(rows));
+    } else if (view.name === "giveaways") {
+      listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
+      listMyGiveawayEntryIds().then((ids) => !cancelled && setMyGiveawayEntryIds(ids));
     }
     return () => {
       cancelled = true;
@@ -3379,6 +3663,63 @@ export default function App() {
     }
   }
 
+  async function handleCreateGiveaway({ title, description, prizeDescription, durationDays }) {
+    setCreateGiveawayBusy(true);
+    setCreateGiveawayError("");
+    try {
+      const closesAt = new Date(Date.now() + durationDays * 24 * 60 * 60_000).toISOString();
+      const row = await createGiveaway({
+        title,
+        description,
+        prizeDescription,
+        closesAt,
+        createdBy: auth.session.user.id,
+      });
+      setGiveaways((rows) => [row, ...rows]);
+      return true;
+    } catch (e) {
+      setCreateGiveawayError(e.message);
+      return false;
+    } finally {
+      setCreateGiveawayBusy(false);
+    }
+  }
+
+  async function handleLoadGiveawayEntrants(giveawayId) {
+    return listGiveawayEntrantsForAdmin(giveawayId);
+  }
+
+  async function handleCloseGiveaway(giveawayId, winnerId) {
+    setCloseGiveawayBusyId(giveawayId);
+    try {
+      await closeGiveaway(giveawayId, winnerId);
+      const rows = await listGiveaways();
+      setGiveaways(rows);
+    } finally {
+      setCloseGiveawayBusyId(null);
+    }
+  }
+
+  async function handleDeleteGiveaway(id) {
+    setDeleteGiveawayBusyId(id);
+    try {
+      await deleteGiveaway(id);
+      setGiveaways((rows) => rows.filter((g) => g.id !== id));
+    } finally {
+      setDeleteGiveawayBusyId(null);
+    }
+  }
+
+  async function handleEnterGiveaway(giveawayId) {
+    setEnterGiveawayBusyId(giveawayId);
+    try {
+      await enterGiveaway(giveawayId, auth.session.user.id);
+      setMyGiveawayEntryIds((ids) => new Set(ids).add(giveawayId));
+    } finally {
+      setEnterGiveawayBusyId(null);
+    }
+  }
+
   async function handleEditAuction(auctionId, fields) {
     setEditBusy(true);
     setEditError("");
@@ -3484,6 +3825,7 @@ export default function App() {
           onOpenRecommended={() => setView({ name: "recommended", back: view })}
           onOpenTopMonthly={() => setView({ name: "topMonthly", back: view })}
           onOpenBlog={() => setView({ name: "blog", back: view })}
+          onOpenGiveaways={() => setView({ name: "giveaways", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -3633,6 +3975,15 @@ export default function App() {
           onToggleBlogPublished={handleToggleBlogPublished}
           onDeleteBlogPost={handleDeleteBlogPost}
           blogBusyId={blogBusyId}
+          giveaways={giveaways}
+          onCreateGiveaway={handleCreateGiveaway}
+          createGiveawayBusy={createGiveawayBusy}
+          createGiveawayError={createGiveawayError}
+          onLoadGiveawayEntrants={handleLoadGiveawayEntrants}
+          onCloseGiveaway={handleCloseGiveaway}
+          closeGiveawayBusyId={closeGiveawayBusyId}
+          onDeleteGiveaway={handleDeleteGiveaway}
+          deleteGiveawayBusyId={deleteGiveawayBusyId}
         />
       )}
 
@@ -3646,6 +3997,16 @@ export default function App() {
           onBack={() => setView(view.back ?? { name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
+        />
+      )}
+
+      {view.name === "giveaways" && (
+        <GiveawaysView
+          giveaways={giveaways}
+          myEntryIds={myGiveawayEntryIds}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onEnter={handleEnterGiveaway}
+          enterBusyId={enterGiveawayBusyId}
         />
       )}
 

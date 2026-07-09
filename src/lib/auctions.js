@@ -541,6 +541,58 @@ export async function deleteBlogPost(id) {
   if (error) throw error;
 }
 
+export async function listGiveaways() {
+  const { data, error } = await supabase
+    .from("giveaways")
+    .select("*, winner:profiles!giveaways_winner_id_fkey ( alias )")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createGiveaway({ title, description, prizeDescription, closesAt, createdBy }) {
+  const { data, error } = await supabase
+    .from("giveaways")
+    .insert({
+      title,
+      description: description || null,
+      prize_description: prizeDescription || null,
+      closes_at: closesAt,
+      created_by: createdBy,
+    })
+    .select("*, winner:profiles!giveaways_winner_id_fkey ( alias )")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function closeGiveaway(id, winnerId) {
+  const { error } = await supabase.from("giveaways").update({ status: "closed", winner_id: winnerId }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteGiveaway(id) {
+  const { error } = await supabase.from("giveaways").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function enterGiveaway(giveawayId, userId) {
+  const { error } = await supabase.from("giveaway_entries").insert({ giveaway_id: giveawayId, user_id: userId });
+  if (error) throw error;
+}
+
+export async function listMyGiveawayEntryIds() {
+  const { data, error } = await supabase.from("giveaway_entries").select("giveaway_id");
+  if (error) throw error;
+  return new Set(data.map((r) => r.giveaway_id));
+}
+
+export async function listGiveawayEntrantsForAdmin(giveawayId) {
+  const { data, error } = await supabase.rpc("list_giveaway_entrants", { p_giveaway_id: giveawayId });
+  if (error) throw error;
+  return data;
+}
+
 export async function listTopAuctionsThisMonth(limit = 10) {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
