@@ -541,6 +541,36 @@ export async function deleteBlogPost(id) {
   if (error) throw error;
 }
 
+export async function listWhatsappCommunities() {
+  const { data, error } = await supabase
+    .from("whatsapp_communities")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function createWhatsappCommunity({ name, description, url }) {
+  const { data, error } = await supabase
+    .from("whatsapp_communities")
+    .insert({ name, description: description || null, url })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setWhatsappCommunityActive(id, isActive) {
+  const { error } = await supabase.from("whatsapp_communities").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteWhatsappCommunity(id) {
+  const { error } = await supabase.from("whatsapp_communities").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function listGiveaways() {
   const { data, error } = await supabase
     .from("giveaways")

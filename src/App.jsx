@@ -48,6 +48,10 @@ import {
   createBlogPost,
   setBlogPostPublished,
   deleteBlogPost,
+  listWhatsappCommunities,
+  createWhatsappCommunity,
+  setWhatsappCommunityActive,
+  deleteWhatsappCommunity,
   listGiveaways,
   createGiveaway,
   closeGiveaway,
@@ -246,6 +250,7 @@ function AccountMenu({
   onOpenTopMonthly,
   onOpenBlog,
   onOpenGiveaways,
+  onOpenCommunities,
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
@@ -334,6 +339,15 @@ function AccountMenu({
             >
               Sorteos
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenCommunities();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Comunidades de WhatsApp
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -376,6 +390,7 @@ function AuctionList({
   onOpenTopMonthly,
   onOpenBlog,
   onOpenGiveaways,
+  onOpenCommunities,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -433,6 +448,7 @@ function AuctionList({
                   onOpenTopMonthly={onOpenTopMonthly}
                   onOpenBlog={onOpenBlog}
                   onOpenGiveaways={onOpenGiveaways}
+                  onOpenCommunities={onOpenCommunities}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -909,6 +925,92 @@ function AuctionsTabContent({ auctions }) {
   );
 }
 
+function WhatsappCommunitiesTabContent({ communities, onCreate, createBusy, createError, onToggleActive, onDelete, busyId }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [url, setUrl] = useState("");
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[11px] font-bold text-ink-soft";
+
+  async function handleCreate() {
+    const ok = await onCreate({ name, description, url });
+    if (ok) {
+      setName("");
+      setDescription("");
+      setUrl("");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border-2 border-line bg-paper p-3">
+        <p className="text-[12px] font-extrabold text-ink">Agregar comunidad</p>
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className={labelClass}>Nombre</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Descripción</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ej: Grupo general de la comunidad"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Link de invitación (chat.whatsapp.com/...)</label>
+            <input value={url} onChange={(e) => setUrl(e.target.value)} className={inputClass} />
+          </div>
+          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <button
+            onClick={handleCreate}
+            disabled={!name || !url || createBusy}
+            className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+          >
+            {createBusy ? "Agregando..." : "Agregar"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {communities.map((c) => (
+          <div key={c.id} className={`rounded-lg border-2 p-3 ${c.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] font-extrabold text-ink">{c.name}</p>
+                {c.description && <p className="text-[11px] text-ink-soft">{c.description}</p>}
+                <p className="line-clamp-1 text-[11px] font-bold text-forest-deep">{c.url}</p>
+              </div>
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <button
+                  onClick={() => onToggleActive(c.id, !c.is_active)}
+                  disabled={busyId === c.id}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:opacity-40 ${
+                    c.is_active ? "border-2 border-line text-ink-soft" : "bg-forest-mid text-paper"
+                  }`}
+                >
+                  {c.is_active ? "Ocultar" : "Activar"}
+                </button>
+                <button
+                  onClick={() => onDelete(c.id)}
+                  disabled={busyId === c.id}
+                  className="rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
+                >
+                  Borrar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {communities.length === 0 && <p className="text-[12px] text-ink-soft">Todavía no cargaste ninguna comunidad.</p>}
+      </div>
+    </div>
+  );
+}
+
 function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createError, onToggleActive, onDelete, busyId }) {
   const [businessName, setBusinessName] = useState("");
   const [description, setDescription] = useState("");
@@ -1269,6 +1371,13 @@ function AdminPanel({
   closeGiveawayBusyId,
   onDeleteGiveaway,
   deleteGiveawayBusyId,
+  whatsappCommunities,
+  onCreateWhatsappCommunity,
+  createWhatsappCommunityBusy,
+  createWhatsappCommunityError,
+  onToggleWhatsappCommunityActive,
+  onDeleteWhatsappCommunity,
+  whatsappCommunityBusyId,
 }) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
@@ -1278,6 +1387,7 @@ function AdminPanel({
     { value: "recomendados", label: "Recomendados" },
     { value: "blog", label: "Blog" },
     { value: "sorteos", label: "Sorteos" },
+    { value: "comunidades", label: "Comunidades" },
   ];
 
   return (
@@ -1350,6 +1460,17 @@ function AdminPanel({
             closeBusyId={closeGiveawayBusyId}
             onDelete={onDeleteGiveaway}
             deleteBusyId={deleteGiveawayBusyId}
+          />
+        )}
+        {tab === "comunidades" && (
+          <WhatsappCommunitiesTabContent
+            communities={whatsappCommunities}
+            onCreate={onCreateWhatsappCommunity}
+            createBusy={createWhatsappCommunityBusy}
+            createError={createWhatsappCommunityError}
+            onToggleActive={onToggleWhatsappCommunityActive}
+            onDelete={onDeleteWhatsappCommunity}
+            busyId={whatsappCommunityBusyId}
           />
         )}
       </div>
@@ -1454,6 +1575,49 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) 
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Comunidades de WhatsApp (pública)
+// ---------------------------------------------
+function WhatsappCommunitiesView({ communities, onBack }) {
+  const active = communities.filter((c) => c.is_active);
+  return (
+    <div className="min-h-screen bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">COMUNIDADES</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Sumate a los grupos de WhatsApp de la comunidad para coordinar entregas, avisos y charla general.
+        </p>
+
+        {active.length === 0 ? (
+          <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay comunidades cargadas.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2.5">
+            {active.map((c) => (
+              <a
+                key={c.id}
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-lg border-2 border-forest-mid/40 bg-forest-mid/10 p-3.5 transition hover:border-forest-mid"
+              >
+                <p className="text-[14px] font-extrabold text-ink">{c.name}</p>
+                {c.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{c.description}</p>}
+                <p className="mt-1.5 text-[11px] font-bold text-forest-deep underline underline-offset-2">Unirme →</p>
+              </a>
+            ))}
           </div>
         )}
       </div>
@@ -3269,6 +3433,10 @@ export default function App() {
   const [closeGiveawayBusyId, setCloseGiveawayBusyId] = useState(null);
   const [deleteGiveawayBusyId, setDeleteGiveawayBusyId] = useState(null);
   const [enterGiveawayBusyId, setEnterGiveawayBusyId] = useState(null);
+  const [whatsappCommunities, setWhatsappCommunities] = useState([]);
+  const [createWhatsappCommunityBusy, setCreateWhatsappCommunityBusy] = useState(false);
+  const [createWhatsappCommunityError, setCreateWhatsappCommunityError] = useState("");
+  const [whatsappCommunityBusyId, setWhatsappCommunityBusyId] = useState(null);
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
@@ -3348,6 +3516,7 @@ export default function App() {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
       listBlogPosts().then((rows) => !cancelled && setBlogPosts(rows));
       listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
+      listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "topMonthly") {
@@ -3357,6 +3526,8 @@ export default function App() {
     } else if (view.name === "giveaways") {
       listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
       listMyGiveawayEntryIds().then((ids) => !cancelled && setMyGiveawayEntryIds(ids));
+    } else if (view.name === "communities") {
+      listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
     }
     return () => {
       cancelled = true;
@@ -3720,6 +3891,41 @@ export default function App() {
     }
   }
 
+  async function handleCreateWhatsappCommunity(fields) {
+    setCreateWhatsappCommunityBusy(true);
+    setCreateWhatsappCommunityError("");
+    try {
+      const row = await createWhatsappCommunity(fields);
+      setWhatsappCommunities((rows) => [row, ...rows]);
+      return true;
+    } catch (e) {
+      setCreateWhatsappCommunityError(e.message);
+      return false;
+    } finally {
+      setCreateWhatsappCommunityBusy(false);
+    }
+  }
+
+  async function handleToggleWhatsappCommunityActive(id, isActive) {
+    setWhatsappCommunityBusyId(id);
+    try {
+      await setWhatsappCommunityActive(id, isActive);
+      setWhatsappCommunities((rows) => rows.map((c) => (c.id === id ? { ...c, is_active: isActive } : c)));
+    } finally {
+      setWhatsappCommunityBusyId(null);
+    }
+  }
+
+  async function handleDeleteWhatsappCommunity(id) {
+    setWhatsappCommunityBusyId(id);
+    try {
+      await deleteWhatsappCommunity(id);
+      setWhatsappCommunities((rows) => rows.filter((c) => c.id !== id));
+    } finally {
+      setWhatsappCommunityBusyId(null);
+    }
+  }
+
   async function handleEditAuction(auctionId, fields) {
     setEditBusy(true);
     setEditError("");
@@ -3826,6 +4032,7 @@ export default function App() {
           onOpenTopMonthly={() => setView({ name: "topMonthly", back: view })}
           onOpenBlog={() => setView({ name: "blog", back: view })}
           onOpenGiveaways={() => setView({ name: "giveaways", back: view })}
+          onOpenCommunities={() => setView({ name: "communities", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -3984,6 +4191,13 @@ export default function App() {
           closeGiveawayBusyId={closeGiveawayBusyId}
           onDeleteGiveaway={handleDeleteGiveaway}
           deleteGiveawayBusyId={deleteGiveawayBusyId}
+          whatsappCommunities={whatsappCommunities}
+          onCreateWhatsappCommunity={handleCreateWhatsappCommunity}
+          createWhatsappCommunityBusy={createWhatsappCommunityBusy}
+          createWhatsappCommunityError={createWhatsappCommunityError}
+          onToggleWhatsappCommunityActive={handleToggleWhatsappCommunityActive}
+          onDeleteWhatsappCommunity={handleDeleteWhatsappCommunity}
+          whatsappCommunityBusyId={whatsappCommunityBusyId}
         />
       )}
 
@@ -4012,6 +4226,10 @@ export default function App() {
 
       {view.name === "blog" && (
         <BlogView posts={blogPosts} onBack={() => setView(view.back ?? { name: "list" })} />
+      )}
+
+      {view.name === "communities" && (
+        <WhatsappCommunitiesView communities={whatsappCommunities} onBack={() => setView(view.back ?? { name: "list" })} />
       )}
 
       {view.name === "notifications" && (
