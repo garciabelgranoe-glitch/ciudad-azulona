@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Smartphone } from "lucide-react";
+import { Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
 import PokeballIcon from "./PokeballIcon";
@@ -7,11 +7,12 @@ import GenderIcon from "./GenderIcon";
 
 export default function Login({ onOpenLegal }) {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
-  const [step, setStep] = useState("phone"); // phone | otp | alias
-  const [phone, setPhone] = useState("+549");
+  const [step, setStep] = useState("email"); // email | otp | alias
+  const [email, setEmail] = useState("");
   const [token, setToken] = useState("");
   const [alias, setAlias] = useState("");
   const [gender, setGender] = useState("masculino");
+  const [contactPhone, setContactPhone] = useState("+549");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -19,7 +20,7 @@ export default function Login({ onOpenLegal }) {
     setError("");
     setBusy(true);
     try {
-      await sendOtp(phone);
+      await sendOtp(email);
       setStep("otp");
     } catch (e) {
       setError(e.message);
@@ -32,7 +33,7 @@ export default function Login({ onOpenLegal }) {
     setError("");
     setBusy(true);
     try {
-      await verifyOtp(phone, token);
+      await verifyOtp(email, token);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -44,7 +45,7 @@ export default function Login({ onOpenLegal }) {
     setError("");
     setBusy(true);
     try {
-      await createProfile(alias, gender);
+      await createProfile(alias, gender, contactPhone);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -84,10 +85,23 @@ export default function Login({ onOpenLegal }) {
           ))}
         </div>
 
+        <p className="mb-1.5 mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+          Tu teléfono de contacto
+        </p>
+        <input
+          value={contactPhone}
+          onChange={(e) => setContactPhone(e.target.value)}
+          placeholder="+5491122334455"
+          className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+        />
+        <p className="mt-1 text-[11px] text-ink-soft">
+          Lo usamos para coordinar la entrega de las cartas, no para el login.
+        </p>
+
         {error && <p className="mt-2 text-[12px] text-[#B9432C]">{error}</p>}
         <button
           onClick={handleCreateProfile}
-          disabled={!alias || busy}
+          disabled={!alias || !contactPhone || busy}
           className="mt-4 w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           Continuar
@@ -98,7 +112,7 @@ export default function Login({ onOpenLegal }) {
 
   if (step === "otp") {
     return (
-      <AuthShell title="Ingresá el código" subtitle={`Te lo enviamos por SMS a ${phone}`} onOpenLegal={onOpenLegal}>
+      <AuthShell title="Ingresá el código" subtitle={`Te lo enviamos por mail a ${email}`} onOpenLegal={onOpenLegal}>
         <input
           value={token}
           onChange={(e) => setToken(e.target.value)}
@@ -115,35 +129,36 @@ export default function Login({ onOpenLegal }) {
           Confirmar
         </button>
         <button
-          onClick={() => setStep("phone")}
+          onClick={() => setStep("email")}
           className="mt-3 w-full text-center text-[12px] font-bold text-ink-soft underline underline-offset-2"
         >
-          Cambiar número
+          Cambiar email
         </button>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu número de WhatsApp para identificarte, sin contraseñas" onOpenLegal={onOpenLegal}>
+    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu email para identificarte, sin contraseñas" onOpenLegal={onOpenLegal}>
       {!isSupabaseConfigured && (
         <p className="mb-3 rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-3 py-2 text-[12px] font-medium text-[#B9432C]">
           Supabase todavía no está configurado (falta VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
         </p>
       )}
       <div className="flex items-center gap-2 rounded-lg border-2 border-line bg-white px-3 py-2.5">
-        <Smartphone size={16} className="text-ink-soft" />
+        <Mail size={16} className="text-ink-soft" />
         <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+5491122334455"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@email.com"
+          type="email"
           className="w-full bg-transparent text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none"
         />
       </div>
       {error && <p className="mt-2 text-[12px] text-[#B9432C]">{error}</p>}
       <button
         onClick={handleSendOtp}
-        disabled={!phone || busy || !isSupabaseConfigured}
+        disabled={!email || busy || !isSupabaseConfigured}
         className="mt-4 w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
       >
         Enviar código

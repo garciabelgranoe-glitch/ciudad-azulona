@@ -2932,10 +2932,11 @@ function LegalView({ onBack }) {
 
         <Section title="Qué datos guardamos">
           <p>
-            Guardamos tu número de teléfono (para identificarte por SMS, sin contraseñas), el alias que
-            elegís, las fotos que subís de tus cartas, y el historial de subastas, pujas y calificaciones en
-            las que participás. No compartimos tu número de teléfono con otros usuarios; lo que ven los demás
-            es tu alias, tu reputación y las fotos de tus publicaciones.
+            Guardamos tu email (para identificarte por código, sin contraseñas), tu teléfono de contacto
+            (para coordinar la entrega), el alias que elegís, las fotos que subís de tus cartas, y el
+            historial de subastas, pujas y calificaciones en las que participás. No compartimos tu email ni
+            tu teléfono con otros usuarios; lo que ven los demás es tu alias, tu reputación y las fotos de
+            tus publicaciones.
           </p>
         </Section>
 

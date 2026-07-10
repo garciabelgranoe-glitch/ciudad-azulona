@@ -36,21 +36,21 @@ export function AuthProvider({ children }) {
       .then(({ data }) => setProfile(data));
   }, [session]);
 
-  async function sendOtp(phone) {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+  async function sendOtp(email) {
+    const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) throw error;
   }
 
-  async function verifyOtp(phone, token) {
-    const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
+  async function verifyOtp(email, token) {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
     if (error) throw error;
     setSession(data.session);
   }
 
-  async function createProfile(alias, gender) {
+  async function createProfile(alias, gender, phone) {
     const { data, error } = await supabase
       .from("profiles")
-      .insert({ id: session.user.id, alias, gender: gender || null })
+      .insert({ id: session.user.id, alias, gender: gender || null, phone })
       .select()
       .single();
     if (error) throw error;
