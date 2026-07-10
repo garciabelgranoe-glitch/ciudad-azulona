@@ -69,7 +69,7 @@ export default function Login({ onOpenLegal }) {
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
           placeholder="Ej: Fede_Cards"
-          className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+          className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[16px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
         />
 
         <p className="mb-2 mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
@@ -101,7 +101,7 @@ export default function Login({ onOpenLegal }) {
           value={contactPhone}
           onChange={(e) => setContactPhone(e.target.value)}
           placeholder="+5491122334455"
-          className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+          className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[16px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
         />
         <p className="mt-1 text-[11px] text-ink-soft">
           Lo usamos para coordinar la entrega de las cartas, no para el login.
@@ -161,7 +161,7 @@ export default function Login({ onOpenLegal }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="tu@email.com"
           type="email"
-          className="w-full bg-transparent text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none"
+          className="w-full bg-transparent text-[16px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none"
         />
       </div>
       {error && <p className="mt-2 text-[12px] text-[#B9432C]">{error}</p>}
