@@ -38,31 +38,54 @@ teléfono.** Reemplaza la decisión anterior de usar Twilio + WhatsApp. Motivo:
   resulta poco confiable en la práctica — no se descarta el trabajo de
   investigación ya hecho, solo se pospone.
 
-**Arrancamos por la Fase 0** (prueba privada con 3-4 amigos) antes de la
-producción completa. Con el pivot a email, la Fase 0 quedó mucho más simple: **ya
-no hace falta Twilio para nada** — solo un proyecto de Supabase y hosting del
-frontend, los dos gratis.
+**✅ Fase 0 completa (2026-07-10).** Link público en vivo:
+**https://ciudad-azulona.vercel.app**
 
 ---
 
-## Fase 0 — Prueba privada con 3-4 amigos (arrancamos por acá)
+## Fase 0 — Prueba privada con 3-4 amigos — COMPLETA
 
 Objetivo: tener un link público real, con login por email funcionando, para que
 un puñado de gente de confianza lo use antes de encarar el lanzamiento grande.
-Nada de esto es trabajo perdido — es la base de la Fase 2 de más abajo, hecha en
+Nada de esto es trabajo perdido — es la base de la Fase 1 de más abajo, hecha en
 versión gratis.
 
-1. **[VOS]** Crear cuenta/proyecto gratis en [supabase.com](https://supabase.com),
-   eligiendo la región más cercana a Argentina disponible.
-2. **[VOS]** Pasarme `Project URL`, `anon public key` y `service_role key` del
-   proyecto nuevo.
-3. **[YO]** Aplicar las 30 migraciones a ese proyecto (`supabase link` + `supabase
-   db push`), recrear el bucket de Storage, subir la plantilla de mail
-   `magic_link.html`, y dejar RLS/cron/Realtime verificados.
-4. **[YO]** Confirmar que el envío de email built-in de Supabase alcanza para 3-4
-   personas (tiene rate limit bajo pero para este volumen sobra). Si no,
-   conectar un SMTP gratis (Resend tiene free tier de sobra para esto).
-5. **[VOS]** Crear cuenta gratis en Vercel o Netlify.
+1. ~~**[VOS]** Crear cuenta/proyecto gratis en supabase.com~~ — hecho. Proyecto
+   `xdwmnneczcpdidvynvza`, región `us-east-1`.
+2. ~~**[VOS]** Pasar credenciales~~ — hecho.
+3. ~~**[YO]** Aplicar las 30 migraciones~~ — hecho vía `supabase db push --db-url`
+   (conexión directa, no hizo falta `supabase link`/login interactivo — con
+   `--db-url postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres`
+   alcanza). Verificado: 15 tablas, bucket `auction-photos` con el límite de
+   10MB, cron `close-expired-auctions` corriendo cada minuto, publicación
+   realtime con `auctions`+`notifications`.
+4. ~~**[YO]** Email OTP~~ — hecho, con una vuelta extra: **el plan Free de
+   Supabase no permite personalizar la plantilla de mail sin un SMTP propio**
+   (rechaza el PATCH con un 400 explícito). Se resolvió conectando **Resend**
+   (free tier, remitente compartido `onboarding@resend.dev`, sin verificar
+   dominio propio). Con el SMTP conectado, la plantilla `magic_link.html` se
+   subió sin problema. De paso corregido `mailer_otp_length` (el default
+   hosteado es **8**, no 6 — había que forzarlo a 6 para que coincida con el
+   input de la UI) y `mailer_autoconfirm: true`.
+5. ~~**[VOS]** Crear cuenta Vercel~~ — hecho.
+6. ~~**[YO]** Deploy~~ — hecho vía `vercel` CLI con un access token (sin conectar
+   GitHub, el repo no está pusheado a ningún remoto todavía). URL final:
+   `https://ciudad-azulona.vercel.app`. `site_url` y `uri_allow_list` de
+   Supabase Auth actualizados para apuntar ahí.
+
+**Gotchas técnicos para recordar en la Fase 1 (producción completa):**
+- La CLI de Supabase Management API espera `smtp_port` como **string**, no
+  número (`"465"`, no `465`) — el resto de los campos de auth config son con
+  sus tipos normales.
+- El PATCH de plantilla de mail falla con 400 hasta que hay SMTP custom
+  configurado — no importa el plan, es requisito funcional, no solo de
+  billing.
+- El CLI de Vercel instalado en la máquina estaba desactualizado (41.x) y el
+  endpoint de deploy pedía 47.2.2+; sin permisos para `npm i -g`, la salida
+  fue usar `npx vercel@latest` en cada comando.
+- `vercel link` con `--yes --project <nombre>` crea el proyecto si no existe,
+  sin prompts. `vercel env add NAME production --token X --force` acepta el
+  valor por stdin (`echo -n "valor" | vercel env add ...`).
 6. **[YO]** Dejar el frontend deployado ahí, con `VITE_SUPABASE_URL` y
    `VITE_SUPABASE_ANON_KEY` del proyecto de este paso, y pasarte el link público.
 7. **[VOS]** Avisarles a tus 3-4 amigos (con sus mails, ya no hace falta verificar
@@ -158,10 +181,9 @@ local).
 
 ## Orden sugerido
 
-**Ahora: Fase 0**, para tener el link de prueba con amigos cuanto antes. Lo único
-que necesito de vos para poder avanzar es el **proyecto de Supabase creado**
-(Fase 0, paso 1-2) — con eso ya puedo dejar todo migrado y el link de prueba
-listo, sin depender de ninguna otra cuenta externa.
+**Fase 0 completa — https://ciudad-azulona.vercel.app está en vivo.** Avisales a
+tus 3-4 amigos y probalo con ellos. Si algo no anda (el mail no llega, el código
+no matchea, etc.) avisame y lo vemos.
 
 **Más adelante, cuando decidamos ir a producción para el público en general:**
 gran parte de la Fase 1 ya va a estar hecha desde la Fase 0 (mismo proyecto,
