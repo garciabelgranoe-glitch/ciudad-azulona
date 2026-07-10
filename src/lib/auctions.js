@@ -191,11 +191,7 @@ export async function uploadAuctionPhoto(file) {
 }
 
 export async function uploadAuctionPhotos(files) {
-  const urls = [];
-  for (const file of files) {
-    urls.push(await uploadAuctionPhoto(file));
-  }
-  return urls;
+  return Promise.all(files.map((file) => uploadAuctionPhoto(file)));
 }
 
 export async function createAuction({

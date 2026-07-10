@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -1862,25 +1862,54 @@ function AuctionDetail({
         </div>
 
         {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded || auction.rarity) && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-4 rounded-xl border-2 border-ink bg-paper p-4 shadow-card">
+            <p className="font-pixel text-[8px] tracking-wide text-gold-dark">FICHA DE LA CARTA</p>
             {(auction.setName || auction.cardNumber || auction.year) && (
-              <span className="text-[12px] text-ink-soft">
-                {[auction.setName, auction.cardNumber, auction.year].filter(Boolean).join(" · ")}
-              </span>
+              <div className="mt-3 flex flex-wrap gap-5">
+                {auction.setName && (
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft">Colección</span>
+                    <span className="text-[14px] font-extrabold text-ink">{auction.setName}</span>
+                  </div>
+                )}
+                {auction.cardNumber && (
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft">Número</span>
+                    <span className="text-[14px] font-extrabold text-ink">{auction.cardNumber}</span>
+                  </div>
+                )}
+                {auction.year && (
+                  <div>
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft">Año</span>
+                    <span className="text-[14px] font-extrabold text-ink">{auction.year}</span>
+                  </div>
+                )}
+              </div>
             )}
-            <ConditionBadge
-              condition={auction.condition}
-              isGraded={auction.isGraded}
-              gradingCompany={auction.gradingCompany}
-              grade={auction.grade}
-            />
-            {auction.rarity && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2 py-1 text-[12px] font-bold text-ink"
-                title={RARITY_LABEL[auction.rarity]}
-              >
-                {RARITY_SYMBOL[auction.rarity]} {RARITY_LABEL[auction.rarity]}
-              </span>
+            {(auction.condition || auction.isGraded || auction.rarity) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {(auction.condition || auction.isGraded) && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border-2 px-3 py-1.5 text-[13px] font-extrabold tracking-wide ${
+                      auction.isGraded
+                        ? "border-gold bg-gold/15 text-gold-dark"
+                        : (CONDITION_COLORS[auction.condition] ?? "border-line bg-cream text-ink-soft")
+                    }`}
+                  >
+                    {auction.isGraded
+                      ? `${auction.gradingCompany?.toUpperCase() ?? "GRADEADA"} ${auction.grade ?? ""}`
+                      : (CONDITION_SHORT[auction.condition] ?? auction.condition)}
+                  </span>
+                )}
+                {auction.rarity && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-gold bg-gold/15 px-3 py-1.5 text-[13px] font-extrabold text-gold-dark"
+                    title={RARITY_LABEL[auction.rarity]}
+                  >
+                    {RARITY_SYMBOL[auction.rarity]} {RARITY_LABEL[auction.rarity]}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -2315,7 +2344,7 @@ function PokemonSetDatalist() {
   );
 }
 
-function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, error = "" }) {
+function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, busyText = "", error = "" }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
@@ -2647,9 +2676,10 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, e
               buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
             })
           }
-          className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
-          {busy ? "Publicando..." : "Publicar subasta"}
+          {busy && <Loader2 size={15} className="animate-spin" />}
+          {busy ? busyText || "Publicando..." : "Publicar subasta"}
         </button>
         {photoRequired && photos.length === 0 && (
           <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle al menos una foto antes de publicar.</p>
@@ -3396,6 +3426,7 @@ export default function App() {
   const [auctionsLoading, setAuctionsLoading] = useState(isSupabaseConfigured);
   const [searchTerm, setSearchTerm] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
+  const [createPhase, setCreatePhase] = useState("");
   const [createError, setCreateError] = useState("");
   const [bidError, setBidError] = useState("");
   const [bidBusy, setBidBusy] = useState(false);
@@ -3608,7 +3639,9 @@ export default function App() {
     setCreateBusy(true);
     setCreateError("");
     try {
+      setCreatePhase(photoFiles?.length ? "Subiendo fotos..." : "Publicando...");
       const photoUrls = photoFiles?.length ? await uploadAuctionPhotos(photoFiles) : [];
+      setCreatePhase("Publicando...");
       const row = await createAuction({
         sellerId: auth.session.user.id,
         cardName: name,
@@ -3634,6 +3667,7 @@ export default function App() {
       setCreateError(e.message);
     } finally {
       setCreateBusy(false);
+      setCreatePhase("");
     }
   }
 
@@ -4248,6 +4282,7 @@ export default function App() {
           onCreate={isSupabaseConfigured ? handleRealCreate : handleCreate}
           showDuration={isSupabaseConfigured}
           busy={createBusy}
+          busyText={createPhase}
           error={createError}
         />
       )}
