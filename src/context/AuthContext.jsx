@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
   }
 
   async function verifyOtp(email, token) {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: token.trim(), type: "email" });
     if (error) throw error;
     setSession(data.session);
   }
