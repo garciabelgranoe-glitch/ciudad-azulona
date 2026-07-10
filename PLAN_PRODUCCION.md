@@ -73,6 +73,16 @@ versión gratis.
    `https://ciudad-azulona.vercel.app`. `site_url` y `uri_allow_list` de
    Supabase Auth actualizados para apuntar ahí.
 
+**⚠️ Pendiente descubierto en uso real (2026-07-10):** el remitente
+`onboarding@resend.dev` de Resend **solo entrega al email de la cuenta de
+Resend**, no a destinatarios arbitrarios — es una restricción estándar de
+todo proveedor de mail transaccional hasta verificar un dominio propio, no
+es un bug. Bloquea que los amigos que no sean esa cuenta puedan loguearse.
+En curso: comprar un dominio (Namecheap u otro registrador) y verificarlo en
+Resend (Domains → Add Domain → agregar los registros DNS que pida). Una vez
+verificado, actualizar `smtp_admin_email` en la config de Auth del proyecto
+real a una dirección de ese dominio.
+
 **Gotchas técnicos para recordar en la Fase 1 (producción completa):**
 - La CLI de Supabase Management API espera `smtp_port` como **string**, no
   número (`"465"`, no `465`) — el resto de los campos de auth config son con
