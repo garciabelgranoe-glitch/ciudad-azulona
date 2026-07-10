@@ -19,9 +19,51 @@ Decisión ya tomada la sesión pasada: el canal de OTP va a ser **Twilio + Whats
   de Meta Business Manager, que puede tardar días. Mientras se aprueba, se puede
   probar todo con el WhatsApp Sandbox de Twilio (número compartido de test).
 
+**Estamos arrancando por la Fase 0** (prueba privada con 3-4 amigos) antes de meternos
+con la Fase 1 en serio — es un subconjunto liviano de las Fases 1 y 2, sin gastar en
+Pro/Sentry/WhatsApp Business todavía. El trabajo de la Fase 0 no se tira: es el mismo
+proyecto de Supabase al que más adelante se le hace upgrade, no hay que migrar de nuevo.
+
 ---
 
-## Fase 1 — Cuenta de Twilio + canal WhatsApp
+## Fase 0 — Prueba privada con 3-4 amigos (arrancamos por acá)
+
+Objetivo: tener un link público real, con login funcionando, para que un puñado de
+gente de confianza lo use antes de encarar el lanzamiento grande. Nada de esto es
+trabajo perdido — es la base de la Fase 1 y 2 de más abajo, hecha en versión gratis.
+
+1. **[VOS]** Crear cuenta gratis en [twilio.com](https://www.twilio.com) — el modo
+   **Trial** no pide tarjeta para mandar SMS de prueba y da ~US$15 de crédito gratis.
+2. **[VOS]** Dentro de la consola de Twilio, en **Phone Numbers → Verified Caller IDs**
+   (o el flujo que te proponga el Trial), **verificar a mano los 3-4 números de
+   teléfono de tus amigos**. Una cuenta Trial solo puede mandar mensajes a números
+   verificados así — es justo lo que necesitamos para este alcance.
+3. **[VOS]** Conseguir **Account SID**, **Auth Token** y el número de Twilio que te
+   asigna el Trial (sirve para SMS ya mismo, sin esperar aprobación de WhatsApp
+   Business).
+4. **[VOS]** Crear cuenta/proyecto gratis en [supabase.com](https://supabase.com)
+   (mismo paso que la Fase 2, punto 1-3 — no hay plan Free vs "modo prueba", es el
+   mismo proyecto real, gratis hasta que se haga upgrade a Pro).
+5. **[YO]** Aplicar las 29 migraciones a ese proyecto (`supabase link` + `supabase db
+   push`), recrear el bucket de Storage, y dejar RLS/cron/Realtime verificados.
+6. **[YO]** Configurar el provider de Auth con Twilio en modo **SMS** (no WhatsApp
+   todavía, porque el Trial no tiene WhatsApp habilitado sin el Sender productivo) con
+   las credenciales del paso 3.
+7. **[YO]** Buscar en el dashboard de Supabase si existe la opción de números de
+   prueba con OTP fijo directamente en el proyecto hosteado — si está disponible, es
+   una alternativa más simple todavía al paso 6 para este alcance chico.
+8. **[VOS]** Crear cuenta gratis en Vercel o Netlify.
+9. **[YO]** Dejar el frontend deployado ahí, con `VITE_SUPABASE_URL` y
+   `VITE_SUPABASE_ANON_KEY` del proyecto de este paso, y pasarte el link público.
+10. **[VOS]** Avisarles a tus 3-4 amigos y probarlo en vivo con ellos.
+
+**Lo que NO hace falta para esta fase:** Supabase Pro, Sentry, WhatsApp Business
+verificado por Meta, test de carga. Eso queda para cuando decidamos ir a producción
+para el público en general (Fases 1-6 completas, más abajo).
+
+---
+
+## Fase 1 — Cuenta de Twilio + canal WhatsApp (producción completa)
 
 1. **[VOS]** Crear cuenta en [twilio.com](https://www.twilio.com). Vas a necesitar
    verificar tu identidad y cargar un método de pago (cobra por uso, no hay plan fijo).
@@ -43,7 +85,7 @@ Decisión ya tomada la sesión pasada: el canal de OTP va a ser **Twilio + Whats
 6. **[YO]** Probar el login end-to-end contra el sandbox/sender real antes de dar por
    cerrada la fase.
 
-## Fase 2 — Proyecto Supabase real
+## Fase 2 — Proyecto Supabase real (producción completa)
 
 1. **[VOS]** Crear cuenta/proyecto en [supabase.com](https://supabase.com).
 2. **[VOS]** Elegir región del proyecto — recomendado la más cercana a Argentina que
@@ -119,14 +161,14 @@ Requiere que la Fase 2 ya esté desplegada (no tiene sentido testear el ambiente
 
 ---
 
-## Orden sugerido para la próxima sesión
+## Orden sugerido
 
-Fase 1 y Fase 2 pueden arrancar en paralelo (vos gestionando cuentas en las dos
-plataformas mientras yo dejo todo listo del lado de código). Fase 3 y 4 son rápidas
-una vez que existe el proyecto real. Fase 5 depende de que 1-2 estén desplegadas.
-Fase 6 es la última, cuando 1-5 estén cerradas.
+**Ahora: Fase 0**, para tener el link de prueba con amigos cuanto antes. Lo primero
+que necesito de vos para poder avanzar es: cuenta Twilio Trial con los 3-4 números
+verificados (Fase 0, pasos 1-3), y el proyecto de Supabase creado (Fase 0, paso 4).
 
-Si arrancamos la próxima sesión, lo primero que necesito de vos para poder avanzar
-en paralelo es: **cuenta de Twilio creada** (Fase 1, paso 1-2) y **proyecto de
-Supabase creado** (Fase 2, paso 1-3) — con esas dos cosas ya puedo empezar a trabajar
-mientras vos seguís con la verificación de Meta Business Manager en el fondo.
+**Más adelante, cuando decidamos ir a producción para el público en general:** Fase 1
+y Fase 2 completas pueden arrancar en paralelo (vos gestionando cuentas mientras yo
+dejo todo listo del lado de código — gran parte de la Fase 2 ya va a estar hecha
+desde la Fase 0). Fase 3 y 4 son rápidas una vez que existe el proyecto real. Fase 5
+depende de que 1-2 estén desplegadas. Fase 6 es la última, cuando 1-5 estén cerradas.
