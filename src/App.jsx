@@ -1793,13 +1793,6 @@ function AuctionDetail({
           <ArrowLeft size={20} />
         </button>
         <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
-        <button
-          onClick={handleShare}
-          className="ml-auto flex items-center gap-1.5 text-cream/80 hover:text-paper focus:outline-none"
-        >
-          {copied && <span className="text-[11px] font-bold text-gold">¡Copiado!</span>}
-          <Share2 size={18} />
-        </button>
       </header>
 
       <div className="px-5 pt-5">
@@ -1884,6 +1877,14 @@ function AuctionDetail({
             onClick={onOpenUserProfile && auction.sellerId ? () => onOpenUserProfile(auction.sellerId) : undefined}
           />
         </div>
+
+        <button
+          onClick={handleShare}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-gold bg-gold text-forest-deep px-4 py-3 text-[13px] font-extrabold shadow-[0_3px_0_rgba(185,134,47,0.7)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-none"
+        >
+          <Share2 size={17} />
+          {copied ? "¡Link copiado!" : "Compartir esta subasta"}
+        </button>
 
         {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded || auction.rarity) && (
           <div className="mt-4 rounded-xl border-2 border-ink bg-paper p-4 shadow-card">
