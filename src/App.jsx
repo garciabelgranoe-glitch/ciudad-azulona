@@ -368,6 +368,46 @@ function AccountMenu({
 }
 
 // ---------------------------------------------
+// Banner rotativo: vendedores garantizados (recomendados por la plataforma)
+// ---------------------------------------------
+function GuaranteedSellersBanner({ sellers, onOpenAll }) {
+  const active = (sellers ?? []).filter((s) => s.is_active);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (active.length <= 1) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % active.length), 4500);
+    return () => clearInterval(id);
+  }, [active.length]);
+
+  if (active.length === 0 || !onOpenAll) return null;
+  const current = active[index % active.length];
+
+  return (
+    <button
+      onClick={onOpenAll}
+      className="flex w-full items-center gap-2.5 rounded-lg border-2 border-gold/50 bg-gold/10 px-3.5 py-2 text-left transition hover:bg-gold/15"
+    >
+      <Trophy size={14} className="shrink-0 text-gold-dark" />
+      <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-ink">
+        <span className="font-extrabold text-gold-dark">Vendedor garantizado</span> · {current.business_name}
+        {current.description ? ` — ${current.description}` : ""}
+      </span>
+      <span className="hidden shrink-0 text-[11px] font-bold text-gold-dark underline underline-offset-2 sm:inline">
+        Ver todos →
+      </span>
+      {active.length > 1 && (
+        <span className="hidden shrink-0 items-center gap-1 sm:flex">
+          {active.map((s, i) => (
+            <span key={s.id} className={`h-1.5 w-1.5 rounded-full ${i === index ? "bg-gold-dark" : "bg-gold/30"}`} />
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Lista de subastas
 // ---------------------------------------------
 function AuctionList({
@@ -392,6 +432,7 @@ function AuctionList({
   onOpenBlog,
   onOpenGiveaways,
   onOpenCommunities,
+  recommendedSellers,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -587,6 +628,10 @@ function AuctionList({
         </div>
       )}
 
+      <div className="mx-auto max-w-5xl px-5 pt-4">
+        <GuaranteedSellersBanner sellers={recommendedSellers} onOpenAll={onOpenRecommended} />
+      </div>
+
       {auctions.length > 0 && filtered.length === 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
           No encontramos cartas con esos criterios.
@@ -706,7 +751,7 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
         <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
         {a.buyNowPrice != null && a.status === "live" && (
           <span className="w-fit rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
-            Comprar ya: {formatARS(a.buyNowPrice)}
+            {a.isSaleOnly ? "Venta directa" : `Comprar ya: ${formatARS(a.buyNowPrice)}`}
           </span>
         )}
         {(a.setName || a.cardNumber || a.year) && (
@@ -1668,7 +1713,7 @@ function RecommendedSellersView({ sellers, onBack }) {
 // ---------------------------------------------
 // Vista: Destacadas del mes (ranking real por pujas, no manual)
 // ---------------------------------------------
-function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile }) {
+function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile, recommendedSellers, onOpenRecommended }) {
   return (
     <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -1682,6 +1727,10 @@ function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile 
         <p className="text-[12px] leading-relaxed text-ink-soft">
           Las subastas con más pujas de este mes — ranking automático, no elegido a mano.
         </p>
+
+        <div className="mt-4">
+          <GuaranteedSellersBanner sellers={recommendedSellers} onOpenAll={onOpenRecommended} />
+        </div>
 
         {auctions.length === 0 ? (
           <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay pujas este mes.</p>
@@ -1725,6 +1774,8 @@ function AuctionDetail({
   onReport,
   reportBusy,
   reportError,
+  recommendedSellers,
+  onOpenRecommended,
 }) {
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
@@ -1941,7 +1992,7 @@ function AuctionDetail({
 
         <div className="mt-5 flex flex-wrap gap-6">
           <div>
-            <span className="block text-[10px] text-ink-soft">PUJA ACTUAL</span>
+            <span className="block text-[10px] text-ink-soft">{auction.isSaleOnly ? "PRECIO" : "PUJA ACTUAL"}</span>
             <span className="text-lg font-extrabold text-forest-deep">{formatARS(auction.currentBid)}</span>
           </div>
           <div>
@@ -1950,10 +2001,12 @@ function AuctionDetail({
               {formatCountdown(auction.closesInSec)}
             </span>
           </div>
-          <div>
-            <span className="block text-[10px] text-ink-soft">PUJAS</span>
-            <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
-          </div>
+          {!auction.isSaleOnly && (
+            <div>
+              <span className="block text-[10px] text-ink-soft">PUJAS</span>
+              <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
+            </div>
+          )}
         </div>
 
         {auction.status === "live" && auction.reservePrice != null && (
@@ -1965,8 +2018,12 @@ function AuctionDetail({
 
         {isMine ? (
           <div className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
-            <p>Esta es tu publicación — no podés pujar en tu propia carta.</p>
-            {auction.buyNowPrice != null && (
+            <p>
+              {auction.isSaleOnly
+                ? "Esta es tu publicación de venta directa — no acepta pujas, se vende al precio de lista."
+                : "Esta es tu publicación — no podés pujar en tu propia carta."}
+            </p>
+            {!auction.isSaleOnly && auction.buyNowPrice != null && (
               <p className="mt-1">Compra inmediata en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
             )}
             {auction.bids === 0 && onEdit && (
@@ -1993,6 +2050,22 @@ function AuctionDetail({
               >
                 Ver Mis tickets →
               </button>
+            )}
+          </div>
+        ) : !placed && auction.isSaleOnly ? (
+          <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
+            {onBuyNow && (
+              <>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyNowBusy}
+                  className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+                >
+                  {buyNowBusy ? "Comprando..." : `Comprar ahora por ${formatARS(auction.buyNowPrice)}`}
+                </button>
+                <p className="mt-1.5 text-center text-[11px] text-ink-soft">Venta directa, sin pujas — se la lleva quien la compre primero.</p>
+                {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
+              </>
             )}
           </div>
         ) : !placed ? (
@@ -2095,6 +2168,10 @@ function AuctionDetail({
           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
           El pago se hace en persona en el stand del vendedor. La plataforma no procesa dinero — solo confirma la identidad de la entrega con un código único.
         </p>
+
+        <div className="mt-4">
+          <GuaranteedSellersBanner sellers={recommendedSellers} onOpenAll={onOpenRecommended} />
+        </div>
 
         {!isMine && onReport && (
           <div className="mt-4">
@@ -2355,6 +2432,8 @@ const DURATION_OPTIONS = [
   { label: "30 min", value: 30 },
   { label: "1 hora", value: 60 },
   { label: "3 horas", value: 180 },
+  { label: "12 horas", value: 720 },
+  { label: "24 horas", value: 1440 },
 ];
 
 // Sugerencias de sets reales para el campo "Colección / set" — sigue
@@ -2375,6 +2454,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [referencePrice, setReferencePrice] = useState("");
   const [reservePrice, setReservePrice] = useState("");
   const [buyNowPrice, setBuyNowPrice] = useState("");
+  const [isSaleOnly, setIsSaleOnly] = useState(false);
   const [duration, setDuration] = useState(60);
   const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [setName_, setSetName] = useState("");
@@ -2427,8 +2507,9 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   }
 
   const photoRequired = showDuration;
-  const reserveInvalid = reservePrice !== "" && Number(reservePrice) < Number(price || 0);
+  const reserveInvalid = !isSaleOnly && reservePrice !== "" && Number(reservePrice) < Number(price || 0);
   const buyNowInvalid =
+    !isSaleOnly &&
     buyNowPrice !== "" &&
     (Number(buyNowPrice) <= Number(price || 0) ||
       (reservePrice !== "" && Number(buyNowPrice) <= Number(reservePrice)));
@@ -2491,6 +2572,41 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
             className={inputClass}
           />
         </div>
+
+        {showDuration && (
+          <div>
+            <label className={labelClass}>Modo de publicación</label>
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSaleOnly(false)}
+                className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                  !isSaleOnly
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                Subasta
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSaleOnly(true)}
+                className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                  isSaleOnly
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                Venta directa
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-ink-soft">
+              {isSaleOnly
+                ? "Sin pujas: se vende al precio que pongas abajo, a quien la compre primero."
+                : "La carta se subasta y gana quien más ofrezca (podés sumar reserva y compra inmediata)."}
+            </p>
+          </div>
+        )}
 
         {showDuration && (
           <>
@@ -2594,7 +2710,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
         )}
 
         <div>
-          <label className={labelClass}>Precio base</label>
+          <label className={labelClass}>{isSaleOnly ? "Precio de venta" : "Precio base"}</label>
           <input
             type="number"
             value={price}
@@ -2620,7 +2736,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           </div>
         )}
 
-        {showDuration && (
+        {showDuration && !isSaleOnly && (
           <div>
             <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
             <input
@@ -2639,7 +2755,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           </div>
         )}
 
-        {showDuration && (
+        {showDuration && !isSaleOnly && (
           <div>
             <label className={labelClass}>Precio de compra inmediata (opcional)</label>
             <input
@@ -2661,7 +2777,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
         {showDuration && (
           <div>
             <label className={labelClass}>Dura</label>
-            <div className="mt-1.5 grid grid-cols-4 gap-2">
+            <div className="mt-1.5 grid grid-cols-3 gap-2">
               {DURATION_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
@@ -2697,14 +2813,15 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
-              reservePrice: reservePrice ? Number(reservePrice) : null,
-              buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
+              reservePrice: isSaleOnly ? null : reservePrice ? Number(reservePrice) : null,
+              buyNowPrice: isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
+              isSaleOnly,
             })
           }
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           {busy && <Loader2 size={15} className="animate-spin" />}
-          {busy ? busyText || "Publicando..." : "Publicar subasta"}
+          {busy ? busyText || "Publicando..." : isSaleOnly ? "Publicar venta directa" : "Publicar subasta"}
         </button>
         {photoRequired && photos.length === 0 && (
           <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle al menos una foto antes de publicar.</p>
@@ -2740,8 +2857,9 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[12px] font-bold text-ink-soft";
-  const reserveInvalid = reservePrice !== "" && Number(reservePrice) < Number(price || 0);
+  const reserveInvalid = !auction.isSaleOnly && reservePrice !== "" && Number(reservePrice) < Number(price || 0);
   const buyNowInvalid =
+    !auction.isSaleOnly &&
     buyNowPrice !== "" &&
     (Number(buyNowPrice) <= Number(price || 0) ||
       (reservePrice !== "" && Number(buyNowPrice) <= Number(reservePrice)));
@@ -2841,7 +2959,7 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
         )}
 
         <div>
-          <label className={labelClass}>Precio base</label>
+          <label className={labelClass}>{auction.isSaleOnly ? "Precio de venta" : "Precio base"}</label>
           <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={inputClass} />
         </div>
 
@@ -2855,31 +2973,35 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
           />
         </div>
 
-        <div>
-          <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
-          <input
-            type="number"
-            value={reservePrice}
-            onChange={(e) => setReservePrice(e.target.value)}
-            className={inputClass}
-          />
-          {reserveInvalid && (
-            <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor o igual al precio base.</p>
-          )}
-        </div>
+        {!auction.isSaleOnly && (
+          <div>
+            <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
+            <input
+              type="number"
+              value={reservePrice}
+              onChange={(e) => setReservePrice(e.target.value)}
+              className={inputClass}
+            />
+            {reserveInvalid && (
+              <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor o igual al precio base.</p>
+            )}
+          </div>
+        )}
 
-        <div>
-          <label className={labelClass}>Precio de compra inmediata (opcional)</label>
-          <input
-            type="number"
-            value={buyNowPrice}
-            onChange={(e) => setBuyNowPrice(e.target.value)}
-            className={inputClass}
-          />
-          {buyNowInvalid && (
-            <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor al precio base{reservePrice ? " y a la reserva" : ""}.</p>
-          )}
-        </div>
+        {!auction.isSaleOnly && (
+          <div>
+            <label className={labelClass}>Precio de compra inmediata (opcional)</label>
+            <input
+              type="number"
+              value={buyNowPrice}
+              onChange={(e) => setBuyNowPrice(e.target.value)}
+              className={inputClass}
+            />
+            {buyNowInvalid && (
+              <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser mayor al precio base{reservePrice ? " y a la reserva" : ""}.</p>
+            )}
+          </div>
+        )}
 
         {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
 
@@ -2899,8 +3021,8 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
-              reservePrice: reservePrice ? Number(reservePrice) : null,
-              buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
+              reservePrice: auction.isSaleOnly ? null : reservePrice ? Number(reservePrice) : null,
+              buyNowPrice: auction.isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
             })
           }
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
@@ -3550,6 +3672,7 @@ export default function App() {
     listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
     listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
     listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
+    listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
       setNotifications((rows) => [newNotif, ...rows]);
     });
@@ -3701,6 +3824,7 @@ export default function App() {
     referencePrice,
     reservePrice,
     buyNowPrice,
+    isSaleOnly,
   }) {
     setCreateBusy(true);
     setCreateError("");
@@ -3726,6 +3850,7 @@ export default function App() {
         referencePrice,
         reservePrice,
         buyNowPrice,
+        isSaleOnly,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
@@ -4141,6 +4266,7 @@ export default function App() {
           searchTerm={searchTerm}
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
+          recommendedSellers={recommendedSellers}
         />
       )}
 
@@ -4165,6 +4291,8 @@ export default function App() {
           onReport={isSupabaseConfigured ? handleReport : undefined}
           reportBusy={reportBusy}
           reportError={reportError}
+          recommendedSellers={recommendedSellers}
+          onOpenRecommended={() => setView({ name: "recommended", back: view })}
         />
       )}
 
@@ -4313,6 +4441,8 @@ export default function App() {
           onBack={() => setView(view.back ?? { name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
           onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
+          recommendedSellers={recommendedSellers}
+          onOpenRecommended={() => setView({ name: "recommended", back: view })}
         />
       )}
 

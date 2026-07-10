@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
-  reference_price, reserve_price, buy_now_price,
+  reference_price, reserve_price, buy_now_price, is_sale_only,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
 `;
 
@@ -122,6 +122,7 @@ export function auctionToVM(row) {
     referencePrice: row.reference_price != null ? Number(row.reference_price) : null,
     reservePrice: row.reserve_price != null ? Number(row.reserve_price) : null,
     buyNowPrice: row.buy_now_price != null ? Number(row.buy_now_price) : null,
+    isSaleOnly: !!row.is_sale_only,
   };
 }
 
@@ -212,6 +213,7 @@ export async function createAuction({
   referencePrice,
   reservePrice,
   buyNowPrice,
+  isSaleOnly,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -233,8 +235,9 @@ export async function createAuction({
       rarity: rarity || null,
       is_featured: !!isFeatured,
       reference_price: referencePrice || null,
-      reserve_price: reservePrice || null,
-      buy_now_price: buyNowPrice || null,
+      reserve_price: isSaleOnly ? null : reservePrice || null,
+      buy_now_price: isSaleOnly ? basePrice : buyNowPrice || null,
+      is_sale_only: !!isSaleOnly,
     })
     .select(AUCTION_SELECT)
     .single();
