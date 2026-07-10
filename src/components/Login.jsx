@@ -5,6 +5,15 @@ import { isSupabaseConfigured } from "../lib/supabaseClient";
 import PokeballIcon from "./PokeballIcon";
 import GenderIcon from "./GenderIcon";
 
+// A veces el error que llega de Supabase no trae un .message legible (por
+// ejemplo si falla el envío del mail del lado del proveedor de SMTP) — en
+// vez de mostrar algo críptico tipo "{}", mostramos un mensaje genérico.
+function getErrorMessage(e) {
+  const msg = e?.message;
+  if (typeof msg === "string" && msg.trim() && msg.trim() !== "{}") return msg;
+  return "No pudimos completar la acción. Probá de nuevo en un momento.";
+}
+
 export default function Login({ onOpenLegal }) {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
   const [step, setStep] = useState("email"); // email | otp | alias
@@ -23,7 +32,7 @@ export default function Login({ onOpenLegal }) {
       await sendOtp(email);
       setStep("otp");
     } catch (e) {
-      setError(e.message);
+      setError(getErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -35,7 +44,7 @@ export default function Login({ onOpenLegal }) {
     try {
       await verifyOtp(email, token);
     } catch (e) {
-      setError(e.message);
+      setError(getErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -47,7 +56,7 @@ export default function Login({ onOpenLegal }) {
     try {
       await createProfile(alias, gender, contactPhone);
     } catch (e) {
-      setError(e.message);
+      setError(getErrorMessage(e));
     } finally {
       setBusy(false);
     }
