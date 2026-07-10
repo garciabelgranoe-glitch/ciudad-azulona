@@ -13,7 +13,7 @@ function FeatureRow({ variant, text }) {
 
 export default function Landing({ onEnter, onOpenLegal }) {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-b from-forest-deeper via-forest-deep to-forest-mid">
+    <div className="relative flex min-h-dvh flex-col overflow-hidden bg-gradient-to-b from-forest-deeper via-forest-deep to-forest-mid">
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-32 pt-16 text-center">
         <PokeballIcon size={34} />
         <h1 className="font-pixel mt-5 text-[16px] leading-relaxed tracking-wide text-gold sm:text-[20px]">

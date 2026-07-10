@@ -427,7 +427,7 @@ function AuctionList({
   }
 
   return (
-    <div className="min-h-screen bg-cream pb-24">
+    <div className="min-h-dvh bg-cream pb-24">
       <header className="sticky top-0 z-10 border-b-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-4">
         <div className="mx-auto max-w-5xl">
           {profile && (
@@ -619,7 +619,7 @@ function AuctionList({
 // ---------------------------------------------
 function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, onOpenSellerProfile, showMyBid = false }) {
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -755,7 +755,7 @@ function NotificationsView({ notifications, onBack, onOpenNotification, onMarkAl
   const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1392,7 +1392,7 @@ function AdminPanel({
   ];
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1485,7 +1485,7 @@ function AdminPanel({
 function BlogView({ posts, onBack }) {
   const published = posts.filter((p) => p.is_published);
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1520,7 +1520,7 @@ function BlogView({ posts, onBack }) {
 // ---------------------------------------------
 function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) {
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1589,7 +1589,7 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) 
 function WhatsappCommunitiesView({ communities, onBack }) {
   const active = communities.filter((c) => c.is_active);
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1632,7 +1632,7 @@ function WhatsappCommunitiesView({ communities, onBack }) {
 function RecommendedSellersView({ sellers, onBack }) {
   const active = sellers.filter((s) => s.is_active);
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1670,7 +1670,7 @@ function RecommendedSellersView({ sellers, onBack }) {
 // ---------------------------------------------
 function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile }) {
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -1787,7 +1787,7 @@ function AuctionDetail({
   }
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -2172,7 +2172,7 @@ function MyTicketsView({ tickets, onBack, onOpenTicket }) {
   const delivered = tickets.filter((t) => t.status === "entregado");
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -2233,7 +2233,7 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
   const delivered = ticket.status === "entregado";
   const [score, setScore] = useState(0);
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -2440,7 +2440,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const labelClass = "text-[12px] font-bold text-ink-soft";
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <PokemonSetDatalist />
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
@@ -2748,7 +2748,7 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
   const canSave = name && price && !reserveInvalid && !buyNowInvalid;
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <PokemonSetDatalist />
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
@@ -2956,7 +2956,7 @@ function LegalView({ onBack }) {
   );
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -3123,7 +3123,7 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], stats, onEdit
   }
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -3315,7 +3315,7 @@ function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
   const labelClass = "text-[12px] font-bold text-ink-soft";
 
   return (
-    <div className="min-h-screen bg-cream pb-10">
+    <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
@@ -3637,7 +3637,7 @@ export default function App() {
   }
 
   if (isSupabaseConfigured && auth.loading) {
-    return <div className="min-h-screen bg-cream" />;
+    return <div className="min-h-dvh bg-cream" />;
   }
 
   if (!enteredLanding && (!isSupabaseConfigured || !auth.session || !auth.profile)) {
@@ -4101,7 +4101,7 @@ export default function App() {
     : tickets;
 
   return (
-    <div className="min-h-screen bg-cream font-sans text-ink" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
+    <div className="min-h-dvh bg-cream font-sans text-ink" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
       <style>{`
         input:focus { outline: none; }
       `}</style>

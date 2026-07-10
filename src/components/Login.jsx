@@ -178,7 +178,7 @@ export default function Login({ onOpenLegal }) {
 
 function AuthShell({ title, subtitle, children, onOpenLegal }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream px-6">
+    <div className="flex min-h-dvh items-center justify-center bg-cream px-6">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2 text-gold-dark">
           <PokeballIcon size={18} />
