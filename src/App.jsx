@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -10,6 +10,7 @@ import PriceChart from "./components/PriceChart";
 import PokeballIcon from "./components/PokeballIcon";
 import {
   listLiveAuctions,
+  getAuction,
   subscribeToLiveAuctions,
   placeBid,
   buyNowAuction,
@@ -1735,8 +1736,24 @@ function AuctionDetail({
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
+  const [copied, setCopied] = useState(false);
   const photos = auction.photoUrls?.length ? auction.photoUrls : auction.photoUrl ? [auction.photoUrl] : [];
   const minBid = auction.currentBid + 1000;
+
+  async function handleShare() {
+    const url = `${window.location.origin}/subasta/${auction.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: auction.card, url });
+      } catch {
+        // el usuario canceló el share sheet, no hacemos nada
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
 
   async function handleReport() {
     const ok = await onReport(auction.id, reportReason);
@@ -1776,6 +1793,13 @@ function AuctionDetail({
           <ArrowLeft size={20} />
         </button>
         <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
+        <button
+          onClick={handleShare}
+          className="ml-auto flex items-center gap-1.5 text-cream/80 hover:text-paper focus:outline-none"
+        >
+          {copied && <span className="text-[11px] font-bold text-gold">¡Copiado!</span>}
+          <Share2 size={18} />
+        </button>
       </header>
 
       <div className="px-5 pt-5">
@@ -3381,11 +3405,24 @@ function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
 // ---------------------------------------------
 // App raíz
 // ---------------------------------------------
+// Si se entra directo por un link compartido (/subasta/:id), arrancamos
+// ahí en vez de en la lista — y saltando la landing, ver parseInitialView.
+function parseInitialView() {
+  const m = window.location.pathname.match(/^\/subasta\/([^/]+)\/?$/);
+  if (m) return { name: "detail", auctionId: m[1], back: { name: "list" } };
+  return { name: "list" };
+}
+
+function urlForView(view) {
+  if (view.name === "detail" && view.auctionId) return `/subasta/${view.auctionId}`;
+  return "/";
+}
+
 export default function App() {
   const auth = useAuth();
-  const [enteredLanding, setEnteredLanding] = useState(false);
+  const [view, setView] = useState(parseInitialView);
+  const [enteredLanding, setEnteredLanding] = useState(() => parseInitialView().name !== "list");
   const [showLegal, setShowLegal] = useState(false);
-  const [view, setView] = useState({ name: "list" });
   const isPoppingRef = useRef(false);
   const isFirstHistoryRender = useRef(true);
 
@@ -3399,11 +3436,12 @@ export default function App() {
       return;
     }
     const historyState = { view, enteredLanding, showLegal };
+    const url = urlForView(view);
     if (isFirstHistoryRender.current) {
       isFirstHistoryRender.current = false;
-      window.history.replaceState(historyState, "");
+      window.history.replaceState(historyState, "", url);
     } else {
-      window.history.pushState(historyState, "");
+      window.history.pushState(historyState, "", url);
     }
   }, [view, enteredLanding, showLegal]);
 
@@ -3442,6 +3480,7 @@ export default function App() {
   const [pickupBusy, setPickupBusy] = useState(false);
   const [pickupError, setPickupError] = useState("");
   const [bidHistory, setBidHistory] = useState([]);
+  const [directAuction, setDirectAuction] = useState(null);
   const [myPublications, setMyPublications] = useState([]);
   const [myBids, setMyBids] = useState([]);
   const [reportBusy, setReportBusy] = useState(false);
@@ -3531,6 +3570,32 @@ export default function App() {
       cancelled = true;
     };
   }, [view.name, view.auctionId]);
+
+  // Si llegamos directo a /subasta/:id (link compartido) y esa subasta no
+  // está en ninguna lista ya cargada (por ejemplo, ya cerró y no aparece en
+  // listLiveAuctions), la buscamos aparte en vez de mostrar la pantalla vacía.
+  useEffect(() => {
+    if (!isSupabaseConfigured || view.name !== "detail") {
+      setDirectAuction(null);
+      return;
+    }
+    const alreadyLoaded =
+      realRows.some((r) => r.id === view.auctionId) ||
+      topMonthlyAuctions.some((a) => a.id === view.auctionId) ||
+      myPublications.some((a) => a.id === view.auctionId) ||
+      myBids.some((a) => a.id === view.auctionId);
+    if (alreadyLoaded) {
+      setDirectAuction(null);
+      return;
+    }
+    let cancelled = false;
+    getAuction(view.auctionId)
+      .then((row) => !cancelled && setDirectAuction(auctionToVM(row)))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [view.name, view.auctionId, realRows, topMonthlyAuctions, myPublications, myBids]);
 
   useEffect(() => {
     if (!ready) return;
@@ -4025,7 +4090,8 @@ export default function App() {
       ? displayAuctions.find((a) => a.id === view.auctionId) ||
         topMonthlyAuctions.find((a) => a.id === view.auctionId) ||
         myPublications.find((a) => a.id === view.auctionId) ||
-        myBids.find((a) => a.id === view.auctionId)
+        myBids.find((a) => a.id === view.auctionId) ||
+        directAuction
       : null;
   const activeEditAuction =
     view.name === "editAuction" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
