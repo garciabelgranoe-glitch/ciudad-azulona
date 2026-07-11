@@ -4118,6 +4118,9 @@ export default function App() {
   }
 
   const displayAuctions = isSupabaseConfigured ? realRows.map(auctionToVM) : auctions;
+  const liveDisplayAuctions = isSupabaseConfigured
+    ? displayAuctions.filter((a) => a.status === "live")
+    : displayAuctions;
 
   function handleWin(auction) {
     const code = Math.random().toString(16).slice(2, 6).toUpperCase() + "-" + Math.floor(10 + Math.random() * 90);
@@ -4647,7 +4650,7 @@ export default function App() {
 
       {view.name === "list" && !(isSupabaseConfigured && auctionsLoading) && (
         <AuctionList
-          auctions={displayAuctions}
+          auctions={liveDisplayAuctions}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
           onCreate={() => setView({ name: "create" })}
           profile={isSupabaseConfigured ? auth.profile : null}
