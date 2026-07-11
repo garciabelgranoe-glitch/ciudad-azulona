@@ -57,6 +57,7 @@ export default async function middleware(request) {
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:image" content="${escapeHtml(image)}" />
+<meta property="og:image:type" content="image/jpeg" />
 <meta property="og:url" content="${escapeHtml(url.toString())}" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />

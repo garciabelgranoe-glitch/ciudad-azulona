@@ -14,6 +14,7 @@ import {
   subscribeToLiveAuctions,
   placeBid,
   buyNowAuction,
+  claimFreeItem,
   uploadAuctionPhotos,
   createAuction,
   auctionToVM,
@@ -63,6 +64,10 @@ import {
   createRecommendedSeller,
   setRecommendedSellerActive,
   deleteRecommendedSeller,
+  createSuggestion,
+  listSuggestionsForAdmin,
+  setSuggestionStatus,
+  getTopTraders,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -252,6 +257,8 @@ function AccountMenu({
   onOpenBlog,
   onOpenGiveaways,
   onOpenCommunities,
+  onOpenRanking,
+  onOpenSuggestions,
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
@@ -311,7 +318,7 @@ function AccountMenu({
               }}
               className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
             >
-              Vendedores recomendados
+              Vendedores garantizados
             </button>
             <button
               onClick={() => {
@@ -348,6 +355,24 @@ function AccountMenu({
               className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
             >
               Comunidades de WhatsApp
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenRanking();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Ranking
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenSuggestions();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Sugerencias
             </button>
             {isAdmin && (
               <button
@@ -389,9 +414,14 @@ function GuaranteedSellersBanner({ sellers, onOpenAll }) {
       className="flex w-full items-center gap-2.5 rounded-lg border-2 border-gold/50 bg-gold/10 px-3.5 py-2 text-left transition hover:bg-gold/15"
     >
       <Trophy size={14} className="shrink-0 text-gold-dark" />
-      <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-ink">
-        <span className="font-extrabold text-gold-dark">Vendedor garantizado</span> · {current.business_name}
-        {current.description ? ` — ${current.description}` : ""}
+      <span className="min-w-0 flex-1 text-[11.5px] font-medium text-ink">
+        <span className="block text-[9.5px] font-bold uppercase tracking-wide text-gold-dark/80">
+          Vendedores garantizados de productos oficiales
+        </span>
+        <span className="block truncate">
+          {current.business_name}
+          {current.description ? ` — ${current.description}` : ""}
+        </span>
       </span>
       <span className="hidden shrink-0 text-[11px] font-bold text-gold-dark underline underline-offset-2 sm:inline">
         Ver todos →
@@ -432,6 +462,8 @@ function AuctionList({
   onOpenBlog,
   onOpenGiveaways,
   onOpenCommunities,
+  onOpenRanking,
+  onOpenSuggestions,
   recommendedSellers,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
@@ -491,6 +523,8 @@ function AuctionList({
                   onOpenBlog={onOpenBlog}
                   onOpenGiveaways={onOpenGiveaways}
                   onOpenCommunities={onOpenCommunities}
+                  onOpenRanking={onOpenRanking}
+                  onOpenSuggestions={onOpenSuggestions}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -749,9 +783,9 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
       </div>
       <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
         <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
-        {a.buyNowPrice != null && a.status === "live" && (
+        {(a.isFreeClaim || a.buyNowPrice != null) && a.status === "live" && (
           <span className="w-fit rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
-            {a.isSaleOnly ? "Venta directa" : `Comprar ya: ${formatARS(a.buyNowPrice)}`}
+            {a.isFreeClaim ? "Free claim — gratis" : a.isSaleOnly ? "Venta directa" : `Claim: ${formatARS(a.buyNowPrice)}`}
           </span>
         )}
         {(a.setName || a.cardNumber || a.year) && (
@@ -776,7 +810,9 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
           </div>
         ) : (
           <div className="mt-auto flex items-center justify-between pt-1.5">
-            <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
+            <span className="text-[16px] font-extrabold text-forest-deep">
+              {a.isFreeClaim ? "Gratis" : formatARS(a.currentBid)}
+            </span>
             {a.status === "live" && (
               <span
                 className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
@@ -905,6 +941,47 @@ function ReportsTabContent({ reports, onResolve, busyId }) {
   );
 }
 
+function SuggestionsTabContent({ suggestions, onSetStatus, busyId }) {
+  const fresh = suggestions.filter((s) => s.status === "new");
+  const reviewed = suggestions.filter((s) => s.status !== "new");
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Nuevas ({fresh.length})</h3>
+      {fresh.length === 0 && <p className="text-[12px] text-ink-soft">No hay sugerencias nuevas.</p>}
+      {fresh.map((s) => (
+        <div key={s.id} className="rounded-lg border-2 border-gold/40 bg-gold/10 p-3">
+          <p className="text-[12px] leading-relaxed text-ink">{s.message}</p>
+          <p className="mt-1.5 text-[10px] text-ink-soft">
+            {s.user?.alias ?? "—"} · {new Date(s.created_at).toLocaleString("es-AR")}
+          </p>
+          <button
+            onClick={() => onSetStatus(s.id, "reviewed")}
+            disabled={busyId === s.id}
+            className="mt-2 rounded-lg bg-forest-mid px-3 py-1.5 text-[11px] font-bold text-paper disabled:opacity-40"
+          >
+            Marcar leída
+          </button>
+        </div>
+      ))}
+
+      {reviewed.length > 0 && (
+        <>
+          <h3 className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Leídas</h3>
+          {reviewed.map((s) => (
+            <div key={s.id} className="rounded-lg border-2 border-line bg-paper p-3 opacity-70">
+              <p className="text-[12px] text-ink">{s.message}</p>
+              <p className="mt-1 text-[10px] text-ink-soft">
+                {s.user?.alias ?? "—"} · {new Date(s.created_at).toLocaleString("es-AR")}
+              </p>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function UsersTabContent({ profiles, onSuspend, busyId, onSetPremium, premiumBusyId }) {
   return (
     <div className="space-y-2">
@@ -964,7 +1041,9 @@ function AuctionsTabContent({ auctions }) {
             <Pill tone={a.status === "live" ? "live" : "default"}>{a.status}</Pill>
           </div>
           <p className="text-[11px] text-ink-soft">Vendedor: {a.seller}</p>
-          <p className="text-[11px] text-ink-soft">{formatARS(a.currentBid)} · {a.bids} pujas</p>
+          <p className="text-[11px] text-ink-soft">
+            {a.isFreeClaim ? `Free claim · ${a.freeClaimCount} reclamos` : `${formatARS(a.currentBid)} · ${a.bids} pujas`}
+          </p>
         </div>
       ))}
     </div>
@@ -1424,6 +1503,9 @@ function AdminPanel({
   onToggleWhatsappCommunityActive,
   onDeleteWhatsappCommunity,
   whatsappCommunityBusyId,
+  suggestions,
+  onSetSuggestionStatus,
+  suggestionStatusBusyId,
 }) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
@@ -1434,6 +1516,7 @@ function AdminPanel({
     { value: "blog", label: "Blog" },
     { value: "sorteos", label: "Sorteos" },
     { value: "comunidades", label: "Comunidades" },
+    { value: "sugerencias", label: "Sugerencias" },
   ];
 
   return (
@@ -1517,6 +1600,13 @@ function AdminPanel({
             onToggleActive={onToggleWhatsappCommunityActive}
             onDelete={onDeleteWhatsappCommunity}
             busyId={whatsappCommunityBusyId}
+          />
+        )}
+        {tab === "sugerencias" && (
+          <SuggestionsTabContent
+            suggestions={suggestions}
+            onSetStatus={onSetSuggestionStatus}
+            busyId={suggestionStatusBusyId}
           />
         )}
       </div>
@@ -1672,6 +1762,118 @@ function WhatsappCommunitiesView({ communities, onBack }) {
 }
 
 // ---------------------------------------------
+// Vista: Ranking (top 10 por volumen acumulado, compra + venta)
+// ---------------------------------------------
+function RankingView({ traders, onBack, onOpenUserProfile }) {
+  return (
+    <div className="min-h-dvh bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">RANKING</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Los 10 usuarios con más volumen acumulado (compras + ventas confirmadas) en toda la plataforma.
+        </p>
+
+        {traders.length === 0 ? (
+          <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay entregas confirmadas para armar el ranking.</p>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2">
+            {traders.map((t, i) => (
+              <button
+                key={t.user_id}
+                onClick={onOpenUserProfile ? () => onOpenUserProfile(t.user_id) : undefined}
+                className="flex items-center gap-3 rounded-lg border-2 border-line bg-paper p-3 text-left transition hover:border-forest-mid"
+              >
+                <span
+                  className={`font-pixel flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] ${
+                    i < 3 ? "bg-gold text-forest-deep" : "bg-cream text-ink-soft"
+                  }`}
+                >
+                  #{i + 1}
+                </span>
+                <GenderIcon gender={t.gender} size={18} />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-ink">{t.alias}</span>
+                <span className="shrink-0 text-[13px] font-extrabold text-forest-deep">{formatARS(t.total_volume)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Sugerencias (cualquier usuario puede mandar una)
+// ---------------------------------------------
+function SuggestionsView({ onBack, onSubmit, busy = false, error = "" }) {
+  const [message, setMessage] = useState("");
+  const [sent, setSent] = useState(false);
+
+  async function handleSubmit() {
+    const ok = await onSubmit(message);
+    if (ok) {
+      setSent(true);
+      setMessage("");
+    }
+  }
+
+  return (
+    <div className="min-h-dvh bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">SUGERENCIAS</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          ¿Qué mejorarías de Ciudad Azulona? Tu mensaje lo lee directo el admin de la plataforma.
+        </p>
+
+        {sent ? (
+          <div className="mt-4 rounded-xl border-2 border-forest-mid bg-forest-mid/10 p-4">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-forest-deep">
+              <Check size={15} /> ¡Gracias! Ya la recibimos.
+            </p>
+            <button
+              onClick={() => setSent(false)}
+              className="mt-3 text-[12px] font-bold text-forest-deep underline underline-offset-2"
+            >
+              Mandar otra
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ej: estaría bueno poder filtrar por precio de referencia..."
+              rows={5}
+              className="mt-4 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+            />
+            {error && <p className="mt-2 text-[12px] text-[#B9432C]">{error}</p>}
+            <button
+              onClick={handleSubmit}
+              disabled={!message.trim() || busy}
+              className="mt-3 w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+            >
+              {busy ? "Enviando..." : "Enviar sugerencia"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Vendedores recomendados (pública)
 // ---------------------------------------------
 function RecommendedSellersView({ sellers, onBack }) {
@@ -1682,12 +1884,12 @@ function RecommendedSellersView({ sellers, onBack }) {
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
-        <p className="font-pixel text-[9px] tracking-wide text-gold">VENDEDORES RECOMENDADOS</p>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">VENDEDORES GARANTIZADOS</p>
       </header>
 
       <div className="px-5 pt-6">
         <p className="text-[12px] leading-relaxed text-ink-soft">
-          Comercios de confianza para comprar packs y colecciones originales, fuera de las subastas de la comunidad.
+          Vendedores garantizados de productos oficiales: comercios de confianza para comprar packs y colecciones originales, sellados y verificados, fuera de las subastas de la comunidad.
         </p>
 
         {active.length === 0 ? (
@@ -1766,6 +1968,10 @@ function AuctionDetail({
   onBuyNow,
   buyNowBusy,
   buyNowError,
+  onClaimFree,
+  claimBusy,
+  claimError,
+  claimResult,
   onGoToMyTickets,
   isMine,
   bidHistory = [],
@@ -1835,6 +2041,11 @@ function AuctionDetail({
     if (!onBuyNow) return;
     const ok = await onBuyNow(auction.id);
     if (ok) setBought(true);
+  }
+
+  async function handleClaimFree() {
+    if (!onClaimFree) return;
+    await onClaimFree(auction.id);
   }
 
   return (
@@ -1992,8 +2203,10 @@ function AuctionDetail({
 
         <div className="mt-5 flex flex-wrap gap-6">
           <div>
-            <span className="block text-[10px] text-ink-soft">{auction.isSaleOnly ? "PRECIO" : "PUJA ACTUAL"}</span>
-            <span className="text-lg font-extrabold text-forest-deep">{formatARS(auction.currentBid)}</span>
+            <span className="block text-[10px] text-ink-soft">{auction.isSaleOnly || auction.isFreeClaim ? "PRECIO" : "PUJA ACTUAL"}</span>
+            <span className="text-lg font-extrabold text-forest-deep">
+              {auction.isFreeClaim ? "GRATIS" : formatARS(auction.currentBid)}
+            </span>
           </div>
           <div>
             <span className="block text-[10px] text-ink-soft">TERMINA EN</span>
@@ -2001,11 +2214,18 @@ function AuctionDetail({
               {formatCountdown(auction.closesInSec)}
             </span>
           </div>
-          {!auction.isSaleOnly && (
+          {auction.isFreeClaim ? (
             <div>
-              <span className="block text-[10px] text-ink-soft">PUJAS</span>
-              <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
+              <span className="block text-[10px] text-ink-soft">RECLAMOS</span>
+              <span className="text-lg font-extrabold text-ink">{auction.freeClaimCount}</span>
             </div>
+          ) : (
+            !auction.isSaleOnly && (
+              <div>
+                <span className="block text-[10px] text-ink-soft">PUJAS</span>
+                <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
+              </div>
+            )
           )}
         </div>
 
@@ -2019,14 +2239,16 @@ function AuctionDetail({
         {isMine ? (
           <div className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
             <p>
-              {auction.isSaleOnly
+              {auction.isFreeClaim
+                ? `Esta es tu free claim — no acepta pujas. Gana quien sea el reclamo número ${auction.freeClaimWinningNumber} (van ${auction.freeClaimCount} hasta ahora).`
+                : auction.isSaleOnly
                 ? "Esta es tu publicación de venta directa — no acepta pujas, se vende al precio de lista."
                 : "Esta es tu publicación — no podés pujar en tu propia carta."}
             </p>
-            {!auction.isSaleOnly && auction.buyNowPrice != null && (
-              <p className="mt-1">Compra inmediata en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
+            {!auction.isSaleOnly && !auction.isFreeClaim && auction.buyNowPrice != null && (
+              <p className="mt-1">Claim inmediato en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
             )}
-            {auction.bids === 0 && onEdit && (
+            {(auction.isFreeClaim ? auction.freeClaimCount === 0 : auction.bids === 0) && onEdit && (
               <button
                 onClick={onEdit}
                 className="mt-2 font-bold text-forest-deep underline underline-offset-2"
@@ -2035,10 +2257,27 @@ function AuctionDetail({
               </button>
             )}
           </div>
+        ) : claimResult?.won ? (
+          <div className="mt-6 rounded-xl border-2 border-gold bg-gold/10 p-4">
+            <p className="flex items-center gap-2 text-[13px] font-bold text-gold-dark">
+              <Check size={15} /> ¡Ganaste el free claim!
+            </p>
+            <p className="mt-1 text-[12px] text-ink-soft">
+              Fuiste el reclamo #{claimResult.claim_position}. Encontrás el código de retiro en Mis tickets.
+            </p>
+            {onGoToMyTickets && (
+              <button
+                onClick={onGoToMyTickets}
+                className="mt-3 text-[12px] font-bold text-gold-dark underline underline-offset-2"
+              >
+                Ver Mis tickets →
+              </button>
+            )}
+          </div>
         ) : bought ? (
           <div className="mt-6 rounded-xl border-2 border-gold bg-gold/10 p-4">
             <p className="flex items-center gap-2 text-[13px] font-bold text-gold-dark">
-              <Check size={15} /> ¡Comprada al instante!
+              <Check size={15} /> ¡Claimeada al instante!
             </p>
             <p className="mt-1 text-[12px] text-ink-soft">
               La subasta cerró a tu favor. Encontrás el código de retiro en Mis tickets.
@@ -2052,6 +2291,33 @@ function AuctionDetail({
               </button>
             )}
           </div>
+        ) : auction.isFreeClaim ? (
+          <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
+            {claimResult && !claimResult.won ? (
+              <>
+                <p className="text-[13px] font-bold text-ink">Reclamaste tu turno — sos el número {claimResult.claim_position}.</p>
+                <p className="mt-1 text-[12px] text-ink-soft">
+                  El ganador se define automático cuando algún reclamo cae justo en el número que eligió el vendedor. Seguí atento a tus notificaciones.
+                </p>
+              </>
+            ) : (
+              <>
+                {onClaimFree && (
+                  <button
+                    onClick={handleClaimFree}
+                    disabled={claimBusy}
+                    className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+                  >
+                    {claimBusy ? "Reclamando..." : "¡Reclamar mi turno gratis!"}
+                  </button>
+                )}
+                <p className="mt-1.5 text-center text-[11px] text-ink-soft">
+                  Gratis — el reclamo que caiga en el número secreto del vendedor se la lleva.
+                </p>
+                {claimError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{claimError}</p>}
+              </>
+            )}
+          </div>
         ) : !placed && auction.isSaleOnly ? (
           <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
             {onBuyNow && (
@@ -2061,7 +2327,7 @@ function AuctionDetail({
                   disabled={buyNowBusy}
                   className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
                 >
-                  {buyNowBusy ? "Comprando..." : `Comprar ahora por ${formatARS(auction.buyNowPrice)}`}
+                  {buyNowBusy ? "Claimeando..." : `Claim ahora por ${formatARS(auction.buyNowPrice)}`}
                 </button>
                 <p className="mt-1.5 text-center text-[11px] text-ink-soft">Venta directa, sin pujas — se la lleva quien la compre primero.</p>
                 {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
@@ -2097,7 +2363,7 @@ function AuctionDetail({
                   disabled={buyNowBusy}
                   className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
                 >
-                  {buyNowBusy ? "Comprando..." : `Comprar ya por ${formatARS(auction.buyNowPrice)}`}
+                  {buyNowBusy ? "Claimeando..." : `Claim ya por ${formatARS(auction.buyNowPrice)}`}
                 </button>
                 <p className="mt-1.5 text-center text-[11px] text-ink-soft">Cierra la subasta al instante a tu favor.</p>
                 {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
@@ -2455,6 +2721,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [reservePrice, setReservePrice] = useState("");
   const [buyNowPrice, setBuyNowPrice] = useState("");
   const [isSaleOnly, setIsSaleOnly] = useState(false);
+  const [isFreeClaim, setIsFreeClaim] = useState(false);
+  const [freeClaimWinningNumber, setFreeClaimWinningNumber] = useState("");
   const [duration, setDuration] = useState(60);
   const [photos, setPhotos] = useState([]); // [{ file, preview }]
   const [setName_, setSetName] = useState("");
@@ -2507,14 +2775,24 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   }
 
   const photoRequired = showDuration;
-  const reserveInvalid = !isSaleOnly && reservePrice !== "" && Number(reservePrice) < Number(price || 0);
+  const reserveInvalid = !isSaleOnly && !isFreeClaim && reservePrice !== "" && Number(reservePrice) < Number(price || 0);
   const buyNowInvalid =
     !isSaleOnly &&
+    !isFreeClaim &&
     buyNowPrice !== "" &&
     (Number(buyNowPrice) <= Number(price || 0) ||
       (reservePrice !== "" && Number(buyNowPrice) <= Number(reservePrice)));
+  const freeClaimNumberInvalid =
+    isFreeClaim && (freeClaimWinningNumber === "" || Number(freeClaimWinningNumber) < 0 || Number(freeClaimWinningNumber) > 50);
   const canPublish =
-    name && price && (!photoRequired || photos.length > 0) && !busy && !photoConverting && !reserveInvalid && !buyNowInvalid;
+    name &&
+    (isFreeClaim || price) &&
+    (!isFreeClaim || !freeClaimNumberInvalid) &&
+    (!photoRequired || photos.length > 0) &&
+    !busy &&
+    !photoConverting &&
+    !reserveInvalid &&
+    !buyNowInvalid;
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -2576,12 +2854,15 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
         {showDuration && (
           <div>
             <label className={labelClass}>Modo de publicación</label>
-            <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <div className="mt-1.5 grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setIsSaleOnly(false)}
+                onClick={() => {
+                  setIsSaleOnly(false);
+                  setIsFreeClaim(false);
+                }}
                 className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
-                  !isSaleOnly
+                  !isSaleOnly && !isFreeClaim
                     ? "border-gold bg-gold/15 text-gold-dark"
                     : "border-line bg-paper text-ink-soft hover:border-forest-mid"
                 }`}
@@ -2590,7 +2871,10 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               </button>
               <button
                 type="button"
-                onClick={() => setIsSaleOnly(true)}
+                onClick={() => {
+                  setIsSaleOnly(true);
+                  setIsFreeClaim(false);
+                }}
                 className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
                   isSaleOnly
                     ? "border-gold bg-gold/15 text-gold-dark"
@@ -2599,12 +2883,48 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               >
                 Venta directa
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSaleOnly(false);
+                  setIsFreeClaim(true);
+                }}
+                className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                  isFreeClaim
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                Free claim
+              </button>
             </div>
             <p className="mt-1 text-[11px] text-ink-soft">
-              {isSaleOnly
-                ? "Sin pujas: se vende al precio que pongas abajo, a quien la compre primero."
-                : "La carta se subasta y gana quien más ofrezca (podés sumar reserva y compra inmediata)."}
+              {isFreeClaim
+                ? "Gratis: elegís un número de 0 a 50 y quien sea el reclamo con ese número se la lleva sin pagar."
+                : isSaleOnly
+                ? "Sin pujas: se vende al precio que pongas abajo, a quien la claimee primero."
+                : "La carta se subasta y gana quien más ofrezca (podés sumar reserva y claim inmediato)."}
             </p>
+            {isFreeClaim && (
+              <div className="mt-3">
+                <label className={labelClass}>Número ganador (0 a 50)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={freeClaimWinningNumber}
+                  onChange={(e) => setFreeClaimWinningNumber(e.target.value)}
+                  placeholder="Ej: 12"
+                  className={inputClass}
+                />
+                {freeClaimNumberInvalid && freeClaimWinningNumber !== "" && (
+                  <p className="mt-1 text-[11px] text-[#B9432C]">Tiene que ser un número entre 0 y 50.</p>
+                )}
+                <p className="mt-1 text-[11px] text-ink-soft">
+                  No se lo mostramos a nadie más — el reclamo que caiga justo en ese número gana automáticamente.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -2709,18 +3029,20 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           </>
         )}
 
-        <div>
-          <label className={labelClass}>{isSaleOnly ? "Precio de venta" : "Precio base"}</label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="0"
-            className={inputClass}
-          />
-        </div>
+        {!isFreeClaim && (
+          <div>
+            <label className={labelClass}>{isSaleOnly ? "Precio de venta" : "Precio base"}</label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0"
+              className={inputClass}
+            />
+          </div>
+        )}
 
-        {showDuration && (
+        {showDuration && !isFreeClaim && (
           <div>
             <label className={labelClass}>Precio de referencia (opcional)</label>
             <input
@@ -2736,7 +3058,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           </div>
         )}
 
-        {showDuration && !isSaleOnly && (
+        {showDuration && !isSaleOnly && !isFreeClaim && (
           <div>
             <label className={labelClass}>Precio mínimo / reserva (opcional)</label>
             <input
@@ -2755,9 +3077,9 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           </div>
         )}
 
-        {showDuration && !isSaleOnly && (
+        {showDuration && !isSaleOnly && !isFreeClaim && (
           <div>
-            <label className={labelClass}>Precio de compra inmediata (opcional)</label>
+            <label className={labelClass}>Precio de claim inmediato (opcional)</label>
             <input
               type="number"
               value={buyNowPrice}
@@ -2813,15 +3135,23 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
-              reservePrice: isSaleOnly ? null : reservePrice ? Number(reservePrice) : null,
-              buyNowPrice: isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
+              reservePrice: isSaleOnly || isFreeClaim ? null : reservePrice ? Number(reservePrice) : null,
+              buyNowPrice: isFreeClaim ? null : isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
               isSaleOnly,
+              isFreeClaim,
+              freeClaimWinningNumber: isFreeClaim ? Number(freeClaimWinningNumber) : null,
             })
           }
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           {busy && <Loader2 size={15} className="animate-spin" />}
-          {busy ? busyText || "Publicando..." : isSaleOnly ? "Publicar venta directa" : "Publicar subasta"}
+          {busy
+            ? busyText || "Publicando..."
+            : isFreeClaim
+            ? "Publicar free claim"
+            : isSaleOnly
+            ? "Publicar venta directa"
+            : "Publicar subasta"}
         </button>
         {photoRequired && photos.length === 0 && (
           <p className="text-center text-[11px] text-ink-soft">Necesitás sacarle al menos una foto antes de publicar.</p>
@@ -2990,7 +3320,7 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
 
         {!auction.isSaleOnly && (
           <div>
-            <label className={labelClass}>Precio de compra inmediata (opcional)</label>
+            <label className={labelClass}>Precio de claim inmediato (opcional)</label>
             <input
               type="number"
               value={buyNowPrice}
@@ -3593,6 +3923,9 @@ export default function App() {
   const [bidBusy, setBidBusy] = useState(false);
   const [buyNowError, setBuyNowError] = useState("");
   const [buyNowBusy, setBuyNowBusy] = useState(false);
+  const [claimError, setClaimError] = useState("");
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [claimResult, setClaimResult] = useState(null);
   const [realTickets, setRealTickets] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
@@ -3634,6 +3967,11 @@ export default function App() {
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
+  const [topTraders, setTopTraders] = useState([]);
+  const [adminSuggestions, setAdminSuggestions] = useState([]);
+  const [suggestionBusy, setSuggestionBusy] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
+  const [suggestionStatusBusyId, setSuggestionStatusBusyId] = useState(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const [cancelAuctionBusy, setCancelAuctionBusy] = useState(false);
@@ -3695,6 +4033,11 @@ export default function App() {
     };
   }, [view.name, view.auctionId]);
 
+  useEffect(() => {
+    setClaimResult(null);
+    setClaimError("");
+  }, [view.auctionId]);
+
   // Si llegamos directo a /subasta/:id (link compartido) y esa subasta no
   // está en ninguna lista ya cargada (por ejemplo, ya cerró y no aparece en
   // listLiveAuctions), la buscamos aparte en vez de mostrar la pantalla vacía.
@@ -3738,6 +4081,7 @@ export default function App() {
       listBlogPosts().then((rows) => !cancelled && setBlogPosts(rows));
       listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
       listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
+      listSuggestionsForAdmin().then((rows) => !cancelled && setAdminSuggestions(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "topMonthly") {
@@ -3749,6 +4093,8 @@ export default function App() {
       listMyGiveawayEntryIds().then((ids) => !cancelled && setMyGiveawayEntryIds(ids));
     } else if (view.name === "communities") {
       listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
+    } else if (view.name === "ranking") {
+      getTopTraders().then((rows) => !cancelled && setTopTraders(rows));
     }
     return () => {
       cancelled = true;
@@ -3825,6 +4171,8 @@ export default function App() {
     reservePrice,
     buyNowPrice,
     isSaleOnly,
+    isFreeClaim,
+    freeClaimWinningNumber,
   }) {
     setCreateBusy(true);
     setCreateError("");
@@ -3851,6 +4199,8 @@ export default function App() {
         reservePrice,
         buyNowPrice,
         isSaleOnly,
+        isFreeClaim,
+        freeClaimWinningNumber,
       });
       setRealRows((rows) => [row, ...rows]);
       setView({ name: "list" });
@@ -3887,12 +4237,40 @@ export default function App() {
     try {
       const row = await buyNowAuction(auctionId);
       setRealRows((rows) => rows.map((r) => (r.id === auctionId ? row : r)));
+      listMyTickets().then(setRealTickets);
       return row;
     } catch (e) {
       setBuyNowError(e.message);
       return null;
     } finally {
       setBuyNowBusy(false);
+    }
+  }
+
+  async function handleRealClaimFree(auctionId) {
+    setClaimBusy(true);
+    setClaimError("");
+    try {
+      const result = await claimFreeItem(auctionId);
+      setClaimResult(result);
+      setRealRows((rows) =>
+        rows.map((r) =>
+          r.id === auctionId
+            ? {
+                ...r,
+                free_claim_count: r.free_claim_count + 1,
+                ...(result?.won ? { status: "closed", winner_id: auth.session.user.id } : {}),
+              }
+            : r
+        )
+      );
+      if (result?.won) listMyTickets().then(setRealTickets);
+      return result;
+    } catch (e) {
+      setClaimError(e.message);
+      return null;
+    } finally {
+      setClaimBusy(false);
     }
   }
 
@@ -3987,6 +4365,30 @@ export default function App() {
       setAdminProfiles((rows) => rows.map((p) => (p.id === userId ? { ...p, is_premium: premium } : p)));
     } finally {
       setPremiumBusyId(null);
+    }
+  }
+
+  async function handleCreateSuggestion(message) {
+    setSuggestionBusy(true);
+    setSuggestionError("");
+    try {
+      await createSuggestion(auth.session.user.id, message.trim());
+      return true;
+    } catch (e) {
+      setSuggestionError(e.message);
+      return false;
+    } finally {
+      setSuggestionBusy(false);
+    }
+  }
+
+  async function handleSetSuggestionStatus(id, status) {
+    setSuggestionStatusBusyId(id);
+    try {
+      await setSuggestionStatus(id, status);
+      setAdminSuggestions((rows) => rows.map((r) => (r.id === id ? { ...r, status } : r)));
+    } finally {
+      setSuggestionStatusBusyId(null);
     }
   }
 
@@ -4260,6 +4662,8 @@ export default function App() {
           onOpenBlog={() => setView({ name: "blog", back: view })}
           onOpenGiveaways={() => setView({ name: "giveaways", back: view })}
           onOpenCommunities={() => setView({ name: "communities", back: view })}
+          onOpenRanking={() => setView({ name: "ranking", back: view })}
+          onOpenSuggestions={() => setView({ name: "suggestions", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -4281,6 +4685,10 @@ export default function App() {
           onBuyNow={isSupabaseConfigured ? handleRealBuyNow : undefined}
           buyNowBusy={buyNowBusy}
           buyNowError={buyNowError}
+          onClaimFree={isSupabaseConfigured ? handleRealClaimFree : undefined}
+          claimBusy={claimBusy}
+          claimError={claimError}
+          claimResult={claimResult}
           onGoToMyTickets={() => setView({ name: "myTickets" })}
           isMine={isSupabaseConfigured && activeAuction.sellerId === auth.session?.user.id}
           bidHistory={bidHistory}
@@ -4428,6 +4836,9 @@ export default function App() {
           onToggleWhatsappCommunityActive={handleToggleWhatsappCommunityActive}
           onDeleteWhatsappCommunity={handleDeleteWhatsappCommunity}
           whatsappCommunityBusyId={whatsappCommunityBusyId}
+          suggestions={adminSuggestions}
+          onSetSuggestionStatus={handleSetSuggestionStatus}
+          suggestionStatusBusyId={suggestionStatusBusyId}
         />
       )}
 
@@ -4462,6 +4873,23 @@ export default function App() {
 
       {view.name === "communities" && (
         <WhatsappCommunitiesView communities={whatsappCommunities} onBack={() => setView(view.back ?? { name: "list" })} />
+      )}
+
+      {view.name === "ranking" && (
+        <RankingView
+          traders={topTraders}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
+        />
+      )}
+
+      {view.name === "suggestions" && (
+        <SuggestionsView
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onSubmit={handleCreateSuggestion}
+          busy={suggestionBusy}
+          error={suggestionError}
+        />
       )}
 
       {view.name === "notifications" && (

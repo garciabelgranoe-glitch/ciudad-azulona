@@ -4,6 +4,7 @@ const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
   reference_price, reserve_price, buy_now_price, is_sale_only,
+  is_free_claim, free_claim_winning_number, free_claim_count,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
 `;
 
@@ -123,6 +124,9 @@ export function auctionToVM(row) {
     reservePrice: row.reserve_price != null ? Number(row.reserve_price) : null,
     buyNowPrice: row.buy_now_price != null ? Number(row.buy_now_price) : null,
     isSaleOnly: !!row.is_sale_only,
+    isFreeClaim: !!row.is_free_claim,
+    freeClaimWinningNumber: row.free_claim_winning_number,
+    freeClaimCount: row.free_claim_count ?? 0,
   };
 }
 
@@ -139,6 +143,12 @@ export async function buyNowAuction(auctionId) {
   const { data, error } = await supabase.rpc("buy_now_auction", { p_auction_id: auctionId });
   if (error) throw error;
   return data;
+}
+
+export async function claimFreeItem(auctionId) {
+  const { data, error } = await supabase.rpc("claim_free_item", { p_auction_id: auctionId });
+  if (error) throw error;
+  return data?.[0];
 }
 
 export async function listMyPublications(userId) {
@@ -182,10 +192,37 @@ export async function listRecentBids(auctionId, limit = 10) {
   return data;
 }
 
+// Las fotos de cámara vienen de varios MB — eso rompe el preview de
+// WhatsApp (su crawler ignora imágenes pesadas) y hace lenta la subida.
+// Las reescalamos client-side a un máximo razonable antes de subirlas.
+async function compressImage(file, maxDimension = 1600, quality = 0.82) {
+  if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 900_000) {
+      bitmap.close?.();
+      return file;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export async function uploadAuctionPhoto(file) {
-  const ext = file.name.split(".").pop();
+  const compressed = await compressImage(file);
+  const ext = compressed.name.split(".").pop();
   const path = `${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase.storage.from("auction-photos").upload(path, file);
+  const { error } = await supabase.storage.from("auction-photos").upload(path, compressed);
   if (error) throw error;
   const { data } = supabase.storage.from("auction-photos").getPublicUrl(path);
   return data.publicUrl;
@@ -214,6 +251,8 @@ export async function createAuction({
   reservePrice,
   buyNowPrice,
   isSaleOnly,
+  isFreeClaim,
+  freeClaimWinningNumber,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -221,8 +260,8 @@ export async function createAuction({
     .insert({
       seller_id: sellerId,
       card_name: cardName,
-      base_price: basePrice,
-      current_bid: basePrice,
+      base_price: isFreeClaim ? 0 : basePrice,
+      current_bid: isFreeClaim ? 0 : basePrice,
       closes_at: closesAt,
       photo_urls: photoUrls ?? [],
       set_name: setName || null,
@@ -234,10 +273,12 @@ export async function createAuction({
       grade: isGraded ? grade : null,
       rarity: rarity || null,
       is_featured: !!isFeatured,
-      reference_price: referencePrice || null,
-      reserve_price: isSaleOnly ? null : reservePrice || null,
-      buy_now_price: isSaleOnly ? basePrice : buyNowPrice || null,
+      reference_price: isFreeClaim ? null : referencePrice || null,
+      reserve_price: isSaleOnly || isFreeClaim ? null : reservePrice || null,
+      buy_now_price: isFreeClaim ? null : isSaleOnly ? basePrice : buyNowPrice || null,
       is_sale_only: !!isSaleOnly,
+      is_free_claim: !!isFreeClaim,
+      free_claim_winning_number: isFreeClaim ? freeClaimWinningNumber : null,
     })
     .select(AUCTION_SELECT)
     .single();
@@ -643,6 +684,36 @@ export async function listAllAuctionsForAdmin() {
     .select(`${AUCTION_SELECT}, created_at`)
     .order("created_at", { ascending: false })
     .limit(200);
+  if (error) throw error;
+  return data;
+}
+
+export async function createSuggestion(userId, message) {
+  const { data, error } = await supabase
+    .from("suggestions")
+    .insert({ user_id: userId, message })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listSuggestionsForAdmin() {
+  const { data, error } = await supabase
+    .from("suggestions")
+    .select("id, message, status, created_at, user:profiles!suggestions_user_id_fkey ( alias )")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function setSuggestionStatus(id, status) {
+  const { error } = await supabase.from("suggestions").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getTopTraders() {
+  const { data, error } = await supabase.rpc("get_top_traders");
   if (error) throw error;
   return data;
 }
