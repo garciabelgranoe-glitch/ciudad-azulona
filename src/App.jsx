@@ -261,8 +261,6 @@ function AccountMenu({
   alias,
   gender,
   isAdmin,
-  isPremium,
-  onOpenCreateLot,
   onOpenProfile,
   onOpenMyBids,
   onOpenMyPublications,
@@ -336,17 +334,6 @@ function AccountMenu({
             >
               Mis favoritos
             </button>
-            {isPremium && (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onOpenCreateLot();
-                }}
-                className="flex w-full items-center gap-1.5 border-t border-line px-4 py-2.5 text-left text-[12px] font-bold text-plum hover:bg-cream"
-              >
-                <Package size={13} /> Publicar lote
-              </button>
-            )}
             <button
               onClick={() => {
                 setOpen(false);
@@ -556,8 +543,6 @@ function AuctionList({
                   alias={profile.alias}
                   gender={profile.gender}
                   isAdmin={profile.is_admin}
-                  isPremium={profile.is_premium}
-                  onOpenCreateLot={onOpenCreateLot}
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
@@ -736,6 +721,15 @@ function AuctionList({
           />
         ))}
       </div>
+
+      {profile?.is_premium && (
+        <button
+          onClick={onOpenCreateLot}
+          className="fixed bottom-24 right-5 flex items-center gap-2 rounded-full bg-plum px-5 py-3.5 text-[13px] font-extrabold text-cream shadow-[0_4px_0_rgba(76,29,87,1)] transition hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_rgba(76,29,87,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep"
+        >
+          <Package size={16} strokeWidth={2.5} /> Publicar lote
+        </button>
+      )}
 
       <button
         onClick={onCreate}
