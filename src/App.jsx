@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2 } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2, Heart, ThumbsUp, ThumbsDown, Users, RefreshCw, Package, Zap } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -69,6 +69,18 @@ import {
   setSuggestionStatus,
   getTopSellers,
   getTopBuyers,
+  listMyFavoriteIds,
+  listMyFavoriteAuctions,
+  addFavorite,
+  removeFavorite,
+  listAuctionReactions,
+  setMyReaction as apiSetMyReaction,
+  removeMyReaction,
+  subscribeToAuctionPresence,
+  createCardLot,
+  listLiveLots,
+  getCardLot,
+  listLotItems,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -189,7 +201,7 @@ function SellerBadge({ name, rating, sales, onClick, gender, isPremium = false }
       )}
       {isPremium && (
         <span
-          className="flex items-center gap-0.5 whitespace-nowrap rounded-full bg-gold/20 px-1.5 py-0.5 text-[9px] font-extrabold text-gold-dark"
+          className="flex items-center gap-0.5 whitespace-nowrap rounded-full border border-gold bg-gold px-1.5 py-0.5 text-[9px] font-extrabold text-forest-deep"
           title="Vendedor verificado"
         >
           <Trophy size={9} /> VERIFICADO
@@ -199,7 +211,7 @@ function SellerBadge({ name, rating, sales, onClick, gender, isPremium = false }
         <Star size={11} fill="currentColor" strokeWidth={0} />
         {rating.toFixed(1)}
       </span>
-      <span className="whitespace-nowrap">· {sales} ventas</span>
+      <span className="whitespace-nowrap font-bold text-ink">· {sales} ventas</span>
     </div>
   );
 }
@@ -249,10 +261,13 @@ function AccountMenu({
   alias,
   gender,
   isAdmin,
+  isPremium,
+  onOpenCreateLot,
   onOpenProfile,
   onOpenMyBids,
   onOpenMyPublications,
   onOpenMyTickets,
+  onOpenFavorites,
   onOpenRecommended,
   onOpenTopMonthly,
   onOpenBlog,
@@ -312,6 +327,26 @@ function AccountMenu({
             >
               Mis tickets
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenFavorites();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Mis favoritos
+            </button>
+            {isPremium && (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onOpenCreateLot();
+                }}
+                className="flex w-full items-center gap-1.5 border-t border-line px-4 py-2.5 text-left text-[12px] font-bold text-plum hover:bg-cream"
+              >
+                <Package size={13} /> Publicar lote
+              </button>
+            )}
             <button
               onClick={() => {
                 setOpen(false);
@@ -458,6 +493,7 @@ function AuctionList({
   onSearchChange,
   pendingCount = 0,
   onOpenMyTickets,
+  onOpenFavorites,
   onOpenRecommended,
   onOpenTopMonthly,
   onOpenBlog,
@@ -466,6 +502,11 @@ function AuctionList({
   onOpenRanking,
   onOpenSuggestions,
   recommendedSellers,
+  favoriteIds,
+  onToggleFavorite,
+  onOpenCreateLot,
+  liveLots,
+  onOpenLot,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -515,10 +556,13 @@ function AuctionList({
                   alias={profile.alias}
                   gender={profile.gender}
                   isAdmin={profile.is_admin}
+                  isPremium={profile.is_premium}
+                  onOpenCreateLot={onOpenCreateLot}
                   onOpenProfile={onOpenProfile}
                   onOpenMyBids={onOpenMyBids}
                   onOpenMyPublications={onOpenMyPublications}
                   onOpenMyTickets={onOpenMyTickets}
+                  onOpenFavorites={onOpenFavorites}
                   onOpenRecommended={onOpenRecommended}
                   onOpenTopMonthly={onOpenTopMonthly}
                   onOpenBlog={onOpenBlog}
@@ -667,6 +711,8 @@ function AuctionList({
         <GuaranteedSellersBanner sellers={recommendedSellers} onOpenAll={onOpenRecommended} />
       </div>
 
+      {liveLots && <LotsRow lots={liveLots} onOpen={onOpenLot} />}
+
       {auctions.length > 0 && filtered.length === 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-10 text-center text-[13px] text-ink-soft">
           No encontramos cartas con esos criterios.
@@ -680,7 +726,14 @@ function AuctionList({
 
       <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 px-5 pt-5 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
         {filtered.map((a) => (
-          <AuctionCard key={a.id} auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} />
+          <AuctionCard
+            key={a.id}
+            auction={a}
+            onOpen={onOpen}
+            onOpenSellerProfile={onOpenSellerProfile}
+            isFavorite={favoriteIds?.has(a.id)}
+            onToggleFavorite={onToggleFavorite}
+          />
         ))}
       </div>
 
@@ -697,7 +750,17 @@ function AuctionList({
 // ---------------------------------------------
 // Vista: Mis pujas / Mis publicaciones
 // ---------------------------------------------
-function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, onOpenSellerProfile, showMyBid = false }) {
+function MyAuctionsView({
+  title,
+  emptyText,
+  auctions,
+  onBack,
+  onOpen,
+  onOpenSellerProfile,
+  showMyBid = false,
+  favoriteIds,
+  onToggleFavorite,
+}) {
   return (
     <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -720,6 +783,8 @@ function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, onOpenSell
               showSeller={showMyBid}
               showMyBid={showMyBid}
               showStatusPill
+              isFavorite={favoriteIds?.has(a.id)}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </div>
@@ -732,8 +797,18 @@ function MyAuctionsView({ title, emptyText, auctions, onBack, onOpen, onOpenSell
 // Card de subasta — compartida entre la mesa del evento y
 // Mis pujas/Mis publicaciones, para que luzcan siempre igual.
 // ---------------------------------------------
-function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = true, showMyBid = false, showStatusPill = false }) {
+function AuctionCard({
+  auction: a,
+  onOpen,
+  onOpenSellerProfile,
+  showSeller = true,
+  showMyBid = false,
+  showStatusPill = false,
+  isFavorite = false,
+  onToggleFavorite,
+}) {
   const clickable = a.status === "live" && !!onOpen;
+  const typeAccent = a.isFreeClaim ? "bg-teal" : a.isSaleOnly ? "bg-gold" : "bg-transparent";
 
   return (
     <div
@@ -747,10 +822,11 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
             }
           : undefined
       }
-      className={`flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
+      className={`relative flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
         a.isFeatured ? "border-plum" : "border-ink"
       } ${clickable ? "cursor-pointer hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" : "opacity-90"}`}
     >
+      <span className={`absolute inset-y-0 left-0 z-10 w-1.5 ${typeAccent}`} aria-hidden="true" />
       <div className="relative">
         <CardArt label={a.card} photoUrl={a.photoUrl} />
         {a.isFeatured && (
@@ -783,9 +859,28 @@ function AuctionCard({ auction: a, onOpen, onOpenSellerProfile, showSeller = tru
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
-        <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
+          {onToggleFavorite && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(a.id);
+              }}
+              className="shrink-0 text-ink-soft transition hover:text-[#B9432C] focus:outline-none"
+              aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
+            >
+              <Heart size={16} className={isFavorite ? "fill-[#B9432C] text-[#B9432C]" : ""} />
+            </button>
+          )}
+        </div>
         {(a.isFreeClaim || a.buyNowPrice != null) && a.status === "live" && (
-          <span className="w-fit rounded-full bg-gold/20 px-2 py-0.5 text-[10px] font-bold text-gold-dark">
+          <span
+            className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              a.isFreeClaim ? "bg-teal/20 text-teal" : "bg-gold/20 text-gold-dark"
+            }`}
+          >
+            {a.isFreeClaim ? <Package size={11} /> : <Zap size={11} />}
             {a.isFreeClaim ? "Free claim — gratis" : a.isSaleOnly ? "Venta directa" : `Claim: ${formatARS(a.buyNowPrice)}`}
           </span>
         )}
@@ -1899,6 +1994,135 @@ function SuggestionsView({ onBack, onSubmit, busy = false, error = "" }) {
 }
 
 // ---------------------------------------------
+// Lotes: varias cartas sueltas en una sola publicación (Premium).
+// ---------------------------------------------
+function LotPreviewCard({ lot, onOpen }) {
+  const photo = lot.photo_urls?.[0];
+  const availableCount = lot.items?.filter((i) => i.status === "live").length ?? 0;
+
+  return (
+    <button
+      onClick={() => onOpen(lot)}
+      className="flex w-36 shrink-0 flex-col overflow-hidden rounded-xl border-2 border-plum bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+    >
+      <div className="relative">
+        <CardArt label={lot.title} photoUrl={photo} />
+        <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
+          <Package size={10} /> LOTE
+        </div>
+      </div>
+      <div className="p-2.5">
+        <p className="line-clamp-2 text-[12px] font-extrabold leading-snug text-ink">{lot.title}</p>
+        <p className="mt-1 text-[10px] text-ink-soft">{availableCount} disponibles</p>
+      </div>
+    </button>
+  );
+}
+
+function LotsRow({ lots, onOpen }) {
+  const active = lots.filter((l) => l.items?.some((i) => i.status === "live"));
+  if (active.length === 0) return null;
+
+  return (
+    <div className="mx-auto max-w-5xl px-5 pt-4">
+      <p className="mb-2 flex items-center gap-1.5 font-pixel text-[9px] tracking-wide text-plum">
+        <Package size={12} /> LOTES DISPONIBLES
+      </p>
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {active.map((lot) => (
+          <LotPreviewCard key={lot.id} lot={lot} onOpen={onOpen} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, claimingItemId, claimError }) {
+  const photos = lot.photo_urls ?? [];
+  const [activePhoto, setActivePhoto] = useState(0);
+
+  return (
+    <div className="min-h-dvh bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">LOTE</p>
+      </header>
+
+      <div className="px-5 pt-5">
+        {photos.length > 0 && (
+          <>
+            <div className="mx-auto block w-52 overflow-hidden rounded-lg border-2 border-ink shadow-card">
+              <CardArt label={lot.title} photoUrl={photos[activePhoto]} />
+            </div>
+            {photos.length > 1 && (
+              <div className="mx-auto mt-2 flex w-52 justify-center gap-1.5">
+                {photos.map((url, i) => (
+                  <button
+                    key={url}
+                    onClick={() => setActivePhoto(i)}
+                    className={`h-2 w-2 rounded-full transition ${i === activePhoto ? "bg-forest-mid" : "bg-line"}`}
+                    aria-label={`Foto ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        <h2 className="mt-4 text-xl font-extrabold text-ink">{lot.title}</h2>
+        <div className="mt-1">
+          <SellerBadge
+            name={lot.seller?.alias ?? "—"}
+            rating={Number(lot.seller?.rating_avg ?? 5)}
+            sales={lot.seller?.sales_count ?? 0}
+            gender={lot.seller?.gender}
+            isPremium={lot.seller?.is_premium}
+            onClick={onOpenUserProfile && lot.seller?.id ? () => onOpenUserProfile(lot.seller.id) : undefined}
+          />
+        </div>
+        {lot.description && <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">{lot.description}</p>}
+
+        <p className="mt-5 font-pixel text-[8px] tracking-wide text-gold-dark">CARTAS DEL LOTE ({items.length})</p>
+        <div className="mt-2.5 flex flex-col gap-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className={`flex items-center justify-between gap-3 rounded-lg border-2 p-3 ${
+                item.status === "live" ? "border-line bg-paper" : "border-line bg-paper opacity-60"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-bold text-ink">{item.card}</p>
+                <p className="text-[13px] font-extrabold text-forest-deep">{formatARS(item.currentBid)}</p>
+              </div>
+              {item.status === "live" ? (
+                <button
+                  onClick={() => onClaimItem(item.id)}
+                  disabled={claimingItemId === item.id}
+                  className="shrink-0 rounded-lg bg-gold px-3 py-2 text-[12px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] disabled:opacity-40"
+                >
+                  {claimingItemId === item.id ? "Claimeando..." : "Claim"}
+                </button>
+              ) : (
+                <span className="shrink-0 text-[11px] font-bold text-ink-soft">Vendida</span>
+              )}
+            </div>
+          ))}
+        </div>
+        {claimError && <p className="mt-2 text-[12px] text-[#B9432C]">{claimError}</p>}
+
+        <p className="mt-6 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
+          <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+          El pago se hace en persona en el stand del vendedor, igual que en las subastas.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Vendedores recomendados (pública)
 // ---------------------------------------------
 function RecommendedSellersView({ sellers, onBack }) {
@@ -2007,7 +2231,19 @@ function AuctionDetail({
   reportError,
   recommendedSellers,
   onOpenRecommended,
+  isFavorite,
+  onToggleFavorite,
+  reactions,
+  myReaction,
+  onSetReaction,
+  viewerCount,
+  onRepublish,
+  republishBusy,
+  republishError,
 }) {
+  const [republishOpen, setRepublishOpen] = useState(false);
+  const [republishPrice, setRepublishPrice] = useState(String(auction.basePrice));
+  const [republishDuration, setRepublishDuration] = useState(60);
   const [bid, setBid] = useState(auction.currentBid + 1000);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
@@ -2021,6 +2257,8 @@ function AuctionDetail({
   const [copied, setCopied] = useState(false);
   const photos = auction.photoUrls?.length ? auction.photoUrls : auction.photoUrl ? [auction.photoUrl] : [];
   const minBid = auction.currentBid + 1000;
+  const upCount = reactions?.filter((r) => r.reaction === "up").length ?? 0;
+  const downCount = reactions?.filter((r) => r.reaction === "down").length ?? 0;
 
   async function handleShare() {
     const url = `${window.location.origin}/subasta/${auction.id}`;
@@ -2080,12 +2318,17 @@ function AuctionDetail({
           <ArrowLeft size={20} />
         </button>
         <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
+        {viewerCount > 1 && auction.status === "live" && (
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-cream/70">
+            <Users size={13} /> {viewerCount} viendo ahora
+          </span>
+        )}
       </header>
 
       <div className="px-5 pt-5">
         <button
           onClick={() => photos.length > 0 && setLightboxOpen(true)}
-          className="mx-auto block w-40 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          className="mx-auto block w-52 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
         >
           <CardArt label={auction.card} photoUrl={photos[activePhoto]} />
         </button>
@@ -2154,7 +2397,7 @@ function AuctionDetail({
         )}
 
         <h2 className="mt-4 text-xl font-extrabold text-ink">{auction.card}</h2>
-        <div className="mt-1">
+        <div className="mt-1 flex items-center justify-between gap-2">
           <SellerBadge
             name={auction.seller}
             rating={auction.sellerRating}
@@ -2163,15 +2406,44 @@ function AuctionDetail({
             isPremium={auction.sellerIsPremium}
             onClick={onOpenUserProfile && auction.sellerId ? () => onOpenUserProfile(auction.sellerId) : undefined}
           />
+          {onSetReaction && (
+            <div className="flex shrink-0 items-center gap-2 text-[11px] text-ink-soft">
+              <button
+                onClick={() => onSetReaction(myReaction === "up" ? null : "up")}
+                className={`flex items-center gap-0.5 transition hover:text-forest-deep ${myReaction === "up" ? "text-forest-deep" : ""}`}
+                aria-label="Me gusta esta publicación"
+              >
+                <ThumbsUp size={13} className={myReaction === "up" ? "fill-forest-deep" : ""} /> {upCount}
+              </button>
+              <button
+                onClick={() => onSetReaction(myReaction === "down" ? null : "down")}
+                className={`flex items-center gap-0.5 transition hover:text-[#B9432C] ${myReaction === "down" ? "text-[#B9432C]" : ""}`}
+                aria-label="No me gusta esta publicación"
+              >
+                <ThumbsDown size={13} className={myReaction === "down" ? "fill-[#B9432C]" : ""} /> {downCount}
+              </button>
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={handleShare}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-gold bg-gold text-forest-deep px-4 py-3 text-[13px] font-extrabold shadow-[0_3px_0_rgba(185,134,47,0.7)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-none"
-        >
-          <Share2 size={17} />
-          {copied ? "¡Link copiado!" : "Compartir esta subasta"}
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={handleShare}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-gold bg-gold text-forest-deep px-4 py-3 text-[13px] font-extrabold shadow-[0_3px_0_rgba(185,134,47,0.7)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-none"
+          >
+            <Share2 size={17} />
+            {copied ? "¡Link copiado!" : "Compartir esta subasta"}
+          </button>
+          {onToggleFavorite && (
+            <button
+              onClick={() => onToggleFavorite(auction.id)}
+              className="flex shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-paper px-4 text-ink shadow-[0_3px_0_rgba(32,41,28,0.5)] transition hover:bg-cream active:translate-y-[2px] active:shadow-none"
+              aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
+            >
+              <Heart size={18} className={isFavorite ? "fill-[#B9432C] text-[#B9432C]" : ""} />
+            </button>
+          )}
+        </div>
 
         {(auction.setName || auction.cardNumber || auction.year || auction.condition || auction.isGraded || auction.rarity) && (
           <div className="mt-4 rounded-xl border-2 border-ink bg-paper p-4 shadow-card">
@@ -2202,10 +2474,10 @@ function AuctionDetail({
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {(auction.condition || auction.isGraded) && (
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full border-2 px-3 py-1.5 text-[13px] font-extrabold tracking-wide ${
+                    className={`inline-flex items-center gap-1 rounded-lg px-3.5 py-2 text-[15px] font-extrabold tracking-wide ${
                       auction.isGraded
-                        ? "border-gold bg-gold/15 text-gold-dark"
-                        : (CONDITION_COLORS[auction.condition] ?? "border-line bg-cream text-ink-soft")
+                        ? "border-[3px] border-double border-gold bg-gold/15 text-gold-dark"
+                        : `border-2 ${CONDITION_COLORS[auction.condition] ?? "border-line bg-cream text-ink-soft"}`
                     }`}
                   >
                     {auction.isGraded
@@ -2215,7 +2487,7 @@ function AuctionDetail({
                 )}
                 {auction.rarity && (
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-gold bg-gold/15 px-3 py-1.5 text-[13px] font-extrabold text-gold-dark"
+                    className="inline-flex items-center gap-1.5 rounded-lg border-2 border-gold bg-gold/15 px-3.5 py-2 text-[15px] font-extrabold text-gold-dark"
                     title={RARITY_LABEL[auction.rarity]}
                   >
                     {RARITY_SYMBOL[auction.rarity]} {RARITY_LABEL[auction.rarity]}
@@ -2273,13 +2545,58 @@ function AuctionDetail({
             {!auction.isSaleOnly && !auction.isFreeClaim && auction.buyNowPrice != null && (
               <p className="mt-1">Claim inmediato en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
             )}
-            {(auction.isFreeClaim ? auction.freeClaimCount === 0 : auction.bids === 0) && onEdit && (
+            {auction.status === "live" && (auction.isFreeClaim ? auction.freeClaimCount === 0 : auction.bids === 0) && onEdit && (
               <button
                 onClick={onEdit}
                 className="mt-2 font-bold text-forest-deep underline underline-offset-2"
               >
                 Editar o cancelar esta subasta
               </button>
+            )}
+            {auction.status !== "live" && !auction.isFreeClaim && !auction.lotId && onRepublish && (
+              <div className="mt-3 border-t-2 border-line pt-3">
+                {!republishOpen ? (
+                  <button
+                    onClick={() => setRepublishOpen(true)}
+                    className="flex items-center gap-1.5 font-bold text-forest-deep underline underline-offset-2"
+                  >
+                    <RefreshCw size={13} /> Republicar esta carta
+                  </button>
+                ) : (
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+                      Republicar — misma foto y ficha, nueva subasta
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={republishPrice}
+                        onChange={(e) => setRepublishPrice(e.target.value)}
+                        className="w-28 rounded-lg border-2 border-line bg-white px-2.5 py-2 text-[13px] font-bold text-ink focus:outline-none focus-visible:border-forest-mid"
+                      />
+                      <select
+                        value={republishDuration}
+                        onChange={(e) => setRepublishDuration(Number(e.target.value))}
+                        className="rounded-lg border-2 border-line bg-white px-2 py-2 text-[12px] font-bold text-ink"
+                      >
+                        {DURATION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {republishError && <p className="mt-2 text-[12px] text-[#B9432C]">{republishError}</p>}
+                    <button
+                      onClick={() =>
+                        onRepublish(auction, { price: Number(republishPrice), durationMinutes: republishDuration })
+                      }
+                      disabled={republishBusy || !republishPrice}
+                      className="mt-2 rounded-lg bg-gold px-4 py-2 text-[12px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] disabled:opacity-40"
+                    >
+                      {republishBusy ? "Publicando..." : "Publicar de nuevo"}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ) : claimResult?.won ? (
@@ -3190,6 +3507,214 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
 }
 
 // ---------------------------------------------
+// Vista: Publicar lote (Premium) — varias cartas sueltas, cada una
+// con su propia descripción y precio, en una sola publicación.
+// ---------------------------------------------
+function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = "" }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [duration, setDuration] = useState(1440);
+  const [items, setItems] = useState([{ description: "", price: "" }, { description: "", price: "" }]);
+  const [photoConverting, setPhotoConverting] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+
+  async function handlePhotoChange(e) {
+    const files = [...(e.target.files ?? [])];
+    e.target.value = "";
+    setPhotoError("");
+    if (files.length === 0) return;
+
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) {
+      setPhotoError(`Ya tenés el máximo de ${MAX_PHOTOS} fotos.`);
+      return;
+    }
+    const toAdd = files.slice(0, room);
+
+    setPhotoConverting(true);
+    try {
+      const converted = await Promise.all(
+        toAdd.map(async (file) => {
+          const isHeic =
+            file.type === "image/heic" || file.type === "image/heif" || /\.heic$|\.heif$/i.test(file.name);
+          if (!isHeic) return file;
+          const heic2any = (await import("heic2any")).default;
+          const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+          return new File([blob], "foto.jpg", { type: "image/jpeg" });
+        })
+      );
+      setPhotos((prev) => [...prev, ...converted.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
+    } catch {
+      setPhotoError("No pudimos convertir alguna foto. Probá sacándola de nuevo o elegí otra.");
+    } finally {
+      setPhotoConverting(false);
+    }
+  }
+
+  function removePhoto(index) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateItem(index, field, value) {
+    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [field]: value } : it)));
+  }
+
+  function addItem() {
+    setItems((prev) => (prev.length >= 10 ? prev : [...prev, { description: "", price: "" }]));
+  }
+
+  function removeItem(index) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const validItems = items.filter((it) => it.description.trim() && Number(it.price) > 0);
+  const canPublish = title.trim() && photos.length > 0 && validItems.length >= 2 && !busy && !photoConverting;
+
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[12px] font-bold text-ink-soft";
+
+  return (
+    <div className="min-h-dvh bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">PUBLICAR LOTE</p>
+      </header>
+
+      <div className="space-y-4 px-5 pt-6">
+        <p className="rounded-lg border-2 border-gold/40 bg-gold/10 px-3 py-2.5 text-[12px] leading-relaxed text-ink-soft">
+          Cada carta que cargues abajo se publica con su propio precio — quien la quiera la claimea directo, sin pujas.
+        </p>
+
+        <div>
+          <label className={labelClass}>Título del lote</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ej: Lote de sueltas Base Set — 8 cartas"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Descripción general (opcional)</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Contexto del lote: estado general, de dónde salieron, etc."
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>Fotos del panorama general (obligatoria, hasta {MAX_PHOTOS})</label>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {photos.map((p, i) => (
+              <div key={i} className="relative h-24 w-24 overflow-hidden rounded-lg border-2 border-ink">
+                <img src={p.preview} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                <button
+                  onClick={() => removePhoto(i)}
+                  className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-ink/70 text-paper"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {photos.length < MAX_PHOTOS && (
+              <label className="flex h-24 w-24 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-line bg-paper text-center text-[11px] text-ink-soft">
+                {photoConverting ? "Convirtiendo..." : "Sacar o elegir foto"}
+                <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+              </label>
+            )}
+          </div>
+          {photoError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{photoError}</p>}
+        </div>
+
+        <div>
+          <label className={labelClass}>Cartas incluidas (mínimo 2, hasta 10)</label>
+          <div className="mt-1.5 flex flex-col gap-2">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  value={item.description}
+                  onChange={(e) => updateItem(i, "description", e.target.value)}
+                  placeholder={`Ej: Charizard NM, alt art, 2023`}
+                  className="min-w-0 flex-1 rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+                />
+                <input
+                  type="number"
+                  value={item.price}
+                  onChange={(e) => updateItem(i, "price", e.target.value)}
+                  placeholder="$"
+                  className="w-24 shrink-0 rounded-lg border-2 border-line bg-white px-2.5 py-2.5 text-[13px] font-bold text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+                />
+                {items.length > 2 && (
+                  <button onClick={() => removeItem(i)} className="shrink-0 text-ink-soft hover:text-[#B9432C]">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {items.length < 10 && (
+            <button
+              onClick={addItem}
+              className="mt-2 flex items-center gap-1 text-[12px] font-bold text-forest-deep underline underline-offset-2"
+            >
+              <Plus size={13} /> Agregar otra carta
+            </button>
+          )}
+        </div>
+
+        <div>
+          <label className={labelClass}>Dura</label>
+          <div className="mt-1.5 grid grid-cols-3 gap-2">
+            {DURATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setDuration(opt.value)}
+                className={`rounded-lg border-2 py-2 text-[12px] font-bold transition ${
+                  duration === opt.value
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="text-[12px] text-[#B9432C]">{error}</p>}
+        <button
+          disabled={!canPublish}
+          onClick={() =>
+            onCreate({
+              title: title.trim(),
+              description: description.trim(),
+              photoFiles: photos.map((p) => p.file),
+              durationMinutes: duration,
+              items: validItems.map((it) => ({ description: it.description.trim(), price: Number(it.price) })),
+            })
+          }
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
+        >
+          {busy && <Loader2 size={15} className="animate-spin" />}
+          {busy ? busyText || "Publicando..." : "Publicar lote"}
+        </button>
+        {validItems.length < 2 && (
+          <p className="text-center text-[11px] text-ink-soft">Cargá al menos 2 cartas con descripción y precio.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
 // Vista: Editar subasta propia (sin pujas todavía)
 // ---------------------------------------------
 function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, cancelBusy = false, error = "" }) {
@@ -3951,6 +4476,15 @@ export default function App() {
   const [claimError, setClaimError] = useState("");
   const [claimBusy, setClaimBusy] = useState(false);
   const [claimResult, setClaimResult] = useState(null);
+  const [republishBusy, setRepublishBusy] = useState(false);
+  const [republishError, setRepublishError] = useState("");
+  const [liveLots, setLiveLots] = useState([]);
+  const [activeLotItems, setActiveLotItems] = useState([]);
+  const [activeLotData, setActiveLotData] = useState(null);
+  const [createLotBusy, setCreateLotBusy] = useState(false);
+  const [createLotError, setCreateLotError] = useState("");
+  const [claimingLotItemId, setClaimingLotItemId] = useState(null);
+  const [claimLotItemError, setClaimLotItemError] = useState("");
   const [realTickets, setRealTickets] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
@@ -3973,6 +4507,8 @@ export default function App() {
   const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [premiumBusyId, setPremiumBusyId] = useState(null);
   const [recommendedSellers, setRecommendedSellers] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const [myFavoriteAuctions, setMyFavoriteAuctions] = useState([]);
   const [topMonthlyAuctions, setTopMonthlyAuctions] = useState([]);
   const [blogPosts, setBlogPosts] = useState([]);
   const [createBlogBusy, setCreateBlogBusy] = useState(false);
@@ -4005,6 +4541,10 @@ export default function App() {
   const [, setClockTick] = useState(0);
   const [toasts, setToasts] = useState([]);
   const myBidAmountsRef = useRef({});
+  const anonPresenceIdRef = useRef(crypto.randomUUID());
+  const [auctionReactions, setAuctionReactions] = useState([]);
+  const [myReaction, setMyReaction] = useState(null);
+  const [viewerCount, setViewerCount] = useState(0);
 
   const ready = isSupabaseConfigured && auth.session && auth.profile;
 
@@ -4030,6 +4570,7 @@ export default function App() {
       const myAmount = myBidAmountsRef.current[updatedRow.id];
       if (myAmount != null && Number(updatedRow.current_bid) > myAmount) {
         pushToast(`Te superaron en "${updatedRow.card_name}" — nueva puja ${formatARS(Number(updatedRow.current_bid))}`);
+        navigator.vibrate?.(200);
         delete myBidAmountsRef.current[updatedRow.id];
       }
     });
@@ -4037,6 +4578,8 @@ export default function App() {
     listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
     listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
     listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
+    listMyFavoriteIds().then((ids) => !cancelled && setFavoriteIds(ids));
+    listLiveLots().then((rows) => !cancelled && setLiveLots(rows));
     const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
       setNotifications((rows) => [newNotif, ...rows]);
     });
@@ -4063,6 +4606,32 @@ export default function App() {
     setClaimResult(null);
     setClaimError("");
   }, [view.auctionId]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || view.name !== "detail") {
+      setAuctionReactions([]);
+      setMyReaction(null);
+      return;
+    }
+    let cancelled = false;
+    listAuctionReactions(view.auctionId).then((rows) => {
+      if (cancelled) return;
+      setAuctionReactions(rows);
+      setMyReaction(rows.find((r) => r.user_id === auth.session?.user.id)?.reaction ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [view.name, view.auctionId]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || view.name !== "detail") {
+      setViewerCount(0);
+      return;
+    }
+    const presenceKey = auth.session?.user.id ?? anonPresenceIdRef.current;
+    return subscribeToAuctionPresence(view.auctionId, presenceKey, setViewerCount);
+  }, [view.name, view.auctionId]);
 
   // Si llegamos directo a /subasta/:id (link compartido) y esa subasta no
   // está en ninguna lista ya cargada (por ejemplo, ya cerró y no aparece en
@@ -4122,6 +4691,11 @@ export default function App() {
     } else if (view.name === "ranking") {
       getTopSellers().then((rows) => !cancelled && setTopSellers(rows));
       getTopBuyers().then((rows) => !cancelled && setTopBuyers(rows));
+    } else if (view.name === "favorites") {
+      listMyFavoriteAuctions().then((rows) => !cancelled && setMyFavoriteAuctions(rows.map(auctionToVM)));
+    } else if (view.name === "lotDetail") {
+      getCardLot(view.lotId).then((row) => !cancelled && setActiveLotData(row));
+      listLotItems(view.lotId).then((rows) => !cancelled && setActiveLotItems(rows.map(auctionToVM)));
     }
     return () => {
       cancelled = true;
@@ -4395,6 +4969,117 @@ export default function App() {
       setAdminProfiles((rows) => rows.map((p) => (p.id === userId ? { ...p, is_premium: premium } : p)));
     } finally {
       setPremiumBusyId(null);
+    }
+  }
+
+  async function handleCreateLot({ title, description, photoFiles, durationMinutes, items }) {
+    setCreateLotBusy(true);
+    setCreateLotError("");
+    try {
+      const photoUrls = photoFiles?.length ? await uploadAuctionPhotos(photoFiles) : [];
+      const lot = await createCardLot({
+        sellerId: auth.session.user.id,
+        title,
+        description,
+        photoUrls,
+        durationMinutes,
+        items,
+      });
+      setLiveLots((rows) => [{ ...lot, seller: auth.profile, items: [] }, ...rows]);
+      setView({ name: "list" });
+    } catch (e) {
+      setCreateLotError(e.message);
+    } finally {
+      setCreateLotBusy(false);
+    }
+  }
+
+  async function handleClaimLotItem(itemId) {
+    setClaimingLotItemId(itemId);
+    setClaimLotItemError("");
+    try {
+      const row = await buyNowAuction(itemId);
+      setActiveLotItems((rows) => rows.map((r) => (r.id === itemId ? auctionToVM(row) : r)));
+      setLiveLots((lots) =>
+        lots.map((lot) => ({
+          ...lot,
+          items: lot.items?.map((it) => (it.id === itemId ? { ...it, status: "closed" } : it)),
+        }))
+      );
+      listMyTickets().then(setRealTickets);
+    } catch (e) {
+      setClaimLotItemError(e.message);
+    } finally {
+      setClaimingLotItemId(null);
+    }
+  }
+
+  async function handleRepublish(auction, { price, durationMinutes }) {
+    setRepublishBusy(true);
+    setRepublishError("");
+    try {
+      const row = await createAuction({
+        sellerId: auth.session.user.id,
+        cardName: auction.card,
+        basePrice: price,
+        durationMinutes,
+        photoUrls: auction.photoUrls,
+        setName: auction.setName,
+        cardNumber: auction.cardNumber,
+        year: auction.year,
+        condition: auction.condition,
+        isGraded: auction.isGraded,
+        gradingCompany: auction.gradingCompany,
+        grade: auction.grade,
+        rarity: auction.rarity,
+        isFeatured: false,
+        referencePrice: auction.referencePrice,
+        reservePrice: null,
+        buyNowPrice: auction.isSaleOnly ? price : null,
+        isSaleOnly: auction.isSaleOnly,
+      });
+      setRealRows((rows) => [row, ...rows]);
+      setView({ name: "detail", auctionId: row.id, back: { name: "list" } });
+    } catch (e) {
+      setRepublishError(e.message);
+    } finally {
+      setRepublishBusy(false);
+    }
+  }
+
+  async function handleSetReaction(auctionId, reaction) {
+    const previous = myReaction;
+    setMyReaction(reaction);
+    setAuctionReactions((rows) => {
+      const withoutMine = rows.filter((r) => r.user_id !== auth.session.user.id);
+      return reaction ? [...withoutMine, { user_id: auth.session.user.id, reaction }] : withoutMine;
+    });
+    try {
+      if (reaction) await apiSetMyReaction(auth.session.user.id, auctionId, reaction);
+      else await removeMyReaction(auctionId);
+    } catch {
+      setMyReaction(previous);
+    }
+  }
+
+  async function handleToggleFavorite(auctionId) {
+    const isFav = favoriteIds.has(auctionId);
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (isFav) next.delete(auctionId);
+      else next.add(auctionId);
+      return next;
+    });
+    try {
+      if (isFav) await removeFavorite(auctionId);
+      else await addFavorite(auth.session.user.id, auctionId);
+    } catch {
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) next.add(auctionId);
+        else next.delete(auctionId);
+        return next;
+      });
     }
   }
 
@@ -4687,6 +5372,7 @@ export default function App() {
           onOpenMyBids={() => setView({ name: "myBids" })}
           onOpenMyPublications={() => setView({ name: "myPublications" })}
           onOpenMyTickets={() => setView({ name: "myTickets" })}
+          onOpenFavorites={() => setView({ name: "favorites", back: view })}
           onOpenRecommended={() => setView({ name: "recommended", back: view })}
           onOpenTopMonthly={() => setView({ name: "topMonthly", back: view })}
           onOpenBlog={() => setView({ name: "blog", back: view })}
@@ -4701,6 +5387,11 @@ export default function App() {
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
           recommendedSellers={recommendedSellers}
+          favoriteIds={favoriteIds}
+          onToggleFavorite={handleToggleFavorite}
+          onOpenCreateLot={() => setView({ name: "createLot" })}
+          liveLots={liveLots}
+          onOpenLot={(lot) => setView({ name: "lotDetail", lotId: lot.id, back: view })}
         />
       )}
 
@@ -4731,6 +5422,15 @@ export default function App() {
           reportError={reportError}
           recommendedSellers={recommendedSellers}
           onOpenRecommended={() => setView({ name: "recommended", back: view })}
+          isFavorite={favoriteIds.has(activeAuction.id)}
+          onToggleFavorite={isSupabaseConfigured ? handleToggleFavorite : undefined}
+          reactions={auctionReactions}
+          myReaction={myReaction}
+          onSetReaction={isSupabaseConfigured ? (r) => handleSetReaction(activeAuction.id, r) : undefined}
+          viewerCount={viewerCount}
+          onRepublish={isSupabaseConfigured ? handleRepublish : undefined}
+          republishBusy={republishBusy}
+          republishError={republishError}
         />
       )}
 
@@ -4813,6 +5513,19 @@ export default function App() {
           auctions={myPublications}
           onBack={() => setView({ name: "list" })}
           onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+        />
+      )}
+
+      {view.name === "favorites" && (
+        <MyAuctionsView
+          title="MIS FAVORITOS"
+          emptyText="Todavía no guardaste ninguna publicación."
+          auctions={myFavoriteAuctions}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+          onOpenSellerProfile={isSupabaseConfigured ? openProfile : undefined}
+          favoriteIds={favoriteIds}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
 
@@ -4940,6 +5653,27 @@ export default function App() {
           busy={createBusy}
           busyText={createPhase}
           error={createError}
+        />
+      )}
+
+      {view.name === "createLot" && (
+        <CreateLotView
+          onBack={() => setView({ name: "list" })}
+          onCreate={handleCreateLot}
+          busy={createLotBusy}
+          error={createLotError}
+        />
+      )}
+
+      {view.name === "lotDetail" && activeLotData && (
+        <LotDetailView
+          lot={activeLotData}
+          items={activeLotItems}
+          onBack={() => setView(view.back ?? { name: "list" })}
+          onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
+          onClaimItem={handleClaimLotItem}
+          claimingItemId={claimingLotItemId}
+          claimError={claimLotItemError}
         />
       )}
     </div>

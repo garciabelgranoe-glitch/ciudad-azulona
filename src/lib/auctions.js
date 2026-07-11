@@ -4,7 +4,7 @@ const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
   reference_price, reserve_price, buy_now_price, is_sale_only,
-  is_free_claim, free_claim_winning_number, free_claim_count,
+  is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
 `;
 
@@ -62,6 +62,7 @@ export async function listLiveAuctions() {
     .from("auctions")
     .select(AUCTION_SELECT)
     .eq("status", "live")
+    .is("lot_id", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
@@ -127,6 +128,7 @@ export function auctionToVM(row) {
     isFreeClaim: !!row.is_free_claim,
     freeClaimWinningNumber: row.free_claim_winning_number,
     freeClaimCount: row.free_claim_count ?? 0,
+    lotId: row.lot_id ?? null,
   };
 }
 
@@ -484,6 +486,19 @@ export async function markAllNotificationsRead(notificationIds) {
   if (error) throw error;
 }
 
+export function subscribeToAuctionPresence(auctionId, presenceKey, onCountChange) {
+  const channel = supabase.channel(`auction-presence-${auctionId}`, {
+    config: { presence: { key: presenceKey } },
+  });
+  channel.on("presence", { event: "sync" }, () => {
+    onCountChange(Object.keys(channel.presenceState()).length);
+  });
+  channel.subscribe(async (status) => {
+    if (status === "SUBSCRIBED") await channel.track({ online_at: new Date().toISOString() });
+  });
+  return () => supabase.removeChannel(channel);
+}
+
 export function subscribeToMyNotifications(userId, onInsert) {
   const channel = supabase
     .channel(`notifications-${userId}-${crypto.randomUUID()}`)
@@ -720,6 +735,104 @@ export async function getTopSellers() {
 
 export async function getTopBuyers() {
   const { data, error } = await supabase.rpc("get_top_buyers");
+  if (error) throw error;
+  return data;
+}
+
+export async function listMyFavoriteIds() {
+  const { data, error } = await supabase.from("favorites").select("auction_id");
+  if (error) throw error;
+  return new Set(data.map((r) => r.auction_id));
+}
+
+export async function listMyFavoriteAuctions() {
+  const { data, error } = await supabase
+    .from("favorites")
+    .select(`auction:auctions!favorites_auction_id_fkey ( ${AUCTION_SELECT} )`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map((r) => r.auction).filter(Boolean);
+}
+
+export async function addFavorite(userId, auctionId) {
+  const { error } = await supabase.from("favorites").insert({ user_id: userId, auction_id: auctionId });
+  if (error) throw error;
+}
+
+export async function removeFavorite(auctionId) {
+  const { error } = await supabase.from("favorites").delete().eq("auction_id", auctionId);
+  if (error) throw error;
+}
+
+export async function listAuctionReactions(auctionId) {
+  const { data, error } = await supabase.from("auction_reactions").select("user_id, reaction").eq("auction_id", auctionId);
+  if (error) throw error;
+  return data;
+}
+
+export async function setMyReaction(userId, auctionId, reaction) {
+  const { error } = await supabase
+    .from("auction_reactions")
+    .upsert({ user_id: userId, auction_id: auctionId, reaction }, { onConflict: "user_id,auction_id" });
+  if (error) throw error;
+}
+
+export async function removeMyReaction(auctionId) {
+  const { error } = await supabase.from("auction_reactions").delete().eq("auction_id", auctionId);
+  if (error) throw error;
+}
+
+export async function createCardLot({ sellerId, title, description, photoUrls, durationMinutes, items }) {
+  const { data: lot, error: lotError } = await supabase
+    .from("card_lots")
+    .insert({ seller_id: sellerId, title, description: description || null, photo_urls: photoUrls ?? [] })
+    .select("*")
+    .single();
+  if (lotError) throw lotError;
+
+  const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
+  const { error: itemsError } = await supabase.from("auctions").insert(
+    items.map((item) => ({
+      seller_id: sellerId,
+      card_name: item.description,
+      base_price: item.price,
+      current_bid: item.price,
+      buy_now_price: item.price,
+      is_sale_only: true,
+      closes_at: closesAt,
+      lot_id: lot.id,
+    }))
+  );
+  if (itemsError) throw itemsError;
+
+  return lot;
+}
+
+export async function listLiveLots() {
+  const { data, error } = await supabase
+    .from("card_lots")
+    .select(`*, seller:profiles!card_lots_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium ), items:auctions ( id, status )`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function getCardLot(lotId) {
+  const { data, error } = await supabase
+    .from("card_lots")
+    .select("*, seller:profiles!card_lots_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )")
+    .eq("id", lotId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function listLotItems(lotId) {
+  const { data, error } = await supabase
+    .from("auctions")
+    .select(AUCTION_SELECT)
+    .eq("lot_id", lotId)
+    .order("created_at", { ascending: true });
   if (error) throw error;
   return data;
 }

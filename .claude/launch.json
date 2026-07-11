@@ -7,6 +7,12 @@
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "icons-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4321", "--directory", "/private/tmp/claude-501/-Users-emilianobel-Desktop-ProyectoPokeCool/3cf94c1d-abd9-41d3-a2ee-04bdfa7a6c1d/scratchpad/icons/out"],
+      "port": 4321
     }
   ]
 }
