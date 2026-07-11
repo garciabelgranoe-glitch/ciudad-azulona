@@ -67,7 +67,8 @@ import {
   createSuggestion,
   listSuggestionsForAdmin,
   setSuggestionStatus,
-  getTopTraders,
+  getTopSellers,
+  getTopBuyers,
   CONDITION_OPTIONS,
   CONDITION_SHORT,
   CONDITION_COLORS,
@@ -1762,9 +1763,12 @@ function WhatsappCommunitiesView({ communities, onBack }) {
 }
 
 // ---------------------------------------------
-// Vista: Ranking (top 10 por volumen acumulado, compra + venta)
+// Vista: Ranking (top 10 vendedores y top 10 compradores, por separado)
 // ---------------------------------------------
-function RankingView({ traders, onBack, onOpenUserProfile }) {
+function RankingView({ topSellers, topBuyers, onBack, onOpenUserProfile }) {
+  const [tab, setTab] = useState("vendedores");
+  const traders = tab === "vendedores" ? topSellers : topBuyers;
+
   return (
     <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -1774,9 +1778,30 @@ function RankingView({ traders, onBack, onOpenUserProfile }) {
         <p className="font-pixel text-[9px] tracking-wide text-gold">RANKING</p>
       </header>
 
-      <div className="px-5 pt-6">
+      <div className="flex gap-2 px-5 pt-4">
+        <button
+          onClick={() => setTab("vendedores")}
+          className={`flex-1 rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
+            tab === "vendedores" ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+          }`}
+        >
+          Vendedores
+        </button>
+        <button
+          onClick={() => setTab("compradores")}
+          className={`flex-1 rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
+            tab === "compradores" ? "border-gold bg-gold/15 text-gold-dark" : "border-line bg-paper text-ink-soft"
+          }`}
+        >
+          Compradores
+        </button>
+      </div>
+
+      <div className="px-5 pt-4">
         <p className="text-[12px] leading-relaxed text-ink-soft">
-          Los 10 usuarios con más volumen acumulado (compras + ventas confirmadas) en toda la plataforma.
+          {tab === "vendedores"
+            ? "Los 10 usuarios con más volumen vendido (ventas confirmadas) en toda la plataforma."
+            : "Los 10 usuarios con más volumen comprado (compras confirmadas) en toda la plataforma."}
         </p>
 
         {traders.length === 0 ? (
@@ -3967,7 +3992,8 @@ export default function App() {
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
-  const [topTraders, setTopTraders] = useState([]);
+  const [topSellers, setTopSellers] = useState([]);
+  const [topBuyers, setTopBuyers] = useState([]);
   const [adminSuggestions, setAdminSuggestions] = useState([]);
   const [suggestionBusy, setSuggestionBusy] = useState(false);
   const [suggestionError, setSuggestionError] = useState("");
@@ -4094,7 +4120,8 @@ export default function App() {
     } else if (view.name === "communities") {
       listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
     } else if (view.name === "ranking") {
-      getTopTraders().then((rows) => !cancelled && setTopTraders(rows));
+      getTopSellers().then((rows) => !cancelled && setTopSellers(rows));
+      getTopBuyers().then((rows) => !cancelled && setTopBuyers(rows));
     }
     return () => {
       cancelled = true;
@@ -4880,7 +4907,8 @@ export default function App() {
 
       {view.name === "ranking" && (
         <RankingView
-          traders={topTraders}
+          topSellers={topSellers}
+          topBuyers={topBuyers}
           onBack={() => setView(view.back ?? { name: "list" })}
           onOpenUserProfile={isSupabaseConfigured ? openProfile : undefined}
         />

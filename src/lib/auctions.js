@@ -712,8 +712,14 @@ export async function setSuggestionStatus(id, status) {
   if (error) throw error;
 }
 
-export async function getTopTraders() {
-  const { data, error } = await supabase.rpc("get_top_traders");
+export async function getTopSellers() {
+  const { data, error } = await supabase.rpc("get_top_sellers");
+  if (error) throw error;
+  return data;
+}
+
+export async function getTopBuyers() {
+  const { data, error } = await supabase.rpc("get_top_buyers");
   if (error) throw error;
   return data;
 }
