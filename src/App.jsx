@@ -5761,7 +5761,11 @@ export default function App() {
       setNotifications((rows) => rows.map((r) => (r.id === n.id ? { ...r, read_at: new Date().toISOString() } : r)));
       markNotificationRead(n.id).catch(() => {});
     }
-    if (n.auction_id) {
+    if (n.kind === "city_reminder") {
+      const p = await getProfile(auth.session.user.id);
+      setViewedProfile(p);
+      setView({ name: "editPickup", back: { name: "notifications" } });
+    } else if (n.auction_id) {
       setView({ name: "detail", auctionId: n.auction_id, back: { name: "notifications" } });
     }
   }
