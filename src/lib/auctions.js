@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
-  reference_price, reserve_price, buy_now_price, is_sale_only,
+  reference_price, reserve_price, buy_now_price, is_sale_only, currency,
   is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
 `;
@@ -108,6 +108,7 @@ export function auctionToVM(row) {
     photoUrl: row.photo_urls?.[0] ?? null,
     basePrice: Number(row.base_price),
     currentBid: Number(row.current_bid),
+    currency: row.currency ?? "ARS",
     bids: row.bid_count,
     closesInSec,
     closesAt: row.closes_at,
@@ -255,6 +256,7 @@ export async function createAuction({
   isSaleOnly,
   isFreeClaim,
   freeClaimWinningNumber,
+  currency,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -281,6 +283,7 @@ export async function createAuction({
       is_sale_only: !!isSaleOnly,
       is_free_claim: !!isFreeClaim,
       free_claim_winning_number: isFreeClaim ? freeClaimWinningNumber : null,
+      currency: currency || "ARS",
     })
     .select(AUCTION_SELECT)
     .single();
@@ -336,7 +339,7 @@ export async function listMyTickets() {
     .from("tickets")
     .select(
       `id, code, status, redeemed_at, created_at,
-       auction:auctions!tickets_auction_id_fkey ( card_name, current_bid, winner_id, seller_id,
+       auction:auctions!tickets_auction_id_fkey ( card_name, current_bid, winner_id, seller_id, currency,
          seller:profiles!auctions_seller_id_fkey ( alias, gender, has_stand, stand_number, pickup_day, pickup_time, contact_phone ) )`
     )
     .order("created_at", { ascending: false });
@@ -357,6 +360,7 @@ export function ticketToVM(row, currentUserId) {
     sellerPickupTime: row.auction.seller?.pickup_time ?? null,
     sellerContactPhone: row.auction.seller?.contact_phone ?? null,
     price: Number(row.auction.current_bid),
+    currency: row.auction.currency ?? "ARS",
     code: row.code,
     status: row.status === "redeemed" ? "entregado" : "pendiente",
     closedAt: new Date(row.created_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
@@ -782,7 +786,7 @@ export async function removeMyReaction(auctionId) {
   if (error) throw error;
 }
 
-export async function createCardLot({ sellerId, title, description, photoUrls, durationMinutes, items }) {
+export async function createCardLot({ sellerId, title, description, photoUrls, durationMinutes, items, currency }) {
   const { data: lot, error: lotError } = await supabase
     .from("card_lots")
     .insert({ seller_id: sellerId, title, description: description || null, photo_urls: photoUrls ?? [] })
@@ -801,6 +805,7 @@ export async function createCardLot({ sellerId, title, description, photoUrls, d
       is_sale_only: true,
       closes_at: closesAt,
       lot_id: lot.id,
+      currency: currency || "ARS",
     }))
   );
   if (itemsError) throw itemsError;

@@ -154,6 +154,13 @@ function formatARS(n) {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 }
 
+function formatPrice(n, currency = "ARS") {
+  if (currency === "USD") {
+    return `U$S ${Number(n).toLocaleString("es-AR", { maximumFractionDigits: 2 })}`;
+  }
+  return formatARS(n);
+}
+
 function formatCountdown(totalSeconds) {
   if (totalSeconds <= 0) return "Cerrada";
   const h = Math.floor(totalSeconds / 3600);
@@ -875,7 +882,7 @@ function AuctionCard({
             }`}
           >
             {a.isFreeClaim ? <Package size={11} /> : <Zap size={11} />}
-            {a.isFreeClaim ? "Free claim — gratis" : a.isSaleOnly ? "Venta directa" : `Claim: ${formatARS(a.buyNowPrice)}`}
+            {a.isFreeClaim ? "Free claim — gratis" : a.isSaleOnly ? "Venta directa" : `Claim: ${formatPrice(a.buyNowPrice, a.currency)}`}
           </span>
         )}
         {(a.setName || a.cardNumber || a.year) && (
@@ -895,13 +902,13 @@ function AuctionCard({
         )}
         {showMyBid && a.myBid != null ? (
           <div className="mt-auto flex flex-col gap-0.5 pt-1.5">
-            <span className="text-[16px] font-extrabold text-forest-deep">{formatARS(a.currentBid)}</span>
-            <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatARS(a.myBid)}</span>
+            <span className="text-[16px] font-extrabold text-forest-deep">{formatPrice(a.currentBid, a.currency)}</span>
+            <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatPrice(a.myBid, a.currency)}</span>
           </div>
         ) : (
           <div className="mt-auto flex items-center justify-between pt-1.5">
             <span className="text-[16px] font-extrabold text-forest-deep">
-              {a.isFreeClaim ? "Gratis" : formatARS(a.currentBid)}
+              {a.isFreeClaim ? "Gratis" : formatPrice(a.currentBid, a.currency)}
             </span>
             {a.status === "live" && (
               <span
@@ -1132,7 +1139,7 @@ function AuctionsTabContent({ auctions }) {
           </div>
           <p className="text-[11px] text-ink-soft">Vendedor: {a.seller}</p>
           <p className="text-[11px] text-ink-soft">
-            {a.isFreeClaim ? `Free claim · ${a.freeClaimCount} reclamos` : `${formatARS(a.currentBid)} · ${a.bids} pujas`}
+            {a.isFreeClaim ? `Free claim · ${a.freeClaimCount} reclamos` : `${formatPrice(a.currentBid, a.currency)} · ${a.bids} pujas`}
           </p>
         </div>
       ))}
@@ -1912,7 +1919,10 @@ function RankingView({ topSellers, topBuyers, onBack, onOpenUserProfile }) {
                 </span>
                 <GenderIcon gender={t.gender} size={18} />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-ink">{t.alias}</span>
-                <span className="shrink-0 text-[13px] font-extrabold text-forest-deep">{formatARS(t.total_volume)}</span>
+                <span className="shrink-0 text-right text-[13px] font-extrabold text-forest-deep">
+                  {t.total_ars > 0 && <div>{formatARS(t.total_ars)}</div>}
+                  {t.total_usd > 0 && <div className="text-[11px] text-plum">{formatPrice(t.total_usd, "USD")}</div>}
+                </span>
               </button>
             ))}
           </div>
@@ -2089,7 +2099,7 @@ function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, cla
             >
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-bold text-ink">{item.card}</p>
-                <p className="text-[13px] font-extrabold text-forest-deep">{formatARS(item.currentBid)}</p>
+                <p className="text-[13px] font-extrabold text-forest-deep">{formatPrice(item.currentBid, item.currency)}</p>
               </div>
               {item.status === "live" ? (
                 <button
@@ -2238,7 +2248,8 @@ function AuctionDetail({
   const [republishOpen, setRepublishOpen] = useState(false);
   const [republishPrice, setRepublishPrice] = useState(String(auction.basePrice));
   const [republishDuration, setRepublishDuration] = useState(60);
-  const [bid, setBid] = useState(auction.currentBid + 1000);
+  const bidIncrement = auction.currency === "USD" ? 1 : 1000;
+  const [bid, setBid] = useState(auction.currentBid + bidIncrement);
   const [placed, setPlaced] = useState(false);
   const [confirmedBid, setConfirmedBid] = useState(null);
   const [bought, setBought] = useState(false);
@@ -2250,7 +2261,7 @@ function AuctionDetail({
   const [reportSent, setReportSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const photos = auction.photoUrls?.length ? auction.photoUrls : auction.photoUrl ? [auction.photoUrl] : [];
-  const minBid = auction.currentBid + 1000;
+  const minBid = auction.currentBid + bidIncrement;
   const upCount = reactions?.filter((r) => r.reaction === "up").length ?? 0;
   const downCount = reactions?.filter((r) => r.reaction === "down").length ?? 0;
 
@@ -2278,7 +2289,7 @@ function AuctionDetail({
   }
 
   useEffect(() => {
-    if (!placed) setBid(auction.currentBid + 1000);
+    if (!placed) setBid(auction.currentBid + bidIncrement);
   }, [auction.currentBid, placed]);
 
   async function handleBid() {
@@ -2496,7 +2507,7 @@ function AuctionDetail({
           <div>
             <span className="block text-[10px] text-ink-soft">{auction.isSaleOnly || auction.isFreeClaim ? "PRECIO" : "PUJA ACTUAL"}</span>
             <span className="text-lg font-extrabold text-forest-deep">
-              {auction.isFreeClaim ? "GRATIS" : formatARS(auction.currentBid)}
+              {auction.isFreeClaim ? "GRATIS" : formatPrice(auction.currentBid, auction.currency)}
             </span>
           </div>
           <div>
@@ -2523,7 +2534,7 @@ function AuctionDetail({
         {auction.status === "live" && auction.reservePrice != null && (
           <p className={`mt-2 text-[11px] font-bold ${reserveMet ? "text-forest-deep" : "text-[#B9432C]"}`}>
             {reserveMet ? "Reserva alcanzada" : "Todavía no se alcanzó el precio mínimo del vendedor"}
-            {isMine && ` (${formatARS(auction.reservePrice)})`}
+            {isMine && ` (${formatPrice(auction.reservePrice, auction.currency)})`}
           </p>
         )}
 
@@ -2537,7 +2548,7 @@ function AuctionDetail({
                 : "Esta es tu publicación — no podés pujar en tu propia carta."}
             </p>
             {!auction.isSaleOnly && !auction.isFreeClaim && auction.buyNowPrice != null && (
-              <p className="mt-1">Claim inmediato en: <span className="font-bold text-ink">{formatARS(auction.buyNowPrice)}</span></p>
+              <p className="mt-1">Claim inmediato en: <span className="font-bold text-ink">{formatPrice(auction.buyNowPrice, auction.currency)}</span></p>
             )}
             {auction.status === "live" && (auction.isFreeClaim ? auction.freeClaimCount === 0 : auction.bids === 0) && onEdit && (
               <button
@@ -2559,7 +2570,7 @@ function AuctionDetail({
                 ) : (
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">
-                      Republicar — misma foto y ficha, nueva subasta
+                      Republicar — misma foto y ficha, nueva subasta ({auction.currency === "USD" ? "en U$S" : "en $"})
                     </p>
                     <div className="mt-2 flex items-center gap-2">
                       <input
@@ -2663,7 +2674,7 @@ function AuctionDetail({
                   disabled={buyNowBusy}
                   className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
                 >
-                  {buyNowBusy ? "Claimeando..." : `Claim ahora por ${formatARS(auction.buyNowPrice)}`}
+                  {buyNowBusy ? "Claimeando..." : `Claim ahora por ${formatPrice(auction.buyNowPrice, auction.currency)}`}
                 </button>
                 <p className="mt-1.5 text-center text-[11px] text-ink-soft">Venta directa, sin pujas — se la lleva quien la compre primero.</p>
                 {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
@@ -2672,13 +2683,13 @@ function AuctionDetail({
           </div>
         ) : !placed ? (
           <div className="mt-6 rounded-xl border-2 border-ink bg-paper p-4">
-            <p className="text-[12px] text-ink-soft">Tu puja (mínimo {formatARS(minBid)})</p>
+            <p className="text-[12px] text-ink-soft">Tu puja (mínimo {formatPrice(minBid, auction.currency)})</p>
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="number"
                 value={bid}
                 min={minBid}
-                step={1000}
+                step={bidIncrement}
                 onChange={(e) => setBid(Number(e.target.value))}
                 className="w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[15px] font-bold text-ink focus:outline-none focus-visible:border-forest-mid"
               />
@@ -2699,7 +2710,7 @@ function AuctionDetail({
                   disabled={buyNowBusy}
                   className="w-full rounded-lg bg-gold px-4 py-2.5 text-[13px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[2px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
                 >
-                  {buyNowBusy ? "Claimeando..." : `Claim ya por ${formatARS(auction.buyNowPrice)}`}
+                  {buyNowBusy ? "Claimeando..." : `Claim ya por ${formatPrice(auction.buyNowPrice, auction.currency)}`}
                 </button>
                 <p className="mt-1.5 text-center text-[11px] text-ink-soft">Cierra la subasta al instante a tu favor.</p>
                 {buyNowError && <p className="mt-2 text-center text-[12px] text-[#B9432C]">{buyNowError}</p>}
@@ -2709,7 +2720,7 @@ function AuctionDetail({
         ) : (
           <div className="mt-6 rounded-xl border-2 border-forest-mid bg-forest-mid/10 p-4">
             <p className="flex items-center gap-2 text-[13px] font-bold text-forest-deep">
-              <Check size={15} /> Pujaste {formatARS(confirmedBid)}
+              <Check size={15} /> Pujaste {formatPrice(confirmedBid, auction.currency)}
             </p>
             <p className="mt-1 text-[12px] text-ink-soft">Te avisamos si te superan o si ganás cuando cierre.</p>
             {!onBid && (
@@ -2729,7 +2740,7 @@ function AuctionDetail({
               <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Evolución del precio</h4>
               {auction.referencePrice != null && (
                 <span className="text-[11px] font-bold text-plum">
-                  Referencia: {formatARS(auction.referencePrice)}
+                  Referencia: {formatPrice(auction.referencePrice, auction.currency)}
                 </span>
               )}
             </div>
@@ -2759,7 +2770,7 @@ function AuctionDetail({
                       <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
                     )}
                   </span>
-                  <span className="font-bold text-forest-deep">{formatARS(Number(b.amount))}</span>
+                  <span className="font-bold text-forest-deep">{formatPrice(Number(b.amount), auction.currency)}</span>
                 </li>
               ))}
             </ul>
@@ -2833,7 +2844,7 @@ function TicketRow({ ticket, onClick }) {
       <div className="min-w-0">
         <p className="line-clamp-1 text-[13px] font-extrabold text-ink">{ticket.card}</p>
         <p className="text-[11px] text-ink-soft">
-          {ticket.isSeller ? "Vos vendiste" : `Vendedor: ${ticket.seller}`} · {formatARS(ticket.price)}
+          {ticket.isSeller ? "Vos vendiste" : `Vendedor: ${ticket.seller}`} · {formatPrice(ticket.price, ticket.currency)}
         </p>
       </div>
       {ticket.status === "pendiente" ? (
@@ -2945,7 +2956,7 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
                 <span className="font-bold text-ink">{ticket.seller}</span>
               )}
             </p>
-            <p className="text-[13px] text-ink-soft">Precio final: <span className="font-bold text-forest-deep">{formatARS(ticket.price)}</span></p>
+            <p className="text-[13px] text-ink-soft">Precio final: <span className="font-bold text-forest-deep">{formatPrice(ticket.price, ticket.currency)}</span></p>
             <p className="mt-1 text-[11px] text-ink-soft">Cerrado {ticket.closedAt}</p>
           </div>
 
@@ -3052,6 +3063,7 @@ function PokemonSetDatalist() {
 
 function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, busyText = "", error = "" }) {
   const [name, setName] = useState("");
+  const [currency, setCurrency] = useState("ARS");
   const [price, setPrice] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
   const [reservePrice, setReservePrice] = useState("");
@@ -3186,6 +3198,36 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
             className={inputClass}
           />
         </div>
+
+        {!isFreeClaim && (
+          <div>
+            <label className={labelClass}>Moneda</label>
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrency("ARS")}
+                className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                  currency === "ARS"
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                Pesos ($)
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrency("USD")}
+                className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                  currency === "USD"
+                    ? "border-gold bg-gold/15 text-gold-dark"
+                    : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                }`}
+              >
+                Dólares (U$S)
+              </button>
+            </div>
+          </div>
+        )}
 
         {showDuration && (
           <div>
@@ -3458,6 +3500,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
           onClick={() =>
             onCreate({
               name,
+              currency,
               price: Number(price),
               durationMinutes: duration,
               photoFiles: photos.map((p) => p.file),
@@ -3506,6 +3549,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
 // ---------------------------------------------
 function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = "" }) {
   const [title, setTitle] = useState("");
+  const [currency, setCurrency] = useState("ARS");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState([]);
   const [duration, setDuration] = useState(1440);
@@ -3594,6 +3638,34 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
         </div>
 
         <div>
+          <label className={labelClass}>Moneda (aplica a todas las cartas del lote)</label>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrency("ARS")}
+              className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                currency === "ARS"
+                  ? "border-gold bg-gold/15 text-gold-dark"
+                  : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+              }`}
+            >
+              Pesos ($)
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrency("USD")}
+              className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                currency === "USD"
+                  ? "border-gold bg-gold/15 text-gold-dark"
+                  : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+              }`}
+            >
+              Dólares (U$S)
+            </button>
+          </div>
+        </div>
+
+        <div>
           <label className={labelClass}>Descripción general (opcional)</label>
           <textarea
             value={description}
@@ -3643,7 +3715,7 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
                   type="number"
                   value={item.price}
                   onChange={(e) => updateItem(i, "price", e.target.value)}
-                  placeholder="$"
+                  placeholder={currency === "USD" ? "U$S" : "$"}
                   className="w-24 shrink-0 rounded-lg border-2 border-line bg-white px-2.5 py-2.5 text-[13px] font-bold text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
                 />
                 {items.length > 2 && (
@@ -3689,6 +3761,7 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
           onClick={() =>
             onCreate({
               title: title.trim(),
+              currency,
               description: description.trim(),
               photoFiles: photos.map((p) => p.file),
               durationMinutes: duration,
@@ -4089,7 +4162,7 @@ function StatHistoryList({ title, icon, items = [], emptyText }) {
           {items.map((it, i) => (
             <li key={i} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
               <span className="line-clamp-1 text-ink-soft">{it.cardName}</span>
-              <span className="shrink-0 font-bold text-forest-deep">{formatARS(Number(it.amount))}</span>
+              <span className="shrink-0 font-bold text-forest-deep">{formatPrice(Number(it.amount), it.currency)}</span>
             </li>
           ))}
         </ul>
@@ -4192,13 +4265,19 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], stats, onEdit
                 <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-ink-soft">
                   <TrendingDown size={12} /> Gastó este mes
                 </p>
-                <p className="mt-1 text-[15px] font-extrabold text-ink">{formatARS(stats.monthlySpent)}</p>
+                <p className="mt-1 text-[15px] font-extrabold text-ink">{formatARS(stats.monthlySpent?.ars ?? 0)}</p>
+                {stats.monthlySpent?.usd > 0 && (
+                  <p className="text-[12px] font-bold text-plum">{formatPrice(stats.monthlySpent.usd, "USD")}</p>
+                )}
               </div>
               <div className="rounded-lg border-2 border-line bg-paper p-3">
                 <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-ink-soft">
                   <TrendingUp size={12} /> Vendió este mes
                 </p>
-                <p className="mt-1 text-[15px] font-extrabold text-ink">{formatARS(stats.monthlyEarned)}</p>
+                <p className="mt-1 text-[15px] font-extrabold text-ink">{formatARS(stats.monthlyEarned?.ars ?? 0)}</p>
+                {stats.monthlyEarned?.usd > 0 && (
+                  <p className="text-[12px] font-bold text-plum">{formatPrice(stats.monthlyEarned.usd, "USD")}</p>
+                )}
               </div>
             </div>
 
@@ -4563,7 +4642,7 @@ export default function App() {
       setRealRows((rows) => rows.map((r) => (r.id === updatedRow.id ? { ...r, ...updatedRow } : r)));
       const myAmount = myBidAmountsRef.current[updatedRow.id];
       if (myAmount != null && Number(updatedRow.current_bid) > myAmount) {
-        pushToast(`Te superaron en "${updatedRow.card_name}" — nueva puja ${formatARS(Number(updatedRow.current_bid))}`);
+        pushToast(`Te superaron en "${updatedRow.card_name}" — nueva puja ${formatPrice(Number(updatedRow.current_bid), updatedRow.currency)}`);
         navigator.vibrate?.(200);
         delete myBidAmountsRef.current[updatedRow.id];
       }
@@ -4753,6 +4832,7 @@ export default function App() {
 
   async function handleRealCreate({
     name,
+    currency,
     price,
     durationMinutes,
     photoFiles,
@@ -4781,6 +4861,7 @@ export default function App() {
       const row = await createAuction({
         sellerId: auth.session.user.id,
         cardName: name,
+        currency,
         basePrice: price,
         durationMinutes,
         photoUrls,
@@ -4966,7 +5047,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateLot({ title, description, photoFiles, durationMinutes, items }) {
+  async function handleCreateLot({ title, currency, description, photoFiles, durationMinutes, items }) {
     setCreateLotBusy(true);
     setCreateLotError("");
     try {
@@ -4974,6 +5055,7 @@ export default function App() {
       const lot = await createCardLot({
         sellerId: auth.session.user.id,
         title,
+        currency,
         description,
         photoUrls,
         durationMinutes,
@@ -5015,6 +5097,7 @@ export default function App() {
       const row = await createAuction({
         sellerId: auth.session.user.id,
         cardName: auction.card,
+        currency: auction.currency,
         basePrice: price,
         durationMinutes,
         photoUrls: auction.photoUrls,
