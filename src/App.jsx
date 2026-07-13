@@ -294,7 +294,7 @@ function AccountMenu({
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 z-10 bg-ink/40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border-2 border-ink bg-paper text-ink shadow-card">
             <button
               onClick={() => {
