@@ -823,7 +823,7 @@ function AuctionCard({
             }
           : undefined
       }
-      className={`relative flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
+      className={`relative isolate flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
         a.isFeatured ? "border-plum" : "border-ink"
       } ${clickable ? "cursor-pointer hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" : "opacity-90"}`}
     >
