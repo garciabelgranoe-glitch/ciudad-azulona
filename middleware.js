@@ -17,15 +17,26 @@ export default async function middleware(request) {
   const ua = request.headers.get("user-agent") || "";
   if (!BOT_UA.test(ua)) return;
 
+  const url = new URL(request.url);
+
+  // Algunos WebViews de WhatsApp (sobre todo iOS) no siempre mandan
+  // sec-fetch-mode en la navegación real, así que la heurística de abajo
+  // puede clasificar mal a una persona real como si fuera el crawler. Si
+  // eso pasó, el propio HTML estático se auto-redirige una vez a esta
+  // misma URL con esta marca — un bot nunca ejecuta ese script, así que
+  // esto no lo ve nunca, y a la persona real la saca de la pantalla en
+  // blanco sin loopear (la marca hace que la sigamos de largo acá abajo).
+  if (url.searchParams.get("_p") === "1") return;
+
   // WhatsApp's in-app browser (used when a real person taps the link) also
   // includes "WhatsApp" in its User-Agent — only its link-preview crawler
   // fetch should get the static OG page. Real browser navigations (including
-  // that in-app browser) always send Fetch Metadata headers like
+  // that in-app browser) usually send Fetch Metadata headers like
   // sec-fetch-mode; bare bot HTTP clients don't. This tells them apart
-  // without ever intercepting an actual visitor.
+  // in the common case, with the self-redirect above as a safety net for
+  // when it doesn't.
   if (request.headers.get("sec-fetch-mode")) return;
 
-  const url = new URL(request.url);
   const match = url.pathname.match(/^\/subasta\/([^/]+)\/?$/);
   if (!match) return;
 
@@ -50,6 +61,13 @@ export default async function middleware(request) {
         : "Subasta de cartas Pokémon TCG en Ciudad Azulona";
     const image = auction.photo_urls?.[0] || "https://www.ciudadazulona.com/og-default.png";
 
+    // Los crawlers de preview solo leen el <head>, nunca ejecutan JS — este
+    // script es invisible para ellos. Si esta página terminó sirviéndosela
+    // por error a una persona real (WebView sin sec-fetch-mode), la saca
+    // sola hacia la app de verdad.
+    const fallbackUrl = new URL(url);
+    fallbackUrl.searchParams.set("_p", "1");
+
     const html = `<!DOCTYPE html>
 <html lang="es"><head>
 <meta charset="UTF-8" />
@@ -61,7 +79,7 @@ export default async function middleware(request) {
 <meta property="og:url" content="${escapeHtml(url.toString())}" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
-</head><body></body></html>`;
+</head><body><script>location.replace(${JSON.stringify(fallbackUrl.pathname + fallbackUrl.search)})</script></body></html>`;
 
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
   } catch {
