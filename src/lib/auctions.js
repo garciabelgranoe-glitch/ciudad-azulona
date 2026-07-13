@@ -555,7 +555,7 @@ export async function listRecommendedSellers() {
   return data;
 }
 
-export async function createRecommendedSeller({ businessName, description, contactInfo, photoUrl }) {
+export async function createRecommendedSeller({ businessName, description, contactInfo, photoUrl, whatsappUrl }) {
   const { data, error } = await supabase
     .from("recommended_sellers")
     .insert({
@@ -563,6 +563,7 @@ export async function createRecommendedSeller({ businessName, description, conta
       description: description || null,
       contact_info: contactInfo || null,
       photo_url: photoUrl || null,
+      whatsapp_url: whatsappUrl || null,
     })
     .select("*")
     .single();
@@ -615,17 +616,17 @@ export async function listBlogPosts() {
   // RLS: admins ven todo (publicado y no), el resto solo lo publicado.
   const { data, error } = await supabase
     .from("blog_posts")
-    .select("id, title, body, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .select("id, title, body, photo_url, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
 }
 
-export async function createBlogPost({ title, body, authorId }) {
+export async function createBlogPost({ title, body, authorId, photoUrl }) {
   const { data, error } = await supabase
     .from("blog_posts")
-    .insert({ title, body, author_id: authorId })
-    .select("id, title, body, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .insert({ title, body, author_id: authorId, photo_url: photoUrl || null })
+    .select("id, title, body, photo_url, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
     .single();
   if (error) throw error;
   return data;

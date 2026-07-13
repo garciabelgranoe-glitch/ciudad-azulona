@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2, Heart, ThumbsUp, ThumbsDown, Users, RefreshCw, Package, Zap, MapPin } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2, Heart, ThumbsUp, ThumbsDown, Users, RefreshCw, Package, Zap, MapPin, MessageCircle, Image as ImageIcon } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -16,6 +16,7 @@ import {
   buyNowAuction,
   claimFreeItem,
   uploadAuctionPhotos,
+  uploadAuctionPhoto,
   createAuction,
   auctionToVM,
   listMyTickets,
@@ -471,6 +472,26 @@ function GuaranteedSellersBanner({ sellers, onOpenAll }) {
   );
 }
 
+function WhatsappCommunityBanner({ communities, onOpenAll }) {
+  const active = (communities ?? []).filter((c) => c.is_active);
+  if (active.length === 0 || !onOpenAll) return null;
+
+  return (
+    <button
+      onClick={onOpenAll}
+      className="flex w-full items-center gap-2.5 rounded-lg border-2 border-[#25D366]/50 bg-[#25D366]/10 px-3.5 py-2.5 text-left transition hover:bg-[#25D366]/15"
+    >
+      <MessageCircle size={16} className="shrink-0 text-[#128C4A]" />
+      <span className="min-w-0 flex-1 text-[11.5px] font-bold text-ink">
+        Sumate a la comunidad de WhatsApp de Ciudad Azulona
+      </span>
+      <span className="shrink-0 text-[11px] font-bold text-[#128C4A] underline underline-offset-2">
+        Unirme →
+      </span>
+    </button>
+  );
+}
+
 // ---------------------------------------------
 // Vista: Lista de subastas
 // ---------------------------------------------
@@ -500,6 +521,7 @@ function AuctionList({
   onOpenRanking,
   onOpenSuggestions,
   recommendedSellers,
+  whatsappCommunities,
   favoriteIds,
   onToggleFavorite,
   onOpenCreateLot,
@@ -720,7 +742,8 @@ function AuctionList({
         </div>
       )}
 
-      <div className="mx-auto max-w-5xl px-5 pt-4">
+      <div className="mx-auto max-w-5xl space-y-2 px-5 pt-4">
+        <WhatsappCommunityBanner communities={whatsappCommunities} onOpenAll={onOpenCommunities} />
         <GuaranteedSellersBanner sellers={recommendedSellers} onOpenAll={onOpenRecommended} />
       </div>
 
@@ -1263,16 +1286,45 @@ function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createErr
   const [businessName, setBusinessName] = useState("");
   const [description, setDescription] = useState("");
   const [contactInfo, setContactInfo] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[11px] font-bold text-ink-soft";
 
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
   async function handleCreate() {
-    const ok = await onCreate({ businessName, description, contactInfo });
+    setPhotoError("");
+    let photoUrl = null;
+    if (photoFile) {
+      setUploadingPhoto(true);
+      try {
+        photoUrl = await uploadAuctionPhoto(photoFile);
+      } catch (e) {
+        setPhotoError(e.message);
+        setUploadingPhoto(false);
+        return;
+      }
+      setUploadingPhoto(false);
+    }
+    const ok = await onCreate({ businessName, description, contactInfo, whatsappUrl, photoUrl });
     if (ok) {
       setBusinessName("");
       setDescription("");
       setContactInfo("");
+      setWhatsappUrl("");
+      setPhotoFile(null);
+      setPhotoPreview(null);
     }
   }
 
@@ -1295,16 +1347,37 @@ function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createErr
             />
           </div>
           <div>
-            <label className={labelClass}>Contacto (WhatsApp, Instagram, etc.)</label>
+            <label className={labelClass}>Link directo de WhatsApp (opcional)</label>
+            <input
+              value={whatsappUrl}
+              onChange={(e) => setWhatsappUrl(e.target.value)}
+              placeholder="Ej: https://wa.me/5491122334455"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Otro contacto (Instagram, etc. — opcional)</label>
             <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} className={inputClass} />
           </div>
-          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <div>
+            <label className={labelClass}>Imagen (opcional)</label>
+            <div className="mt-1.5 flex items-center gap-2">
+              {photoPreview && (
+                <img src={photoPreview} alt="" className="h-14 w-14 rounded-lg border-2 border-line object-cover" />
+              )}
+              <label className="flex h-14 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-line bg-white text-[12px] text-ink-soft">
+                <ImageIcon size={14} /> {photoFile ? "Cambiar imagen" : "Elegir imagen"}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+          {(createError || photoError) && <p className="text-[11px] text-[#B9432C]">{createError || photoError}</p>}
           <button
             onClick={handleCreate}
-            disabled={!businessName || createBusy}
+            disabled={!businessName || createBusy || uploadingPhoto}
             className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
           >
-            {createBusy ? "Agregando..." : "Agregar"}
+            {uploadingPhoto ? "Subiendo imagen..." : createBusy ? "Agregando..." : "Agregar"}
           </button>
         </div>
       </div>
@@ -1313,10 +1386,16 @@ function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createErr
         {sellers.map((s) => (
           <div key={s.id} className={`rounded-lg border-2 p-3 ${s.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[13px] font-extrabold text-ink">{s.business_name}</p>
-                {s.description && <p className="text-[11px] text-ink-soft">{s.description}</p>}
-                {s.contact_info && <p className="text-[11px] font-bold text-forest-deep">{s.contact_info}</p>}
+              <div className="flex min-w-0 gap-2.5">
+                {s.photo_url && (
+                  <img src={s.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border-2 border-line object-cover" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-extrabold text-ink">{s.business_name}</p>
+                  {s.description && <p className="text-[11px] text-ink-soft">{s.description}</p>}
+                  {s.whatsapp_url && <p className="text-[11px] font-bold text-[#128C4A]">{s.whatsapp_url}</p>}
+                  {s.contact_info && <p className="text-[11px] font-bold text-forest-deep">{s.contact_info}</p>}
+                </div>
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">
                 <button
@@ -1434,15 +1513,42 @@ function PickupPointsTabContent({ points, onCreate, createBusy, createError, onT
 function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePublished, onDelete, busyId }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[11px] font-bold text-ink-soft";
 
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
   async function handleCreate() {
-    const ok = await onCreate({ title, body });
+    setPhotoError("");
+    let photoUrl = null;
+    if (photoFile) {
+      setUploadingPhoto(true);
+      try {
+        photoUrl = await uploadAuctionPhoto(photoFile);
+      } catch (e) {
+        setPhotoError(e.message);
+        setUploadingPhoto(false);
+        return;
+      }
+      setUploadingPhoto(false);
+    }
+    const ok = await onCreate({ title, body, photoUrl });
     if (ok) {
       setTitle("");
       setBody("");
+      setPhotoFile(null);
+      setPhotoPreview(null);
     }
   }
 
@@ -1459,13 +1565,25 @@ function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePubl
             <label className={labelClass}>Texto</label>
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} className={inputClass} />
           </div>
-          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <div>
+            <label className={labelClass}>Imagen (opcional)</label>
+            <div className="mt-1.5 flex items-center gap-2">
+              {photoPreview && (
+                <img src={photoPreview} alt="" className="h-14 w-14 rounded-lg border-2 border-line object-cover" />
+              )}
+              <label className="flex h-14 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-line bg-white text-[12px] text-ink-soft">
+                <ImageIcon size={14} /> {photoFile ? "Cambiar imagen" : "Elegir imagen"}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+          {(createError || photoError) && <p className="text-[11px] text-[#B9432C]">{createError || photoError}</p>}
           <button
             onClick={handleCreate}
-            disabled={!title || !body || createBusy}
+            disabled={!title || !body || createBusy || uploadingPhoto}
             className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
           >
-            {createBusy ? "Publicando..." : "Publicar"}
+            {uploadingPhoto ? "Subiendo imagen..." : createBusy ? "Publicando..." : "Publicar"}
           </button>
         </div>
       </div>
@@ -1474,12 +1592,17 @@ function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePubl
         {posts.map((p) => (
           <div key={p.id} className={`rounded-lg border-2 p-3 ${p.is_published ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-[13px] font-extrabold text-ink">{p.title}</p>
-                <p className="line-clamp-2 text-[11px] text-ink-soft">{p.body}</p>
-                <p className="mt-1 text-[10px] text-ink-soft">
-                  {new Date(p.created_at).toLocaleDateString("es-AR")}
-                </p>
+              <div className="flex min-w-0 gap-2.5">
+                {p.photo_url && (
+                  <img src={p.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border-2 border-line object-cover" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-extrabold text-ink">{p.title}</p>
+                  <p className="line-clamp-2 text-[11px] text-ink-soft">{p.body}</p>
+                  <p className="mt-1 text-[10px] text-ink-soft">
+                    {new Date(p.created_at).toLocaleDateString("es-AR")}
+                  </p>
+                </div>
               </div>
               <div className="flex shrink-0 flex-col gap-1.5">
                 <button
@@ -1862,13 +1985,16 @@ function BlogView({ posts, onBack }) {
         ) : (
           <div className="flex flex-col gap-4">
             {published.map((p) => (
-              <div key={p.id} className="rounded-lg border-2 border-line bg-paper p-3.5">
-                <p className="text-[10px] font-bold text-ink-soft">
-                  {new Date(p.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}
-                  {p.author?.alias ? ` · ${p.author.alias}` : ""}
-                </p>
-                <p className="mt-1 text-[15px] font-extrabold text-ink">{p.title}</p>
-                <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-ink-soft">{p.body}</p>
+              <div key={p.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
+                {p.photo_url && <img src={p.photo_url} alt="" className="h-40 w-full object-cover" />}
+                <div className="p-3.5">
+                  <p className="text-[10px] font-bold text-ink-soft">
+                    {new Date(p.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}
+                    {p.author?.alias ? ` · ${p.author.alias}` : ""}
+                  </p>
+                  <p className="mt-1 text-[15px] font-extrabold text-ink">{p.title}</p>
+                  <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-ink-soft">{p.body}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -2281,12 +2407,27 @@ function RecommendedSellersView({ sellers, onBack }) {
         ) : (
           <div className="mt-4 flex flex-col gap-2.5">
             {active.map((s) => (
-              <div key={s.id} className="rounded-lg border-2 border-gold/50 bg-gold/10 p-3.5">
-                <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
-                  <Trophy size={13} className="text-gold-dark" /> {s.business_name}
-                </p>
-                {s.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{s.description}</p>}
-                {s.contact_info && <p className="mt-1.5 text-[12px] font-bold text-forest-deep">{s.contact_info}</p>}
+              <div key={s.id} className="flex gap-3 rounded-lg border-2 border-gold/50 bg-gold/10 p-3.5">
+                {s.photo_url && (
+                  <img src={s.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-lg border-2 border-gold/40 object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
+                    <Trophy size={13} className="shrink-0 text-gold-dark" /> {s.business_name}
+                  </p>
+                  {s.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{s.description}</p>}
+                  {s.contact_info && <p className="mt-1.5 text-[12px] font-bold text-forest-deep">{s.contact_info}</p>}
+                  {s.whatsapp_url && (
+                    <a
+                      href={s.whatsapp_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#128C4A] underline underline-offset-2"
+                    >
+                      <MessageCircle size={12} /> Escribir por WhatsApp
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -4842,6 +4983,7 @@ export default function App() {
     listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
     listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     listPickupPoints().then((rows) => !cancelled && setPickupPoints(rows));
+    listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
     listMyFavoriteIds().then((ids) => !cancelled && setFavoriteIds(ids));
     listLiveLots().then((rows) => !cancelled && setLiveLots(rows));
     const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
@@ -5445,11 +5587,11 @@ export default function App() {
     }
   }
 
-  async function handleCreateBlogPost({ title, body }) {
+  async function handleCreateBlogPost({ title, body, photoUrl }) {
     setCreateBlogBusy(true);
     setCreateBlogError("");
     try {
-      const row = await createBlogPost({ title, body, authorId: auth.session.user.id });
+      const row = await createBlogPost({ title, body, photoUrl, authorId: auth.session.user.id });
       setBlogPosts((rows) => [row, ...rows]);
       return true;
     } catch (e) {
@@ -5690,6 +5832,7 @@ export default function App() {
           onSearchChange={isSupabaseConfigured ? setSearchTerm : undefined}
           pendingCount={displayTickets.filter((t) => t.status === "pendiente").length}
           recommendedSellers={recommendedSellers}
+          whatsappCommunities={whatsappCommunities}
           favoriteIds={favoriteIds}
           onToggleFavorite={handleToggleFavorite}
           onOpenCreateLot={() => setView({ name: "createLot" })}
