@@ -5,7 +5,7 @@ const AUCTION_SELECT = `
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
   reference_price, reserve_price, buy_now_price, is_sale_only, currency,
   is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
-  seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium )
+  seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium, city )
 `;
 
 export const CONDITION_OPTIONS = [
@@ -104,6 +104,7 @@ export function auctionToVM(row) {
     sellerId: row.seller?.id,
     sellerGender: row.seller?.gender ?? null,
     sellerIsPremium: row.seller?.is_premium ?? false,
+    sellerCity: row.seller?.city ?? null,
     photoUrls: row.photo_urls ?? [],
     photoUrl: row.photo_urls?.[0] ?? null,
     basePrice: Number(row.base_price),
@@ -340,7 +341,8 @@ export async function listMyTickets() {
     .select(
       `id, code, status, redeemed_at, created_at,
        auction:auctions!tickets_auction_id_fkey ( card_name, current_bid, winner_id, seller_id, currency,
-         seller:profiles!auctions_seller_id_fkey ( alias, gender, has_stand, stand_number, pickup_day, pickup_time, contact_phone ) )`
+         seller:profiles!auctions_seller_id_fkey ( alias, gender, has_stand, stand_number, pickup_day, pickup_time, contact_phone, city,
+           pickup_point:pickup_points ( name ) ) )`
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -359,6 +361,8 @@ export function ticketToVM(row, currentUserId) {
     sellerPickupDay: row.auction.seller?.pickup_day ?? null,
     sellerPickupTime: row.auction.seller?.pickup_time ?? null,
     sellerContactPhone: row.auction.seller?.contact_phone ?? null,
+    sellerCity: row.auction.seller?.city ?? null,
+    sellerPickupPointName: row.auction.seller?.pickup_point?.name ?? null,
     price: Number(row.auction.current_bid),
     currency: row.auction.currency ?? "ARS",
     code: row.code,
@@ -390,12 +394,16 @@ export async function listMyGivenRatingTicketIds() {
 }
 
 export async function getProfile(userId) {
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*, pickup_point:pickup_points ( name, city )")
+    .eq("id", userId)
+    .single();
   if (error) throw error;
   return data;
 }
 
-export async function updateProfile(userId, { hasStand, standNumber, pickupDay, pickupTime, contactPhone }) {
+export async function updateProfile(userId, { hasStand, standNumber, pickupDay, pickupTime, contactPhone, city, pickupPointId }) {
   const { data, error } = await supabase
     .from("profiles")
     .update({
@@ -404,9 +412,11 @@ export async function updateProfile(userId, { hasStand, standNumber, pickupDay, 
       pickup_day: !hasStand ? pickupDay || null : null,
       pickup_time: !hasStand ? pickupTime || null : null,
       contact_phone: !hasStand ? contactPhone || null : null,
+      city: city || null,
+      pickup_point_id: pickupPointId || null,
     })
     .eq("id", userId)
-    .select("*")
+    .select("*, pickup_point:pickup_points ( name, city )")
     .single();
   if (error) throw error;
   return data;
@@ -567,6 +577,37 @@ export async function setRecommendedSellerActive(id, isActive) {
 
 export async function deleteRecommendedSeller(id) {
   const { error } = await supabase.from("recommended_sellers").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listPickupPoints() {
+  // RLS: admins ven todos (activos e inactivos), el resto solo los activos.
+  const { data, error } = await supabase
+    .from("pickup_points")
+    .select("*")
+    .order("city", { ascending: true })
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function createPickupPoint({ city, name, details }) {
+  const { data, error } = await supabase
+    .from("pickup_points")
+    .insert({ city, name, details: details || null })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setPickupPointActive(id, isActive) {
+  const { error } = await supabase.from("pickup_points").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deletePickupPoint(id) {
+  const { error } = await supabase.from("pickup_points").delete().eq("id", id);
   if (error) throw error;
 }
 

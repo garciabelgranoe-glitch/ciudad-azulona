@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2, Heart, ThumbsUp, ThumbsDown, Users, RefreshCw, Package, Zap } from "lucide-react";
+import { Clock, Check, QrCode, ArrowLeft, Plus, ShieldCheck, Star, X, LogOut, Search, ChevronDown, SlidersHorizontal, Bell, Trophy, TrendingUp, TrendingDown, Loader2, Share2, Heart, ThumbsUp, ThumbsDown, Users, RefreshCw, Package, Zap, MapPin } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
 import Login from "./components/Login";
@@ -64,6 +64,10 @@ import {
   createRecommendedSeller,
   setRecommendedSellerActive,
   deleteRecommendedSeller,
+  listPickupPoints,
+  createPickupPoint,
+  setPickupPointActive,
+  deletePickupPoint,
   createSuggestion,
   listSuggestionsForAdmin,
   setSuggestionStatus,
@@ -507,11 +511,16 @@ function AuctionList({
   const [filterSet, setFilterSet] = useState("");
   const [filterRarity, setFilterRarity] = useState("");
   const [filterCondition, setFilterCondition] = useState("");
+  const [filterCity, setFilterCity] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
   const availableSets = useMemo(
     () => [...new Set(auctions.map((a) => a.setName).filter(Boolean))].sort(),
+    [auctions]
+  );
+  const availableCities = useMemo(
+    () => [...new Set(auctions.map((a) => a.sellerCity).filter(Boolean))].sort(),
     [auctions]
   );
 
@@ -522,15 +531,17 @@ function AuctionList({
   if (filterSet) filtered = filtered.filter((a) => a.setName === filterSet);
   if (filterRarity) filtered = filtered.filter((a) => a.rarity === filterRarity);
   if (filterCondition) filtered = filtered.filter((a) => a.condition === filterCondition);
+  if (filterCity) filtered = filtered.filter((a) => a.sellerCity === filterCity);
   if (minPrice) filtered = filtered.filter((a) => a.currentBid >= Number(minPrice));
   if (maxPrice) filtered = filtered.filter((a) => a.currentBid <= Number(maxPrice));
 
-  const activeFilterCount = [filterSet, filterRarity, filterCondition, minPrice, maxPrice].filter(Boolean).length;
+  const activeFilterCount = [filterSet, filterRarity, filterCondition, filterCity, minPrice, maxPrice].filter(Boolean).length;
 
   function clearFilters() {
     setFilterSet("");
     setFilterRarity("");
     setFilterCondition("");
+    setFilterCity("");
     setMinPrice("");
     setMaxPrice("");
   }
@@ -654,6 +665,16 @@ function AuctionList({
                 <option value="">Cualquier condición</option>
                 {CONDITION_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <select
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="">Cualquier ciudad</option>
+                {availableCities.map((c) => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
               <div className="flex gap-1.5">
@@ -888,6 +909,11 @@ function AuctionCard({
         {(a.setName || a.cardNumber || a.year) && (
           <p className="line-clamp-1 text-[11px] text-ink-soft">
             {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {a.sellerCity && (
+          <p className="flex items-center gap-1 text-[10px] font-bold text-ink-soft">
+            <MapPin size={10} /> {a.sellerCity}
           </p>
         )}
         {showSeller && (
@@ -1319,6 +1345,92 @@ function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createErr
   );
 }
 
+function PickupPointsTabContent({ points, onCreate, createBusy, createError, onToggleActive, onDelete, busyId }) {
+  const [city, setCity] = useState("");
+  const [name, setName] = useState("");
+  const [details, setDetails] = useState("");
+  const inputClass =
+    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+  const labelClass = "text-[11px] font-bold text-ink-soft";
+
+  async function handleCreate() {
+    const ok = await onCreate({ city, name, details });
+    if (ok) {
+      setCity("");
+      setName("");
+      setDetails("");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border-2 border-line bg-paper p-3">
+        <p className="text-[12px] font-extrabold text-ink">Agregar punto de retiro</p>
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className={labelClass}>Ciudad</label>
+            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ej: Córdoba" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Nombre del punto</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Plaza San Martín" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Detalle (opcional)</label>
+            <input
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="Ej: sábados de tarde, esquina con Rivadavia"
+              className={inputClass}
+            />
+          </div>
+          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <button
+            onClick={handleCreate}
+            disabled={!city || !name || createBusy}
+            className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+          >
+            {createBusy ? "Agregando..." : "Agregar"}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {points.map((p) => (
+          <div key={p.id} className={`rounded-lg border-2 p-3 ${p.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-plum">{p.city}</p>
+                <p className="text-[13px] font-extrabold text-ink">{p.name}</p>
+                {p.details && <p className="text-[11px] text-ink-soft">{p.details}</p>}
+              </div>
+              <div className="flex shrink-0 flex-col gap-1.5">
+                <button
+                  onClick={() => onToggleActive(p.id, !p.is_active)}
+                  disabled={busyId === p.id}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:opacity-40 ${
+                    p.is_active ? "border-2 border-line text-ink-soft" : "bg-forest-mid text-paper"
+                  }`}
+                >
+                  {p.is_active ? "Ocultar" : "Activar"}
+                </button>
+                <button
+                  onClick={() => onDelete(p.id)}
+                  disabled={busyId === p.id}
+                  className="rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
+                >
+                  Borrar
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {points.length === 0 && <p className="text-[12px] text-ink-soft">Todavía no cargaste ningún punto de retiro.</p>}
+      </div>
+    </div>
+  );
+}
+
 function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePublished, onDelete, busyId }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -1603,12 +1715,20 @@ function AdminPanel({
   suggestions,
   onSetSuggestionStatus,
   suggestionStatusBusyId,
+  pickupPoints,
+  onCreatePickupPoint,
+  createPickupPointBusy,
+  createPickupPointError,
+  onTogglePickupPointActive,
+  onDeletePickupPoint,
+  pickupPointBusyId,
 }) {
   const [tab, setTab] = useState("usuarios");
   const tabs = [
     { value: "usuarios", label: "Usuarios" },
     { value: "subastas", label: "Subastas" },
     { value: "denuncias", label: "Denuncias" },
+    { value: "retiro", label: "Puntos de retiro" },
     { value: "recomendados", label: "Recomendados" },
     { value: "blog", label: "Blog" },
     { value: "sorteos", label: "Sorteos" },
@@ -1652,6 +1772,17 @@ function AdminPanel({
         {tab === "subastas" && <AuctionsTabContent auctions={auctions} />}
         {tab === "denuncias" && (
           <ReportsTabContent reports={reports} onResolve={onResolveReport} busyId={resolveBusyId} />
+        )}
+        {tab === "retiro" && (
+          <PickupPointsTabContent
+            points={pickupPoints}
+            onCreate={onCreatePickupPoint}
+            createBusy={createPickupPointBusy}
+            createError={createPickupPointError}
+            onToggleActive={onTogglePickupPointActive}
+            onDelete={onDeletePickupPoint}
+            busyId={pickupPointBusyId}
+          />
         )}
         {tab === "recomendados" && (
           <RecommendedSellersTabContent
@@ -2985,6 +3116,8 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
                 pickup_day: ticket.sellerPickupDay,
                 pickup_time: ticket.sellerPickupTime,
                 contact_phone: ticket.sellerContactPhone,
+                city: ticket.sellerCity,
+                pickup_point: ticket.sellerPickupPointName ? { name: ticket.sellerPickupPointName } : null,
               }}
             />
           </div>
@@ -4118,16 +4251,34 @@ function ToastStack({ toasts }) {
 // Vista: Perfil
 // ---------------------------------------------
 function PickupInfoText({ profile }) {
+  const cityLine = profile.city ? (
+    <>
+      Retira en <span className="font-bold text-ink">{profile.city}</span>
+      {profile.pickup_point?.name && (
+        <>
+          {" "}— <span className="font-bold text-ink">{profile.pickup_point.name}</span>
+        </>
+      )}
+      <br />
+    </>
+  ) : null;
+
   if (profile.has_stand) {
-    return profile.stand_number ? (
-      <>Tiene stand fijo: <span className="font-bold text-ink">{profile.stand_number}</span></>
-    ) : (
-      <>Tiene stand fijo en el evento.</>
+    return (
+      <>
+        {cityLine}
+        {profile.stand_number ? (
+          <>Tiene stand fijo: <span className="font-bold text-ink">{profile.stand_number}</span></>
+        ) : (
+          <>Tiene stand fijo en el evento.</>
+        )}
+      </>
     );
   }
   if (profile.pickup_day || profile.pickup_time || profile.contact_phone) {
     return (
       <>
+        {cityLine}
         Prefiere coordinar el retiro
         {profile.pickup_day && (
           <>
@@ -4148,6 +4299,7 @@ function PickupInfoText({ profile }) {
       </>
     );
   }
+  if (cityLine) return cityLine;
   return "Todavía no cargó cómo prefiere coordinar el retiro.";
 }
 
@@ -4378,12 +4530,18 @@ function ProfileView({ profile, onBack, isOwn = true, badges = [], stats, onEdit
 // ---------------------------------------------
 // Vista: Editar info de retiro
 // ---------------------------------------------
-function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
+function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "", pickupPoints = [] }) {
   const [hasStand, setHasStand] = useState(profile.has_stand ?? false);
   const [standNumber, setStandNumber] = useState(profile.stand_number ?? "");
   const [pickupDay, setPickupDay] = useState(profile.pickup_day ?? "");
   const [pickupTime, setPickupTime] = useState(profile.pickup_time ?? "");
   const [contactPhone, setContactPhone] = useState(profile.contact_phone ?? "");
+  const [city, setCity] = useState(profile.city ?? "");
+  const [pickupPointId, setPickupPointId] = useState(profile.pickup_point_id ?? "");
+
+  const matchingPoints = pickupPoints.filter(
+    (p) => p.is_active && p.city.trim().toLowerCase() === city.trim().toLowerCase()
+  );
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -4402,6 +4560,34 @@ function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
         <p className="text-[12px] leading-relaxed text-ink-soft">
           Contale a quien te gane la subasta cómo coordinar el retiro de la carta.
         </p>
+
+        <div>
+          <label className={labelClass}>Ciudad</label>
+          <input
+            value={city}
+            onChange={(e) => {
+              setCity(e.target.value);
+              setPickupPointId("");
+            }}
+            placeholder="Ej: Buenos Aires, Mendoza, Córdoba"
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-ink-soft">
+            Se usa para que los compradores puedan filtrar por ciudad en la grilla.
+          </p>
+        </div>
+
+        {matchingPoints.length > 0 && (
+          <div>
+            <label className={labelClass}>Punto de retiro (opcional)</label>
+            <select value={pickupPointId} onChange={(e) => setPickupPointId(e.target.value)} className={inputClass}>
+              <option value="">Sin punto específico</option>
+              {matchingPoints.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -4468,7 +4654,7 @@ function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "" }) {
 
         <button
           disabled={busy}
-          onClick={() => onSave({ hasStand, standNumber, pickupDay, pickupTime, contactPhone })}
+          onClick={() => onSave({ hasStand, standNumber, pickupDay, pickupTime, contactPhone, city, pickupPointId })}
           className="w-full rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
         >
           {busy ? "Guardando..." : "Guardar"}
@@ -4580,6 +4766,10 @@ export default function App() {
   const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [premiumBusyId, setPremiumBusyId] = useState(null);
   const [recommendedSellers, setRecommendedSellers] = useState([]);
+  const [pickupPoints, setPickupPoints] = useState([]);
+  const [createPickupPointBusy, setCreatePickupPointBusy] = useState(false);
+  const [createPickupPointError, setCreatePickupPointError] = useState("");
+  const [pickupPointBusyId, setPickupPointBusyId] = useState(null);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [myFavoriteAuctions, setMyFavoriteAuctions] = useState([]);
   const [topMonthlyAuctions, setTopMonthlyAuctions] = useState([]);
@@ -4651,6 +4841,7 @@ export default function App() {
     listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
     listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
     listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
+    listPickupPoints().then((rows) => !cancelled && setPickupPoints(rows));
     listMyFavoriteIds().then((ids) => !cancelled && setFavoriteIds(ids));
     listLiveLots().then((rows) => !cancelled && setLiveLots(rows));
     const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
@@ -5219,6 +5410,41 @@ export default function App() {
     }
   }
 
+  async function handleCreatePickupPoint(fields) {
+    setCreatePickupPointBusy(true);
+    setCreatePickupPointError("");
+    try {
+      const row = await createPickupPoint(fields);
+      setPickupPoints((rows) => [...rows, row]);
+      return true;
+    } catch (e) {
+      setCreatePickupPointError(e.message);
+      return false;
+    } finally {
+      setCreatePickupPointBusy(false);
+    }
+  }
+
+  async function handleTogglePickupPointActive(id, isActive) {
+    setPickupPointBusyId(id);
+    try {
+      await setPickupPointActive(id, isActive);
+      setPickupPoints((rows) => rows.map((p) => (p.id === id ? { ...p, is_active: isActive } : p)));
+    } finally {
+      setPickupPointBusyId(null);
+    }
+  }
+
+  async function handleDeletePickupPoint(id) {
+    setPickupPointBusyId(id);
+    try {
+      await deletePickupPoint(id);
+      setPickupPoints((rows) => rows.filter((p) => p.id !== id));
+    } finally {
+      setPickupPointBusyId(null);
+    }
+  }
+
   async function handleCreateBlogPost({ title, body }) {
     setCreateBlogBusy(true);
     setCreateBlogError("");
@@ -5566,6 +5792,7 @@ export default function App() {
           profile={viewedProfile}
           busy={pickupBusy}
           error={pickupError}
+          pickupPoints={pickupPoints}
           onBack={() => setView(view.back ?? { name: "profile", userId: auth.session?.user.id })}
           onSave={handleSavePickup}
         />
@@ -5659,6 +5886,13 @@ export default function App() {
           suggestions={adminSuggestions}
           onSetSuggestionStatus={handleSetSuggestionStatus}
           suggestionStatusBusyId={suggestionStatusBusyId}
+          pickupPoints={pickupPoints}
+          onCreatePickupPoint={handleCreatePickupPoint}
+          createPickupPointBusy={createPickupPointBusy}
+          createPickupPointError={createPickupPointError}
+          onTogglePickupPointActive={handleTogglePickupPointActive}
+          onDeletePickupPoint={handleDeletePickupPoint}
+          pickupPointBusyId={pickupPointBusyId}
         />
       )}
 
