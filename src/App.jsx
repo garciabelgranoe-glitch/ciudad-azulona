@@ -285,6 +285,7 @@ function AccountMenu({
   onOpenCommunities,
   onOpenRanking,
   onOpenSuggestions,
+  onOpenFaq,
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
@@ -409,6 +410,15 @@ function AccountMenu({
             >
               Sugerencias
             </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onOpenFaq();
+              }}
+              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
+            >
+              Preguntas frecuentes
+            </button>
             {isAdmin && (
               <button
                 onClick={() => {
@@ -520,6 +530,7 @@ function AuctionList({
   onOpenCommunities,
   onOpenRanking,
   onOpenSuggestions,
+  onOpenFaq,
   recommendedSellers,
   whatsappCommunities,
   favoriteIds,
@@ -595,6 +606,7 @@ function AuctionList({
                   onOpenCommunities={onOpenCommunities}
                   onOpenRanking={onOpenRanking}
                   onOpenSuggestions={onOpenSuggestions}
+                  onOpenFaq={onOpenFaq}
                   onOpenAdmin={onOpenAdmin}
                 />
                 <button onClick={onOpenNotifications} className="relative flex items-center hover:text-paper">
@@ -2602,7 +2614,8 @@ function AuctionDetail({
         )}
       </header>
 
-      <div className="px-5 pt-5">
+      <div className="px-5 pt-5 md:mx-auto md:flex md:max-w-4xl md:items-start md:gap-8 md:px-8">
+        <div className="md:sticky md:top-20 md:w-72 md:shrink-0">
         <button
           onClick={() => photos.length > 0 && setLightboxOpen(true)}
           className="mx-auto block w-52 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
@@ -2672,8 +2685,10 @@ function AuctionDetail({
             )}
           </div>
         )}
+        </div>
 
-        <h2 className="mt-4 text-xl font-extrabold text-ink">{auction.card}</h2>
+        <div className="md:min-w-0 md:flex-1">
+        <h2 className="mt-4 text-xl font-extrabold text-ink md:mt-0">{auction.card}</h2>
         <div className="mt-1 flex items-center justify-between gap-2">
           <SellerBadge
             name={auction.seller}
@@ -3099,6 +3114,7 @@ function AuctionDetail({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -3228,6 +3244,22 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
                 <span className="font-bold text-ink">{ticket.seller}</span>
               )}
             </p>
+            {ticket.isSeller && (
+              <p className="mt-1 flex items-center gap-1.5 text-[13px] text-ink-soft">
+                Comprador:
+                <GenderIcon gender={ticket.buyerGender} size={13} />
+                {onOpenUserProfile && ticket.buyerId ? (
+                  <button
+                    onClick={() => onOpenUserProfile(ticket.buyerId)}
+                    className="font-bold text-ink underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+                  >
+                    {ticket.buyer}
+                  </button>
+                ) : (
+                  <span className="font-bold text-ink">{ticket.buyer}</span>
+                )}
+              </p>
+            )}
             <p className="text-[13px] text-ink-soft">Precio final: <span className="font-bold text-forest-deep">{formatPrice(ticket.price, ticket.currency)}</span></p>
             <p className="mt-1 text-[11px] text-ink-soft">Cerrado {ticket.closedAt}</p>
           </div>
@@ -3261,6 +3293,17 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
                 pickup_point: ticket.sellerPickupPointName ? { name: ticket.sellerPickupPointName } : null,
               }}
             />
+          </div>
+        )}
+
+        {!delivered && ticket.isSeller && (
+          <div className="mx-auto mt-6 max-w-sm rounded-lg border-2 border-line bg-paper p-3 text-[12px] leading-relaxed text-ink-soft">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Cómo contactar al comprador</p>
+            {ticket.buyerContactPhone ? (
+              <>Teléfono: <span className="font-bold text-ink">{ticket.buyerContactPhone}</span></>
+            ) : (
+              <>Todavía no cargó un teléfono de contacto — podés escribirle desde su perfil o coordinar con el código al retirar.</>
+            )}
           </div>
         )}
 
@@ -4332,9 +4375,11 @@ function LegalView({ onBack }) {
           <p>
             Guardamos tu email (para identificarte por código, sin contraseñas), tu teléfono de contacto
             (para coordinar la entrega), el alias que elegís, las fotos que subís de tus cartas, y el
-            historial de subastas, pujas y calificaciones en las que participás. No compartimos tu email ni
-            tu teléfono con otros usuarios; lo que ven los demás es tu alias, tu reputación y las fotos de
-            tus publicaciones.
+            historial de subastas, pujas y calificaciones en las que participás. No compartimos tu email con
+            otros usuarios. Tu teléfono de contacto sí se lo mostramos a la otra parte únicamente cuando se
+            concreta una venta con vos (comprador y vendedor se ven el teléfono entre sí para coordinar la
+            entrega) — el resto de la comunidad solo ve tu alias, tu reputación y las fotos de tus
+            publicaciones.
           </p>
         </Section>
 
@@ -4364,6 +4409,110 @@ function LegalView({ onBack }) {
         <Section title="Contacto">
           <p>Para dudas, reclamos o para ejercer tus derechos sobre tus datos, escribinos por WhatsApp al grupo de la comunidad.</p>
         </Section>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Vista: Preguntas frecuentes
+// ---------------------------------------------
+function FaqView({ onBack }) {
+  const [openId, setOpenId] = useState(null);
+
+  const faqs = [
+    {
+      id: "pago",
+      q: "¿Cómo pago o cobro una carta?",
+      a: "Ciudad Azulona no procesa pagos ni maneja dinero. El precio que ves es el que se pactó pujando o al hacer claim; cómo y cuándo se paga (efectivo, transferencia, etc.) lo acuerdan vendedor y comprador directamente, por fuera de la plataforma, al coordinar la entrega.",
+    },
+    {
+      id: "retiro",
+      q: "¿Cómo retiro una carta que gané o claimeé?",
+      a: "Cuando ganás una subasta, hacés claim o ganás un free claim, se genera un ticket con un código único en \"Mis tickets\". Mostrale ese código al vendedor al momento de retirar — es la forma de confirmar que la entrega es la correcta. El vendedor lo marca como entregado desde su lado.",
+    },
+    {
+      id: "contacto",
+      q: "¿Cómo me contacto con el comprador o vendedor?",
+      a: "Al cerrarse una venta (claim, free claim o subasta ganada), comprador y vendedor pueden verse el alias y el teléfono de contacto entre sí (si lo cargaron en su perfil) desde el detalle del ticket, para coordinar día y lugar de entrega.",
+    },
+    {
+      id: "modos",
+      q: "¿Cuál es la diferencia entre Subasta, Venta directa y Free claim?",
+      a: "Subasta: se puja y gana la oferta más alta al cerrar el tiempo. Venta directa (Claim): precio fijo, se la lleva quien la claimee primero, sin pujas. Free claim: es gratis — el vendedor define un número ganador oculto (0 a 50) y quien reclame justo en esa posición se la lleva sin pagar.",
+    },
+    {
+      id: "lotes",
+      q: "¿Qué son los lotes?",
+      a: "Una publicación con varias cartas sueltas (hasta 10) agrupadas, cada una con su propio precio — quien quiera una la claimea directo, sin pujas. Es una opción para vendedores Premium con muchas cartas para publicar de una sola vez.",
+    },
+    {
+      id: "ciudad",
+      q: "¿Para qué sirve cargar mi ciudad?",
+      a: "Se usa para que los compradores puedan filtrar la grilla por ciudad y encuentren vendedores cerca suyo. Se configura en Mi perfil → Retiro de la carta → Editar. Si tu ciudad ya tiene puntos de retiro cargados por el equipo, también podés elegir uno específico.",
+    },
+    {
+      id: "premium",
+      q: "¿Qué diferencia tiene una cuenta Premium?",
+      a: "Las cuentas Premium tienen una insignia distintiva en su perfil y publicaciones, y pueden publicar lotes de hasta 10 cartas en una sola publicación.",
+    },
+    {
+      id: "editar",
+      q: "¿Puedo editar o cancelar una publicación?",
+      a: "Sí, mientras siga en vivo y todavía no tenga pujas (o reclamos, en el caso de free claim). Lo encontrás en el detalle de tu propia publicación.",
+    },
+    {
+      id: "republicar",
+      q: "¿Puedo republicar una carta que no se vendió?",
+      a: "Sí. Entrá al detalle de una publicación tuya ya cerrada y usá \"Republicar esta carta\" — reutiliza la misma foto y ficha, solo te pide precio y duración nuevos.",
+    },
+    {
+      id: "denuncia",
+      q: "¿Qué hago si veo una publicación sospechosa?",
+      a: "Podés denunciarla desde el detalle de la subasta (\"Denunciar esta subasta\"). El equipo revisa las denuncias y puede suspender cuentas que incumplan las reglas de la comunidad.",
+    },
+    {
+      id: "ranking",
+      q: "¿Cómo funciona el Ranking?",
+      a: "Muestra el top 10 de vendedores y el top 10 de compradores por volumen acumulado en entregas ya confirmadas (no cuenta lo que todavía está pendiente de retiro).",
+    },
+    {
+      id: "moneda",
+      q: "¿Puedo publicar en dólares?",
+      a: "Sí, al crear una publicación elegís si el precio es en pesos o en dólares — se puja o se claimea en esa misma moneda.",
+    },
+  ];
+
+  return (
+    <div className="min-h-dvh bg-cream pb-10">
+      <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
+        <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
+          <ArrowLeft size={20} />
+        </button>
+        <p className="font-pixel text-[9px] tracking-wide text-gold">PREGUNTAS FRECUENTES</p>
+      </header>
+
+      <div className="px-5 pt-6">
+        <p className="text-[12px] leading-relaxed text-ink-soft">
+          Las dudas más comunes sobre cómo se usa la plataforma. Si te queda algo sin resolver, mandanos una sugerencia o escribinos por WhatsApp.
+        </p>
+
+        <div className="mt-4 flex flex-col gap-2">
+          {faqs.map((f) => (
+            <div key={f.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
+              <button
+                onClick={() => setOpenId((id) => (id === f.id ? null : f.id))}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+              >
+                <span className="text-[13px] font-bold text-ink">{f.q}</span>
+                <ChevronDown size={16} className={`shrink-0 text-ink-soft transition ${openId === f.id ? "rotate-180" : ""}`} />
+              </button>
+              {openId === f.id && (
+                <p className="px-4 pb-3.5 text-[12.5px] leading-relaxed text-ink-soft">{f.a}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -5829,6 +5978,7 @@ export default function App() {
           onOpenCommunities={() => setView({ name: "communities", back: view })}
           onOpenRanking={() => setView({ name: "ranking", back: view })}
           onOpenSuggestions={() => setView({ name: "suggestions", back: view })}
+          onOpenFaq={() => setView({ name: "faq", back: view })}
           onOpenAdmin={() => setView({ name: "admin" })}
           onOpenNotifications={() => setView({ name: "notifications", back: view })}
           unreadNotifCount={notifications.filter((n) => !n.read_at).length}
@@ -6092,6 +6242,10 @@ export default function App() {
           busy={suggestionBusy}
           error={suggestionError}
         />
+      )}
+
+      {view.name === "faq" && (
+        <FaqView onBack={() => setView(view.back ?? { name: "list" })} />
       )}
 
       {view.name === "notifications" && (

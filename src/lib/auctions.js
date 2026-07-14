@@ -342,7 +342,8 @@ export async function listMyTickets() {
       `id, code, status, redeemed_at, created_at,
        auction:auctions!tickets_auction_id_fkey ( card_name, current_bid, winner_id, seller_id, currency,
          seller:profiles!auctions_seller_id_fkey ( alias, gender, has_stand, stand_number, pickup_day, pickup_time, contact_phone, city,
-           pickup_point:pickup_points ( name ) ) )`
+           pickup_point:pickup_points ( name ) ),
+         winner:profiles!auctions_winner_id_fkey ( alias, gender, contact_phone ) )`
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -363,6 +364,10 @@ export function ticketToVM(row, currentUserId) {
     sellerContactPhone: row.auction.seller?.contact_phone ?? null,
     sellerCity: row.auction.seller?.city ?? null,
     sellerPickupPointName: row.auction.seller?.pickup_point?.name ?? null,
+    buyerId: row.auction.winner_id,
+    buyer: row.auction.winner?.alias ?? "—",
+    buyerGender: row.auction.winner?.gender ?? null,
+    buyerContactPhone: row.auction.winner?.contact_phone ?? null,
     price: Number(row.auction.current_bid),
     currency: row.auction.currency ?? "ARS",
     code: row.code,
