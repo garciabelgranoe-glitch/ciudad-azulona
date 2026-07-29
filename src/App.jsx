@@ -1659,21 +1659,39 @@ function GiveawayEntrantsPicker({ giveawayId, onLoadEntrants, onPickWinner, clos
   );
 }
 
+function giveawayRequirementText(g) {
+  const parts = [];
+  if (g.min_publications) parts.push(`mínimo ${g.min_publications} carta(s) publicada(s)`);
+  if (g.min_sales) parts.push(`mínimo ${g.min_sales} venta(s) concretada(s)`);
+  return parts.length > 0 ? `Requisito para anotarte: ${parts.join(" y ")}.` : null;
+}
+
 function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onLoadEntrants, onClose, closeBusyId, onDelete, deleteBusyId }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [prizeDescription, setPrizeDescription] = useState("");
   const [durationDays, setDurationDays] = useState(7);
+  const [minPublications, setMinPublications] = useState("");
+  const [minSales, setMinSales] = useState("");
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[11px] font-bold text-ink-soft";
 
   async function handleCreate() {
-    const ok = await onCreate({ title, description, prizeDescription, durationDays });
+    const ok = await onCreate({
+      title,
+      description,
+      prizeDescription,
+      durationDays,
+      minPublications: minPublications ? Number(minPublications) : null,
+      minSales: minSales ? Number(minSales) : null,
+    });
     if (ok) {
       setTitle("");
       setDescription("");
       setPrizeDescription("");
+      setMinPublications("");
+      setMinSales("");
     }
   }
 
@@ -1715,6 +1733,30 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
               ))}
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelClass}>Mínimo de cartas publicadas (opcional)</label>
+              <input
+                type="number"
+                min={0}
+                value={minPublications}
+                onChange={(e) => setMinPublications(e.target.value)}
+                placeholder="Sin requisito"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Mínimo de ventas concretadas (opcional)</label>
+              <input
+                type="number"
+                min={0}
+                value={minSales}
+                onChange={(e) => setMinSales(e.target.value)}
+                placeholder="Sin requisito"
+                className={inputClass}
+              />
+            </div>
+          </div>
           {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
           <button
             onClick={handleCreate}
@@ -1736,6 +1778,9 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
                   <Pill tone={g.status === "open" ? "live" : "default"}>{g.status === "open" ? "Abierto" : "Cerrado"}</Pill>
                 </p>
                 {g.prize_description && <p className="text-[11px] text-ink-soft">Premio: {g.prize_description}</p>}
+                {giveawayRequirementText(g) && (
+                  <p className="text-[11px] text-plum">{giveawayRequirementText(g)}</p>
+                )}
                 <p className="text-[10px] text-ink-soft">
                   Cierra: {new Date(g.closes_at).toLocaleDateString("es-AR")}
                 </p>
@@ -2119,7 +2164,7 @@ function BlogView({ posts, onBack }) {
 // ---------------------------------------------
 // Vista: Sorteos para la comunidad (pública)
 // ---------------------------------------------
-function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) {
+function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId }) {
   return (
     <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -2150,6 +2195,9 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) 
                   {g.prize_description && (
                     <p className="mt-1.5 text-[12px] font-bold text-forest-deep">Premio: {g.prize_description}</p>
                   )}
+                  {giveawayRequirementText(g) && (
+                    <p className="mt-1 text-[11px] text-plum">{giveawayRequirementText(g)}</p>
+                  )}
                   {g.status === "closed" ? (
                     <p className="mt-2 text-[12px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
                   ) : (
@@ -2162,13 +2210,18 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId }) 
                           <Check size={13} /> Ya estás inscripto
                         </p>
                       ) : open ? (
-                        <button
-                          onClick={() => onEnter(g.id)}
-                          disabled={enterBusyId === g.id}
-                          className="mt-2 rounded-lg bg-gold px-3 py-1.5 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
-                        >
-                          {enterBusyId === g.id ? "Inscribiendo..." : "Inscribirme"}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onEnter(g.id)}
+                            disabled={enterBusyId === g.id}
+                            className="mt-2 rounded-lg bg-gold px-3 py-1.5 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
+                          >
+                            {enterBusyId === g.id ? "Inscribiendo..." : "Inscribirme"}
+                          </button>
+                          {enterErrorId === g.id && (
+                            <p className="mt-1.5 text-[11px] text-[#B9432C]">{enterError}</p>
+                          )}
+                        </>
                       ) : (
                         <p className="mt-2 text-[11px] text-ink-soft">Cerrado, esperando resultado.</p>
                       )}
@@ -5415,6 +5468,8 @@ export default function App() {
   const [closeGiveawayBusyId, setCloseGiveawayBusyId] = useState(null);
   const [deleteGiveawayBusyId, setDeleteGiveawayBusyId] = useState(null);
   const [enterGiveawayBusyId, setEnterGiveawayBusyId] = useState(null);
+  const [enterGiveawayError, setEnterGiveawayError] = useState("");
+  const [enterGiveawayErrorId, setEnterGiveawayErrorId] = useState(null);
   const [whatsappCommunities, setWhatsappCommunities] = useState([]);
   const [createWhatsappCommunityBusy, setCreateWhatsappCommunityBusy] = useState(false);
   const [createWhatsappCommunityError, setCreateWhatsappCommunityError] = useState("");
@@ -6138,7 +6193,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateGiveaway({ title, description, prizeDescription, durationDays }) {
+  async function handleCreateGiveaway({ title, description, prizeDescription, durationDays, minPublications, minSales }) {
     setCreateGiveawayBusy(true);
     setCreateGiveawayError("");
     try {
@@ -6149,6 +6204,8 @@ export default function App() {
         prizeDescription,
         closesAt,
         createdBy: auth.session.user.id,
+        minPublications,
+        minSales,
       });
       setGiveaways((rows) => [row, ...rows]);
       return true;
@@ -6187,9 +6244,14 @@ export default function App() {
 
   async function handleEnterGiveaway(giveawayId) {
     setEnterGiveawayBusyId(giveawayId);
+    setEnterGiveawayError("");
+    setEnterGiveawayErrorId(null);
     try {
-      await enterGiveaway(giveawayId, auth.session.user.id);
+      await enterGiveaway(giveawayId);
       setMyGiveawayEntryIds((ids) => new Set(ids).add(giveawayId));
+    } catch (e) {
+      setEnterGiveawayError(e.message);
+      setEnterGiveawayErrorId(giveawayId);
     } finally {
       setEnterGiveawayBusyId(null);
     }
@@ -6586,6 +6648,8 @@ export default function App() {
           onBack={() => setView(view.back ?? { name: "list" })}
           onEnter={handleEnterGiveaway}
           enterBusyId={enterGiveawayBusyId}
+          enterError={enterGiveawayError}
+          enterErrorId={enterGiveawayErrorId}
         />
       )}
 

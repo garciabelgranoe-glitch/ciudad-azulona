@@ -749,7 +749,7 @@ export async function listGiveaways() {
   return data;
 }
 
-export async function createGiveaway({ title, description, prizeDescription, closesAt, createdBy }) {
+export async function createGiveaway({ title, description, prizeDescription, closesAt, createdBy, minPublications, minSales }) {
   const { data, error } = await supabase
     .from("giveaways")
     .insert({
@@ -758,6 +758,8 @@ export async function createGiveaway({ title, description, prizeDescription, clo
       prize_description: prizeDescription || null,
       closes_at: closesAt,
       created_by: createdBy,
+      min_publications: minPublications || null,
+      min_sales: minSales || null,
     })
     .select("*, winner:profiles!giveaways_winner_id_fkey ( alias )")
     .single();
@@ -775,8 +777,8 @@ export async function deleteGiveaway(id) {
   if (error) throw error;
 }
 
-export async function enterGiveaway(giveawayId, userId) {
-  const { error } = await supabase.from("giveaway_entries").insert({ giveaway_id: giveawayId, user_id: userId });
+export async function enterGiveaway(giveawayId) {
+  const { error } = await supabase.rpc("enter_giveaway", { p_giveaway_id: giveawayId });
   if (error) throw error;
 }
 
