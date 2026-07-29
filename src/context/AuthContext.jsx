@@ -11,10 +11,11 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch(() => setSession(null))
+      .finally(() => setLoading(false));
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
@@ -33,7 +34,8 @@ export function AuthProvider({ children }) {
       .select("*")
       .eq("id", session.user.id)
       .maybeSingle()
-      .then(({ data }) => setProfile(data));
+      .then(({ data }) => setProfile(data))
+      .catch(() => setProfile(null));
   }, [session]);
 
   async function sendOtp(email) {
