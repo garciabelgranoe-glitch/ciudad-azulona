@@ -1682,9 +1682,18 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [shareCopiedId, setShareCopiedId] = useState(null);
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[11px] font-bold text-ink-soft";
+
+  async function handleShareClick(g) {
+    const copied = await handleShareGiveaway(g);
+    if (copied) {
+      setShareCopiedId(g.id);
+      setTimeout(() => setShareCopiedId((id) => (id === g.id ? null : id)), 5000);
+    }
+  }
 
   function handlePhotoChange(e) {
     const file = e.target.files?.[0];
@@ -1853,11 +1862,16 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
                   {g.status === "closed" && (
                     <p className="mt-1 text-[11px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
                   )}
+                  {shareCopiedId === g.id && (
+                    <p className="mt-1 text-[11px] font-bold text-forest-deep">
+                      Texto copiado — pegalo como descripción si WhatsApp solo mandó la foto.
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 gap-1.5">
                 <button
-                  onClick={() => handleShareGiveaway(g)}
+                  onClick={() => handleShareClick(g)}
                   className="rounded-lg border-2 border-line p-1.5 text-ink-soft hover:border-forest-mid"
                   title="Compartir"
                 >
@@ -2336,6 +2350,10 @@ function giveawayShareText(g) {
     .join("\n");
 }
 
+// Devuelve true si el texto quedó copiado al portapapeles como resguardo
+// (WhatsApp, sobre todo en Android, suele descartar el texto/título del
+// share sheet cuando también se adjunta una imagen y solo pasa la foto —
+// así el usuario lo puede pegar a mano como descripción del posteo).
 async function handleShareGiveaway(g) {
   const text = giveawayShareText(g);
 
@@ -2346,23 +2364,41 @@ async function handleShareGiveaway(g) {
         const blob = await res.blob();
         const file = new File([blob], "sorteo.jpg", { type: blob.type || "image/jpeg" });
         if (navigator.canShare({ files: [file] })) {
+          let copiedAsCaption = false;
+          try {
+            await navigator.clipboard.writeText(text);
+            copiedAsCaption = true;
+          } catch {
+            // clipboard no disponible (ej. sin permisos) — seguimos igual
+          }
           await navigator.share({ files: [file], title: g.title, text });
-          return;
+          return copiedAsCaption;
         }
       }
       await navigator.share({ title: g.title, text });
     } catch {
       // el usuario canceló el share sheet, no hacemos nada
     }
-    return;
+    return false;
   }
 
   // Desktop sin Web Share API: abrir WhatsApp Web con el texto precargado
   // (el click-to-chat de WhatsApp no admite adjuntar una imagen por URL).
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  return false;
 }
 
 function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId }) {
+  const [shareCopiedId, setShareCopiedId] = useState(null);
+
+  async function handleShareClick(g) {
+    const copied = await handleShareGiveaway(g);
+    if (copied) {
+      setShareCopiedId(g.id);
+      setTimeout(() => setShareCopiedId((id) => (id === g.id ? null : id)), 5000);
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-cream pb-10">
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
@@ -2395,12 +2431,17 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
                       <Trophy size={13} className="text-gold-dark" /> {g.title}
                     </p>
                     <button
-                      onClick={() => handleShareGiveaway(g)}
+                      onClick={() => handleShareClick(g)}
                       className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-line px-2 py-1 text-[11px] font-bold text-ink-soft hover:border-forest-mid"
                     >
                       <Share2 size={13} /> Compartir
                     </button>
                   </div>
+                  {shareCopiedId === g.id && (
+                    <p className="mt-1 text-[11px] font-bold text-forest-deep">
+                      Texto copiado — si WhatsApp solo mandó la foto, pegalo como descripción del posteo.
+                    </p>
+                  )}
                   {g.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{g.description}</p>}
                   {g.prize_description && (
                     <p className="mt-1.5 text-[12px] font-bold text-forest-deep">Premio: {g.prize_description}</p>
