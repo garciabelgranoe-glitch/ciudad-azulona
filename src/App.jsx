@@ -2408,7 +2408,7 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
         <p className="font-pixel text-[9px] tracking-wide text-gold">SORTEOS</p>
       </header>
 
-      <div className="px-5 pt-6">
+      <div className="mx-auto max-w-xl px-5 pt-6">
         <p className="text-[12px] leading-relaxed text-ink-soft">
           Sorteos para la comunidad — los organiza el equipo de Ciudad Azulona, inscribite y esperá el resultado.
         </p>
@@ -2423,7 +2423,7 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
               return (
                 <div key={g.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
                   {g.photo_url && (
-                    <img src={g.photo_url} alt={g.title} className="h-40 w-full object-cover" />
+                    <img src={g.photo_url} alt={g.title} className="aspect-[16/9] w-full object-cover" />
                   )}
                   <div className="p-3.5">
                   <div className="flex items-start justify-between gap-2">
