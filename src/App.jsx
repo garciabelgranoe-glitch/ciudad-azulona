@@ -1855,6 +1855,14 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
                   )}
                 </div>
               </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  onClick={() => handleShareGiveaway(g)}
+                  className="rounded-lg border-2 border-line p-1.5 text-ink-soft hover:border-forest-mid"
+                  title="Compartir"
+                >
+                  <Share2 size={14} />
+                </button>
               <button
                 onClick={() => onDelete(g.id)}
                 disabled={deleteBusyId === g.id}
@@ -1862,6 +1870,7 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
               >
                 Borrar
               </button>
+              </div>
             </div>
             {g.status === "open" && (
               <div className="mt-2">
@@ -2315,6 +2324,44 @@ function ProUpsellView({ onBack, onOpenSuggestions }) {
 // ---------------------------------------------
 // Vista: Sorteos para la comunidad (pública)
 // ---------------------------------------------
+function giveawayShareText(g) {
+  return [
+    `🎁 ${g.title}`,
+    g.prize_description ? `Premio: ${g.prize_description}` : null,
+    `Cierra el ${new Date(g.closes_at).toLocaleDateString("es-AR")}`,
+    giveawayRequirementText(g),
+    g.community_url ? `Para participar, sumate al grupo: ${g.community_url}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function handleShareGiveaway(g) {
+  const text = giveawayShareText(g);
+
+  if (navigator.share) {
+    try {
+      if (g.photo_url && navigator.canShare) {
+        const res = await fetch(g.photo_url);
+        const blob = await res.blob();
+        const file = new File([blob], "sorteo.jpg", { type: blob.type || "image/jpeg" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: g.title, text });
+          return;
+        }
+      }
+      await navigator.share({ title: g.title, text });
+    } catch {
+      // el usuario canceló el share sheet, no hacemos nada
+    }
+    return;
+  }
+
+  // Desktop sin Web Share API: abrir WhatsApp Web con el texto precargado
+  // (el click-to-chat de WhatsApp no admite adjuntar una imagen por URL).
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+}
+
 function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId }) {
   return (
     <div className="min-h-dvh bg-cream pb-10">
@@ -2343,9 +2390,17 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
                     <img src={g.photo_url} alt={g.title} className="h-40 w-full object-cover" />
                   )}
                   <div className="p-3.5">
-                  <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
-                    <Trophy size={13} className="text-gold-dark" /> {g.title}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
+                      <Trophy size={13} className="text-gold-dark" /> {g.title}
+                    </p>
+                    <button
+                      onClick={() => handleShareGiveaway(g)}
+                      className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-line px-2 py-1 text-[11px] font-bold text-ink-soft hover:border-forest-mid"
+                    >
+                      <Share2 size={13} /> Compartir
+                    </button>
+                  </div>
                   {g.description && <p className="mt-1 text-[12px] leading-relaxed text-ink-soft">{g.description}</p>}
                   {g.prize_description && (
                     <p className="mt-1.5 text-[12px] font-bold text-forest-deep">Premio: {g.prize_description}</p>
