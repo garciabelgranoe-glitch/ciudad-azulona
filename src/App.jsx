@@ -8,6 +8,7 @@ import GenderIcon from "./components/GenderIcon";
 import BadgeIcon from "./components/BadgeIcon";
 import PriceChart from "./components/PriceChart";
 import PokeballIcon from "./components/PokeballIcon";
+import PokedexIcon from "./components/PokedexIcon";
 import {
   listLiveAuctions,
   getAuction,
@@ -3559,8 +3560,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
                   disabled={scanning || photoConverting}
                   className="flex items-center gap-1.5 rounded-lg border-2 border-plum bg-plum/10 px-3 py-2 text-[12px] font-bold text-plum disabled:opacity-60"
                 >
-                  {scanning && <Loader2 size={14} className="animate-spin" />}
-                  {scanning ? "Reconociendo carta..." : "✨ Autocompletar con la foto"}
+                  {scanning ? <Loader2 size={14} className="animate-spin" /> : <PokedexIcon size={15} />}
+                  {scanning ? "Reconociendo carta..." : "Autocompletar con la foto"}
                 </button>
                 {scanApplied && !scanError && (
                   <p className="mt-1.5 text-[11px] text-plum">Autocompletado con IA — revisá los datos antes de publicar.</p>
