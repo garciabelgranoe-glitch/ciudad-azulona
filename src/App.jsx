@@ -5188,6 +5188,13 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  // Sin esto, el scroll del navegador queda donde estaba en la pantalla
+  // anterior — entrar a una subasta desde el medio/fondo de la lista te
+  // dejaba caído en esa misma posición en vez de arrancar arriba.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view]);
+
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);
   const [tickets, setTickets] = useState(SEED_TICKETS);
   const [realRows, setRealRows] = useState([]);
