@@ -2423,7 +2423,11 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
               return (
                 <div key={g.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
                   {g.photo_url && (
-                    <img src={g.photo_url} alt={g.title} className="aspect-[16/9] w-full object-cover" />
+                    <img
+                      src={g.photo_url}
+                      alt={g.title}
+                      className="max-h-72 w-full bg-cream-dark object-contain"
+                    />
                   )}
                   <div className="p-3.5">
                   <div className="flex items-start justify-between gap-2">
