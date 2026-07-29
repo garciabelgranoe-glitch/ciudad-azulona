@@ -2345,6 +2345,7 @@ function giveawayShareText(g) {
     `Cierra el ${new Date(g.closes_at).toLocaleDateString("es-AR")}`,
     giveawayRequirementText(g),
     g.community_url ? `Para participar, sumate al grupo: ${g.community_url}` : null,
+    `Enterate del resultado acá: ${window.location.origin}/sorteo/${g.id}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -2388,7 +2389,7 @@ async function handleShareGiveaway(g) {
   return false;
 }
 
-function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId }) {
+function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId, highlightId }) {
   const [shareCopiedId, setShareCopiedId] = useState(null);
 
   async function handleShareClick(g) {
@@ -2398,6 +2399,11 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
       setTimeout(() => setShareCopiedId((id) => (id === g.id ? null : id)), 5000);
     }
   }
+
+  useEffect(() => {
+    if (!highlightId || giveaways.length === 0) return;
+    document.getElementById(`giveaway-${highlightId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightId, giveaways]);
 
   return (
     <div className="min-h-dvh bg-cream pb-10">
@@ -2421,7 +2427,13 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
               const entered = myEntryIds.has(g.id);
               const open = g.status === "open" && new Date(g.closes_at) > new Date();
               return (
-                <div key={g.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
+                <div
+                  key={g.id}
+                  id={`giveaway-${g.id}`}
+                  className={`overflow-hidden rounded-lg border-2 bg-paper transition ${
+                    g.id === highlightId ? "border-gold ring-2 ring-gold/50" : "border-line"
+                  }`}
+                >
                   {g.photo_url && (
                     <img
                       src={g.photo_url}
@@ -5609,13 +5621,16 @@ function EditPickupInfo({ profile, onBack, onSave, busy = false, error = "", pic
 // Si se entra directo por un link compartido (/subasta/:id), arrancamos
 // ahí en vez de en la lista — y saltando la landing, ver parseInitialView.
 function parseInitialView() {
-  const m = window.location.pathname.match(/^\/subasta\/([^/]+)\/?$/);
-  if (m) return { name: "detail", auctionId: m[1], back: { name: "list" } };
+  const auctionMatch = window.location.pathname.match(/^\/subasta\/([^/]+)\/?$/);
+  if (auctionMatch) return { name: "detail", auctionId: auctionMatch[1], back: { name: "list" } };
+  const giveawayMatch = window.location.pathname.match(/^\/sorteo\/([^/]+)\/?$/);
+  if (giveawayMatch) return { name: "giveaways", highlightId: giveawayMatch[1], back: { name: "list" } };
   return { name: "list" };
 }
 
 function urlForView(view) {
   if (view.name === "detail" && view.auctionId) return `/subasta/${view.auctionId}`;
+  if (view.name === "giveaways" && view.highlightId) return `/sorteo/${view.highlightId}`;
   return "/";
 }
 
@@ -6917,6 +6932,7 @@ export default function App() {
           enterBusyId={enterGiveawayBusyId}
           enterError={enterGiveawayError}
           enterErrorId={enterGiveawayErrorId}
+          highlightId={view.highlightId}
         />
       )}
 
