@@ -475,6 +475,7 @@ function AuctionList({
   const [filterLanguage, setFilterLanguage] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [sortBy, setSortBy] = useState("recientes");
 
   const availableSets = useMemo(
     () => [...new Set(auctions.map((a) => a.setName).filter(Boolean))].sort(),
@@ -496,6 +497,12 @@ function AuctionList({
   if (filterLanguage) filtered = filtered.filter((a) => a.language === filterLanguage);
   if (minPrice) filtered = filtered.filter((a) => a.currentBid >= Number(minPrice));
   if (maxPrice) filtered = filtered.filter((a) => a.currentBid <= Number(maxPrice));
+
+  filtered = [...filtered].sort((a, b) => {
+    if (sortBy === "precio_asc") return a.currentBid - b.currentBid;
+    if (sortBy === "precio_desc") return b.currentBid - a.currentBid;
+    return new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0);
+  });
 
   const activeFilterCount = [filterSet, filterRarity, filterCondition, filterCity, filterLanguage, minPrice, maxPrice].filter(Boolean).length;
 
@@ -607,6 +614,15 @@ function AuctionList({
 
           {showFilters && (
             <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-white/15 bg-white/5 p-3 sm:max-w-lg sm:grid-cols-4">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="recientes">Más recientes</option>
+                <option value="precio_asc">Precio: menor a mayor</option>
+                <option value="precio_desc">Precio: mayor a menor</option>
+              </select>
               <select
                 value={filterSet}
                 onChange={(e) => setFilterSet(e.target.value)}

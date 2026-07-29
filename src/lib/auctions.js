@@ -1,7 +1,7 @@
 import { supabase } from "./supabaseClient";
 
 const AUCTION_SELECT = `
-  id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
+  id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, created_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured, language,
   reference_price, reference_price_currency, reference_price_source, reserve_price, buy_now_price, is_sale_only, currency,
   is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
@@ -132,6 +132,7 @@ export function auctionToVM(row) {
     bids: row.bid_count,
     closesInSec,
     closesAt: row.closes_at,
+    createdAt: row.created_at,
     status: row.status,
     setName: row.set_name,
     cardNumber: row.card_number,
