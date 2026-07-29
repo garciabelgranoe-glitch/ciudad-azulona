@@ -749,7 +749,7 @@ export async function listGiveaways() {
   return data;
 }
 
-export async function createGiveaway({ title, description, prizeDescription, closesAt, createdBy, minPublications, minSales }) {
+export async function createGiveaway({ title, description, prizeDescription, closesAt, createdBy, minPublications, minSales, photoUrl, communityUrl }) {
   const { data, error } = await supabase
     .from("giveaways")
     .insert({
@@ -760,6 +760,8 @@ export async function createGiveaway({ title, description, prizeDescription, clo
       created_by: createdBy,
       min_publications: minPublications || null,
       min_sales: minSales || null,
+      photo_url: photoUrl || null,
+      community_url: communityUrl || null,
     })
     .select("*, winner:profiles!giveaways_winner_id_fkey ( alias )")
     .single();

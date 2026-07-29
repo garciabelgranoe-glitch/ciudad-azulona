@@ -1677,11 +1677,37 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
   const [durationDays, setDurationDays] = useState(7);
   const [minPublications, setMinPublications] = useState("");
   const [minSales, setMinSales] = useState("");
+  const [communityUrl, setCommunityUrl] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[11px] font-bold text-ink-soft";
 
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
   async function handleCreate() {
+    setPhotoError("");
+    let photoUrl = null;
+    if (photoFile) {
+      setUploadingPhoto(true);
+      try {
+        photoUrl = await uploadAuctionPhoto(photoFile);
+      } catch (e) {
+        setPhotoError(e.message);
+        setUploadingPhoto(false);
+        return;
+      }
+      setUploadingPhoto(false);
+    }
     const ok = await onCreate({
       title,
       description,
@@ -1689,6 +1715,8 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
       durationDays,
       minPublications: minPublications ? Number(minPublications) : null,
       minSales: minSales ? Number(minSales) : null,
+      communityUrl,
+      photoUrl,
     });
     if (ok) {
       setTitle("");
@@ -1696,6 +1724,9 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
       setPrizeDescription("");
       setMinPublications("");
       setMinSales("");
+      setCommunityUrl("");
+      setPhotoFile(null);
+      setPhotoPreview(null);
     }
   }
 
@@ -1761,13 +1792,37 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
               />
             </div>
           </div>
-          {createError && <p className="text-[11px] text-[#B9432C]">{createError}</p>}
+          <div>
+            <label className={labelClass}>Foto del premio (opcional)</label>
+            <div className="mt-1.5 flex items-center gap-2">
+              {photoPreview && (
+                <img src={photoPreview} alt="" className="h-14 w-14 rounded-lg border-2 border-line object-cover" />
+              )}
+              <label className="flex h-14 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-line bg-white text-[12px] text-ink-soft">
+                <ImageIcon size={14} /> {photoFile ? "Cambiar imagen" : "Elegir imagen"}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Link del grupo de la comunidad (opcional)</label>
+            <input
+              value={communityUrl}
+              onChange={(e) => setCommunityUrl(e.target.value)}
+              placeholder="https://chat.whatsapp.com/..."
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Si lo cargás, se muestra en el sorteo aclarando que hay que estar en el grupo para participar.
+            </p>
+          </div>
+          {(createError || photoError) && <p className="text-[11px] text-[#B9432C]">{createError || photoError}</p>}
           <button
             onClick={handleCreate}
-            disabled={!title || createBusy}
+            disabled={!title || createBusy || uploadingPhoto}
             className="w-full rounded-lg bg-gold py-2 text-[12px] font-extrabold text-forest-deep disabled:opacity-40"
           >
-            {createBusy ? "Creando..." : "Crear sorteo"}
+            {uploadingPhoto ? "Subiendo foto..." : createBusy ? "Creando..." : "Crear sorteo"}
           </button>
         </div>
       </div>
@@ -1776,21 +1831,29 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
         {giveaways.map((g) => (
           <div key={g.id} className="rounded-lg border-2 border-line bg-paper p-3">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
-                  {g.title}
-                  <Pill tone={g.status === "open" ? "live" : "default"}>{g.status === "open" ? "Abierto" : "Cerrado"}</Pill>
-                </p>
-                {g.prize_description && <p className="text-[11px] text-ink-soft">Premio: {g.prize_description}</p>}
-                {giveawayRequirementText(g) && (
-                  <p className="text-[11px] text-plum">{giveawayRequirementText(g)}</p>
+              <div className="flex min-w-0 gap-2.5">
+                {g.photo_url && (
+                  <img src={g.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-lg border-2 border-line object-cover" />
                 )}
-                <p className="text-[10px] text-ink-soft">
-                  Cierra: {new Date(g.closes_at).toLocaleDateString("es-AR")}
-                </p>
-                {g.status === "closed" && (
-                  <p className="mt-1 text-[11px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
-                )}
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[13px] font-extrabold text-ink">
+                    {g.title}
+                    <Pill tone={g.status === "open" ? "live" : "default"}>{g.status === "open" ? "Abierto" : "Cerrado"}</Pill>
+                  </p>
+                  {g.prize_description && <p className="text-[11px] text-ink-soft">Premio: {g.prize_description}</p>}
+                  {giveawayRequirementText(g) && (
+                    <p className="text-[11px] text-plum">{giveawayRequirementText(g)}</p>
+                  )}
+                  {g.community_url && (
+                    <p className="truncate text-[11px] text-teal">Grupo: {g.community_url}</p>
+                  )}
+                  <p className="text-[10px] text-ink-soft">
+                    Cierra: {new Date(g.closes_at).toLocaleDateString("es-AR")}
+                  </p>
+                  {g.status === "closed" && (
+                    <p className="mt-1 text-[11px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => onDelete(g.id)}
@@ -2275,7 +2338,11 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
               const entered = myEntryIds.has(g.id);
               const open = g.status === "open" && new Date(g.closes_at) > new Date();
               return (
-                <div key={g.id} className="rounded-lg border-2 border-line bg-paper p-3.5">
+                <div key={g.id} className="overflow-hidden rounded-lg border-2 border-line bg-paper">
+                  {g.photo_url && (
+                    <img src={g.photo_url} alt={g.title} className="h-40 w-full object-cover" />
+                  )}
+                  <div className="p-3.5">
                   <p className="flex items-center gap-1.5 text-[14px] font-extrabold text-ink">
                     <Trophy size={13} className="text-gold-dark" /> {g.title}
                   </p>
@@ -2285,6 +2352,14 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
                   )}
                   {giveawayRequirementText(g) && (
                     <p className="mt-1 text-[11px] text-plum">{giveawayRequirementText(g)}</p>
+                  )}
+                  {g.community_url && (
+                    <p className="mt-1.5 rounded-lg bg-teal/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-teal">
+                      Para participar tenés que estar en nuestro grupo de la comunidad:{" "}
+                      <a href={g.community_url} target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-2">
+                        unirme al grupo
+                      </a>
+                    </p>
                   )}
                   {g.status === "closed" ? (
                     <p className="mt-2 text-[12px] font-bold text-gold-dark">Ganador: {g.winner?.alias ?? "—"}</p>
@@ -2315,6 +2390,7 @@ function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, en
                       )}
                     </>
                   )}
+                  </div>
                 </div>
               );
             })}
@@ -6281,7 +6357,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateGiveaway({ title, description, prizeDescription, durationDays, minPublications, minSales }) {
+  async function handleCreateGiveaway({ title, description, prizeDescription, durationDays, minPublications, minSales, communityUrl, photoUrl }) {
     setCreateGiveawayBusy(true);
     setCreateGiveawayError("");
     try {
@@ -6294,6 +6370,8 @@ export default function App() {
         createdBy: auth.session.user.id,
         minPublications,
         minSales,
+        communityUrl,
+        photoUrl,
       });
       setGiveaways((rows) => [row, ...rows]);
       return true;
