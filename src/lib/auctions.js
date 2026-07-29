@@ -3,10 +3,22 @@ import { supabase } from "./supabaseClient";
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
   set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured, language,
-  reference_price, reserve_price, buy_now_price, is_sale_only, currency,
+  reference_price, reference_price_currency, reference_price_source, reserve_price, buy_now_price, is_sale_only, currency,
   is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium, city )
 `;
+
+export const REFERENCE_PRICE_SOURCE_OPTIONS = [
+  { value: "pricecharting", label: "PriceCharting" },
+  { value: "ebay", label: "eBay" },
+  { value: "tcgplayer", label: "TCGplayer" },
+  { value: "cardmarket", label: "Cardmarket" },
+  { value: "otro", label: "Otra fuente" },
+];
+
+export const REFERENCE_PRICE_SOURCE_LABEL = Object.fromEntries(
+  REFERENCE_PRICE_SOURCE_OPTIONS.map((o) => [o.value, o.label])
+);
 
 export const LANGUAGE_OPTIONS = [
   { value: "es", label: "Español" },
@@ -132,6 +144,8 @@ export function auctionToVM(row) {
     language: row.language,
     isFeatured: row.is_featured,
     referencePrice: row.reference_price != null ? Number(row.reference_price) : null,
+    referencePriceCurrency: row.reference_price_currency ?? null,
+    referencePriceSource: row.reference_price_source ?? null,
     reservePrice: row.reserve_price != null ? Number(row.reserve_price) : null,
     buyNowPrice: row.buy_now_price != null ? Number(row.buy_now_price) : null,
     isSaleOnly: !!row.is_sale_only,
@@ -294,8 +308,11 @@ export async function createAuction({
   freeClaimWinningNumber,
   currency,
   language,
+  referencePriceCurrency,
+  referencePriceSource,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
+  const hasReferencePrice = !isFreeClaim && !!referencePrice;
   const { data, error } = await supabase
     .from("auctions")
     .insert({
@@ -315,6 +332,8 @@ export async function createAuction({
       rarity: rarity || null,
       is_featured: !!isFeatured,
       reference_price: isFreeClaim ? null : referencePrice || null,
+      reference_price_currency: hasReferencePrice ? referencePriceCurrency || null : null,
+      reference_price_source: hasReferencePrice ? referencePriceSource || null : null,
       reserve_price: isSaleOnly || isFreeClaim ? null : reservePrice || null,
       buy_now_price: isFreeClaim ? null : isSaleOnly ? basePrice : buyNowPrice || null,
       is_sale_only: !!isSaleOnly,
@@ -345,6 +364,8 @@ export async function updateOwnAuction(auctionId, {
   reservePrice,
   buyNowPrice,
   language,
+  referencePriceCurrency,
+  referencePriceSource,
 }) {
   const { data, error } = await supabase.rpc("update_own_auction", {
     p_auction_id: auctionId,
@@ -363,6 +384,8 @@ export async function updateOwnAuction(auctionId, {
     p_reserve_price: reservePrice || null,
     p_buy_now_price: buyNowPrice || null,
     p_language: language || null,
+    p_reference_price_currency: referencePrice ? referencePriceCurrency || null : null,
+    p_reference_price_source: referencePrice ? referencePriceSource || null : null,
   });
   if (error) throw error;
   return data;

@@ -98,6 +98,8 @@ import {
   MAX_PHOTOS,
   buyFullLot,
   scanCardPhoto,
+  REFERENCE_PRICE_SOURCE_OPTIONS,
+  REFERENCE_PRICE_SOURCE_LABEL,
 } from "./lib/auctions";
 import { POKEMON_SET_ERAS } from "./lib/pokemonSets";
 
@@ -3024,7 +3026,8 @@ function AuctionDetail({
               <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Evolución del precio</h4>
               {auction.referencePrice != null && (
                 <span className="text-[11px] font-bold text-plum">
-                  Referencia: {formatPrice(auction.referencePrice, auction.currency)}
+                  Referencia: {formatPrice(auction.referencePrice, auction.referencePriceCurrency || auction.currency)}
+                  {auction.referencePriceSource && ` (${REFERENCE_PRICE_SOURCE_LABEL[auction.referencePriceSource] ?? auction.referencePriceSource})`}
                 </span>
               )}
             </div>
@@ -3389,6 +3392,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [currency, setCurrency] = useState("ARS");
   const [price, setPrice] = useState("");
   const [referencePrice, setReferencePrice] = useState("");
+  const [referencePriceCurrency, setReferencePriceCurrency] = useState("USD");
+  const [referencePriceSource, setReferencePriceSource] = useState("");
   const [reservePrice, setReservePrice] = useState("");
   const [buyNowPrice, setBuyNowPrice] = useState("");
   const [isSaleOnly, setIsSaleOnly] = useState(false);
@@ -3819,6 +3824,44 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               placeholder="Ej: lo que vale en PriceCharting u otra fuente"
               className={inputClass}
             />
+            {referencePrice !== "" && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReferencePriceCurrency("ARS")}
+                    className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition ${
+                      referencePriceCurrency === "ARS"
+                        ? "border-gold bg-gold/15 text-gold-dark"
+                        : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                    }`}
+                  >
+                    $
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReferencePriceCurrency("USD")}
+                    className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition ${
+                      referencePriceCurrency === "USD"
+                        ? "border-gold bg-gold/15 text-gold-dark"
+                        : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                    }`}
+                  >
+                    U$S
+                  </button>
+                </div>
+                <select
+                  value={referencePriceSource}
+                  onChange={(e) => setReferencePriceSource(e.target.value)}
+                  className="rounded-lg border-2 border-line bg-white px-2 text-[12px] font-medium text-ink focus:outline-none focus-visible:border-forest-mid"
+                >
+                  <option value="">¿De dónde lo sacaste?</option>
+                  {REFERENCE_PRICE_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <p className="mt-1 text-[11px] text-ink-soft">
               Se usa para el gráfico de precio — mostramos qué tan cerca está la puja de este valor.
             </p>
@@ -3904,6 +3947,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               language,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
+              referencePriceCurrency,
+              referencePriceSource,
               reservePrice: isSaleOnly || isFreeClaim ? null : reservePrice ? Number(reservePrice) : null,
               buyNowPrice: isFreeClaim ? null : isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
               isSaleOnly,
@@ -4195,6 +4240,8 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
   const [name, setName] = useState(auction.card);
   const [price, setPrice] = useState(String(auction.basePrice));
   const [referencePrice, setReferencePrice] = useState(auction.referencePrice ? String(auction.referencePrice) : "");
+  const [referencePriceCurrency, setReferencePriceCurrency] = useState(auction.referencePriceCurrency ?? "USD");
+  const [referencePriceSource, setReferencePriceSource] = useState(auction.referencePriceSource ?? "");
   const [reservePrice, setReservePrice] = useState(auction.reservePrice ? String(auction.reservePrice) : "");
   const [buyNowPrice, setBuyNowPrice] = useState(auction.buyNowPrice ? String(auction.buyNowPrice) : "");
   const [setName_, setSetName] = useState(auction.setName ?? "");
@@ -4325,6 +4372,44 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
             onChange={(e) => setReferencePrice(e.target.value)}
             className={inputClass}
           />
+          {referencePrice !== "" && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setReferencePriceCurrency("ARS")}
+                  className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition ${
+                    referencePriceCurrency === "ARS"
+                      ? "border-gold bg-gold/15 text-gold-dark"
+                      : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                  }`}
+                >
+                  $
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReferencePriceCurrency("USD")}
+                  className={`rounded-lg border-2 py-1.5 text-[11px] font-bold transition ${
+                    referencePriceCurrency === "USD"
+                      ? "border-gold bg-gold/15 text-gold-dark"
+                      : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                  }`}
+                >
+                  U$S
+                </button>
+              </div>
+              <select
+                value={referencePriceSource}
+                onChange={(e) => setReferencePriceSource(e.target.value)}
+                className="rounded-lg border-2 border-line bg-white px-2 text-[12px] font-medium text-ink focus:outline-none focus-visible:border-forest-mid"
+              >
+                <option value="">¿De dónde lo sacaste?</option>
+                {REFERENCE_PRICE_SOURCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {!auction.isSaleOnly && (
@@ -4375,6 +4460,8 @@ function EditAuction({ auction, onBack, onSave, onCancelAuction, busy = false, c
               rarity,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
+              referencePriceCurrency,
+              referencePriceSource,
               reservePrice: auction.isSaleOnly ? null : reservePrice ? Number(reservePrice) : null,
               buyNowPrice: auction.isSaleOnly ? Number(price) : buyNowPrice ? Number(buyNowPrice) : null,
             })
@@ -5421,6 +5508,8 @@ export default function App() {
     language,
     isFeatured,
     referencePrice,
+    referencePriceCurrency,
+    referencePriceSource,
     reservePrice,
     buyNowPrice,
     isSaleOnly,
@@ -5451,6 +5540,8 @@ export default function App() {
         language,
         isFeatured,
         referencePrice,
+        referencePriceCurrency,
+        referencePriceSource,
         reservePrice,
         buyNowPrice,
         isSaleOnly,
@@ -5994,6 +6085,8 @@ export default function App() {
         rarity: fields.rarity,
         isFeatured: fields.isFeatured,
         referencePrice: fields.referencePrice,
+        referencePriceCurrency: fields.referencePriceCurrency,
+        referencePriceSource: fields.referencePriceSource,
         reservePrice: fields.reservePrice,
         buyNowPrice: fields.buyNowPrice,
       });
