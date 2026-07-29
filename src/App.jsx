@@ -3449,17 +3449,6 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function mapRarityToLocal(raw) {
-    if (!raw) return null;
-    const s = String(raw).toLowerCase();
-    if (s.includes("promo")) return "promo";
-    if (s.includes("uncommon")) return "poco_comun";
-    if (s.includes("common")) return "comun";
-    if (s.includes("double") || s.includes("ultra") || s.includes("secret")) return "rara_doble";
-    if (s.includes("rare")) return "rara";
-    return null;
-  }
-
   async function handleScanCard() {
     if (photos.length === 0 || scanning) return;
     setScanning(true);
@@ -3475,10 +3464,8 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
       if (fields.setName && !setName_) setSetName(fields.setName);
       if (fields.cardNumber && !cardNumber) setCardNumber(fields.cardNumber);
       if (fields.year && !year) setYear(String(fields.year));
-      if (!rarity) {
-        const mapped = mapRarityToLocal(fields.rarity);
-        if (mapped) setRarity(mapped);
-      }
+      if (!rarity && RARITY_OPTIONS.some((o) => o.value === fields.rarity)) setRarity(fields.rarity);
+      if (!language && LANGUAGE_OPTIONS.some((o) => o.value === fields.language)) setLanguage(fields.language);
       setScanApplied(true);
     } catch {
       setScanError("No pudimos escanear la foto. Probá de nuevo en un momento.");

@@ -25,7 +25,15 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const PROMPT = `Identificá esta carta de Pokémon TCG a partir de la foto. Respondé solo con los datos que puedas leer o inferir con confianza de la imagen; si un dato no se ve o no estás seguro, dejalo en null. No inventes valores.`;
+const PROMPT = `Identificá esta carta de Pokémon TCG a partir de la foto.
+
+Para "name" y "cardNumber": solo completalos si podés leerlos o identificarlos con confianza (no inventes un nombre o número que no existe).
+
+Para "setName", "year", "rarity" e "language": dale prioridad a dar tu mejor estimación en vez de dejarlos en null. Podés combinar lo que ves en la imagen (símbolo de rareza en la esquina inferior de la carta, idioma del texto impreso, diseño/época del layout) con tu conocimiento general del catálogo oficial de cartas Pokémon TCG — por ejemplo, si reconocés el nombre y número de la carta, normalmente podés inferir de qué set/expansión y año es aunque el logo del set no se lea perfecto en la foto. Dejalos en null solo si genuinely no tenés ninguna pista.
+
+"rarity" tiene que ser exactamente uno de estos códigos (no un texto libre): "comun" (símbolo círculo), "poco_comun" (símbolo diamante), "rara" (símbolo estrella), "rara_doble" (rara/holo/ultra rara con doble estrella o tratamiento especial), "promo" (carta promocional). Si no podés determinarlo, null.
+
+"language" tiene que ser exactamente uno de: "es" (texto en español), "en" (texto en inglés), "jp" (texto en japonés), "otro" (cualquier otro idioma). Si no podés determinarlo, null.`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,7 +107,8 @@ Deno.serve(async (req) => {
             setName: { type: "STRING", nullable: true },
             cardNumber: { type: "STRING", nullable: true },
             year: { type: "INTEGER", nullable: true },
-            rarity: { type: "STRING", nullable: true },
+            rarity: { type: "STRING", nullable: true, enum: ["comun", "poco_comun", "rara", "rara_doble", "promo"] },
+            language: { type: "STRING", nullable: true, enum: ["es", "en", "jp", "otro"] },
           },
         },
       },
@@ -132,6 +141,7 @@ Deno.serve(async (req) => {
       cardNumber: fields.cardNumber ?? null,
       year: fields.year ?? null,
       rarity: fields.rarity ?? null,
+      language: fields.language ?? null,
     },
   });
 });
