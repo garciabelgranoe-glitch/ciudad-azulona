@@ -96,6 +96,7 @@ import {
   LANGUAGE_OPTIONS,
   MAX_PHOTOS,
   buyFullLot,
+  scanCardPhoto,
 } from "./lib/auctions";
 import { POKEMON_SET_ERAS } from "./lib/pokemonSets";
 
@@ -3406,6 +3407,9 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [isFeatured, setIsFeatured] = useState(false);
   const [photoConverting, setPhotoConverting] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const [scanApplied, setScanApplied] = useState(false);
 
   async function handlePhotoChange(e) {
     const files = [...(e.target.files ?? [])];
@@ -3442,6 +3446,44 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
 
   function removePhoto(index) {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function mapRarityToLocal(raw) {
+    if (!raw) return null;
+    const s = String(raw).toLowerCase();
+    if (s.includes("promo")) return "promo";
+    if (s.includes("uncommon")) return "poco_comun";
+    if (s.includes("common")) return "comun";
+    if (s.includes("double") || s.includes("ultra") || s.includes("secret")) return "rara_doble";
+    if (s.includes("rare")) return "rara";
+    return null;
+  }
+
+  async function handleScanCard() {
+    if (photos.length === 0 || scanning) return;
+    setScanning(true);
+    setScanError("");
+    setScanApplied(false);
+    try {
+      const fields = await scanCardPhoto(photos[0].file);
+      if (!fields) {
+        setScanError("No pudimos reconocer la carta — completá los datos a mano.");
+        return;
+      }
+      if (fields.name && !name) setName(fields.name);
+      if (fields.setName && !setName_) setSetName(fields.setName);
+      if (fields.cardNumber && !cardNumber) setCardNumber(fields.cardNumber);
+      if (fields.year && !year) setYear(String(fields.year));
+      if (!rarity) {
+        const mapped = mapRarityToLocal(fields.rarity);
+        if (mapped) setRarity(mapped);
+      }
+      setScanApplied(true);
+    } catch {
+      setScanError("No pudimos escanear la foto. Probá de nuevo en un momento.");
+    } finally {
+      setScanning(false);
+    }
   }
 
   const photoRequired = showDuration;
@@ -3509,6 +3551,23 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               )}
             </div>
             {photoError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{photoError}</p>}
+            {photos.length > 0 && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={handleScanCard}
+                  disabled={scanning || photoConverting}
+                  className="flex items-center gap-1.5 rounded-lg border-2 border-plum bg-plum/10 px-3 py-2 text-[12px] font-bold text-plum disabled:opacity-60"
+                >
+                  {scanning && <Loader2 size={14} className="animate-spin" />}
+                  {scanning ? "Reconociendo carta..." : "✨ Autocompletar con la foto"}
+                </button>
+                {scanApplied && !scanError && (
+                  <p className="mt-1.5 text-[11px] text-plum">Autocompletado con IA — revisá los datos antes de publicar.</p>
+                )}
+                {scanError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{scanError}</p>}
+              </div>
+            )}
           </div>
         )}
         <div>

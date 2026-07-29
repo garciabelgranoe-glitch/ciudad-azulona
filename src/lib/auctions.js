@@ -249,6 +249,28 @@ export async function uploadAuctionPhotos(files) {
   return Promise.all(files.map((file) => uploadAuctionPhoto(file)));
 }
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Reconocimiento de carta por foto (Ximilar) vía Edge Function — la API
+// key vive solo server-side. Devuelve los campos reconocidos, o null si
+// la foto no matcheó ninguna carta.
+export async function scanCardPhoto(file) {
+  const compressed = await compressImage(file, 1000, 0.8);
+  const image_base64 = await fileToBase64(compressed);
+  const { data, error } = await supabase.functions.invoke("scan-card", {
+    body: { image_base64 },
+  });
+  if (error) throw error;
+  return data?.ok ? data.fields : null;
+}
+
 export async function createAuction({
   sellerId,
   cardName,
