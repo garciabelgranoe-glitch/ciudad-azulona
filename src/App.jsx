@@ -3411,6 +3411,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
   const [scanApplied, setScanApplied] = useState(false);
+  const [scanAttempted, setScanAttempted] = useState(false);
 
   async function handlePhotoChange(e) {
     const files = [...(e.target.files ?? [])];
@@ -3471,6 +3472,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
       setScanError("No pudimos escanear la foto. Probá de nuevo en un momento.");
     } finally {
       setScanning(false);
+      setScanAttempted(true);
     }
   }
 
@@ -3497,6 +3499,13 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
   const labelClass = "text-[12px] font-bold text-ink-soft";
+
+  // Después de escanear una foto, marcamos con un borde fino verde/rojo
+  // los campos que la IA completa, para orientar qué falta cargar a mano.
+  function scannedInputClass(filled) {
+    if (!scanAttempted) return inputClass;
+    return inputClass.replace("border-line", filled ? "border-forest-mid" : "border-[#B9432C]");
+  }
 
   return (
     <div className="min-h-dvh bg-cream pb-10">
@@ -3564,7 +3573,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej: Gengar VMAX Alt Art"
-            className={inputClass}
+            className={scannedInputClass(!!name)}
           />
         </div>
 
@@ -3685,7 +3694,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
                   onChange={(e) => setSetName(e.target.value)}
                   placeholder="Ej: Obsidian Flames"
                   list="pokemon-set-options"
-                  className={inputClass}
+                  className={scannedInputClass(!!setName_)}
                 />
               </div>
               <div>
@@ -3694,7 +3703,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
                   value={cardNumber}
                   onChange={(e) => setCardNumber(e.target.value)}
                   placeholder="Ej: 125/197"
-                  className={inputClass}
+                  className={scannedInputClass(!!cardNumber)}
                 />
               </div>
             </div>
@@ -3707,7 +3716,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
                   placeholder="Ej: 2023"
-                  className={inputClass}
+                  className={scannedInputClass(!!year)}
                 />
               </div>
               <div>
@@ -3723,7 +3732,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Rareza</label>
-                <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={inputClass}>
+                <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={scannedInputClass(!!rarity)}>
                   <option value="">Sin especificar</option>
                   {RARITY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
@@ -3732,7 +3741,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               </div>
               <div>
                 <label className={labelClass}>Idioma</label>
-                <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
+                <select value={language} onChange={(e) => setLanguage(e.target.value)} className={scannedInputClass(!!language)}>
                   <option value="">Sin especificar</option>
                   {LANGUAGE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
