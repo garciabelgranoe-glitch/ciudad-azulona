@@ -817,6 +817,19 @@ export async function listAllAuctionsForAdmin() {
   return data;
 }
 
+export async function getAdminDailyMetrics(days = 30) {
+  const { data, error } = await supabase.rpc("admin_metrics_daily", { p_days: days });
+  if (error) throw error;
+  return data.map((row) => ({
+    day: row.day,
+    newUsers: Number(row.new_users),
+    newListings: Number(row.new_listings),
+    salesCount: Number(row.sales_count),
+    gmvArs: Number(row.gmv_ars),
+    gmvUsd: Number(row.gmv_usd),
+  }));
+}
+
 export async function createSuggestion(userId, message) {
   const { data, error } = await supabase
     .from("suggestions")
