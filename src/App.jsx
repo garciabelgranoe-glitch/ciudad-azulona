@@ -326,7 +326,8 @@ function AccountMenu({
         className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-bold text-cream/80 transition hover:bg-white/10 hover:text-paper md:border md:border-white/20"
       >
         <GenderIcon gender={gender} size={14} />
-        {alias} <ChevronDown size={12} className={`transition ${open ? "rotate-180" : ""}`} />
+        <span className="max-w-[110px] truncate">{alias}</span>
+        <ChevronDown size={12} className={`shrink-0 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <>
@@ -1139,8 +1140,8 @@ function AuctionsTabContent({ auctions }) {
     <div className="space-y-2">
       {auctions.map((a) => (
         <div key={a.id} className="rounded-lg border-2 border-line bg-paper p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] font-extrabold text-ink">{a.card}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[13px] font-extrabold text-ink">{a.card}</p>
             <Pill tone={a.status === "live" ? "live" : "default"}>{a.status}</Pill>
           </div>
           <p className="text-[11px] text-ink-soft">Vendedor: {a.seller}</p>
@@ -2687,7 +2688,7 @@ function AuctionDetail({
         </div>
 
         <div className="md:min-w-0 md:flex-1">
-        <h2 className="mt-4 text-xl font-extrabold text-ink md:mt-0">{auction.card}</h2>
+        <h2 className="mt-4 break-words text-xl font-extrabold text-ink md:mt-0">{auction.card}</h2>
         <div className="mt-1 flex items-center justify-between gap-2">
           <SellerBadge
             name={auction.seller}
@@ -3022,7 +3023,7 @@ function AuctionDetail({
 
         {bidHistory.length > 0 && (
           <div className="mt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Evolución del precio</h4>
               {auction.referencePrice != null && (
                 <span className="text-[11px] font-bold text-plum">
@@ -3043,21 +3044,21 @@ function AuctionDetail({
             <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Historial de pujas</h4>
             <ul className="mt-2 flex flex-col gap-1.5">
               {bidHistory.map((b) => (
-                <li key={b.id} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
-                  <span className="flex items-center gap-1.5">
+                <li key={b.id} className="flex items-center justify-between gap-2 rounded-lg bg-paper px-3 py-2 text-[13px]">
+                  <span className="flex min-w-0 items-center gap-1.5">
                     <GenderIcon gender={b.bidder?.gender} size={13} />
                     {onOpenUserProfile && b.bidder?.id ? (
                       <button
                         onClick={() => onOpenUserProfile(b.bidder.id)}
-                        className="text-ink-soft underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
+                        className="truncate text-ink-soft underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
                       >
                         {b.bidder?.alias ?? "—"}
                       </button>
                     ) : (
-                      <span className="text-ink-soft">{b.bidder?.alias ?? "—"}</span>
+                      <span className="truncate text-ink-soft">{b.bidder?.alias ?? "—"}</span>
                     )}
                   </span>
-                  <span className="font-bold text-forest-deep">{formatPrice(Number(b.amount), auction.currency)}</span>
+                  <span className="shrink-0 font-bold text-forest-deep">{formatPrice(Number(b.amount), auction.currency)}</span>
                 </li>
               ))}
             </ul>
