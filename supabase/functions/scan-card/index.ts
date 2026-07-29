@@ -1,16 +1,31 @@
-// Edge Function: reconoce una carta Pokémon a partir de una foto (Ximilar
-// Collectibles Recognition) para autocompletar el formulario de
-// publicación. A diferencia de notify-claim, la invoca el frontend
-// directo (supabase.functions.invoke), así que valida el usuario logueado,
-// aplica rate limit acá mismo, y necesita manejar CORS (es la primera
-// función de este proyecto llamada desde el navegador en vez de server-to-
-// server, notify-claim la dispara Postgres vía pg_net y nunca pasa por acá).
+// Edge Function: reconoce una carta Pokémon a partir de una foto (Gemini,
+// vía prompt de identificación con salida JSON estructurada) para
+// autocompletar el formulario de publicación. A diferencia de
+// notify-claim, la invoca el frontend directo (supabase.functions.invoke),
+// así que valida el usuario logueado, aplica rate limit acá mismo, y
+// necesita manejar CORS (es la primera función de este proyecto llamada
+// desde el navegador en vez de server-to-server — notify-claim la dispara
+// Postgres vía pg_net y nunca pasa por acá).
+//
+// Se eligió Gemini en vez de un clasificador de cartas dedicado (Ximilar)
+// porque su reconocimiento específico de coleccionables está bloqueado en
+// el plan Free de Ximilar (solo "AI Card Grading" está incluido gratis) —
+// Gemini sí tiene capa gratuita real para esto y es mucho más barato en
+// plan pago. La contra: es un modelo general, no un clasificador
+// entrenado contra una base de cartas exacta, así que puede errar más en
+// fotos difíciles — por eso el frontend nunca pisa datos ya cargados a
+// mano y siempre pide revisar antes de publicar.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const XIMILAR_API_TOKEN = Deno.env.get("XIMILAR_API_TOKEN");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+
+const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+const PROMPT = `Identificá esta carta de Pokémon TCG a partir de la foto. Respondé solo con los datos que puedas leer o inferir con confianza de la imagen; si un dato no se ve o no estás seguro, dejalo en null. No inventes valores.`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +51,7 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return text("Unauthorized", 401);
-  if (!XIMILAR_API_TOKEN) return text("Missing XIMILAR_API_TOKEN", 500);
+  if (!GEMINI_API_KEY) return text("Missing GEMINI_API_KEY", 500);
 
   const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
     global: { headers: { Authorization: authHeader } },
@@ -57,35 +72,66 @@ Deno.serve(async (req) => {
   const { image_base64 } = await req.json();
   if (!image_base64) return text("Missing image_base64", 400);
 
-  const res = await fetch("https://api.ximilar.com/collectibles/v2/tcg_id", {
+  // El cliente manda un data URL completo ("data:image/jpeg;base64,...");
+  // Gemini quiere solo la parte base64.
+  const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/.exec(image_base64);
+  const mimeType = match?.[1] ?? "image/jpeg";
+  const data = match?.[2] ?? image_base64;
+
+  const res = await fetch(GEMINI_URL, {
     method: "POST",
     headers: {
-      Authorization: `Token ${XIMILAR_API_TOKEN}`,
+      "x-goog-api-key": GEMINI_API_KEY,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ records: [{ _base64: image_base64 }] }),
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data } }],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            name: { type: "STRING", nullable: true },
+            setName: { type: "STRING", nullable: true },
+            cardNumber: { type: "STRING", nullable: true },
+            year: { type: "INTEGER", nullable: true },
+            rarity: { type: "STRING", nullable: true },
+          },
+        },
+      },
+    }),
   });
+
   if (!res.ok) {
     const errText = await res.text();
     return text(errText, 502);
   }
 
   const result = await res.json();
-  const record = result?.records?.[0];
-  const best = record?._identification?.best_match ?? record?._identification?.alternatives?.[0] ?? record;
+  const textOut = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!textOut) return json({ ok: false });
 
-  if (!best?.name) {
+  let fields;
+  try {
+    fields = JSON.parse(textOut);
+  } catch {
     return json({ ok: false });
   }
+
+  if (!fields?.name) return json({ ok: false });
 
   return json({
     ok: true,
     fields: {
-      name: best.name ?? null,
-      setName: best.set ?? null,
-      cardNumber: best.card_number ?? null,
-      year: best.year ?? null,
-      rarity: best.rarity ?? null,
+      name: fields.name ?? null,
+      setName: fields.setName ?? null,
+      cardNumber: fields.cardNumber ?? null,
+      year: fields.year ?? null,
+      rarity: fields.rarity ?? null,
     },
   });
 });
