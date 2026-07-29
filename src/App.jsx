@@ -93,7 +93,9 @@ import {
   RARITY_OPTIONS,
   RARITY_SYMBOL,
   RARITY_LABEL,
+  LANGUAGE_OPTIONS,
   MAX_PHOTOS,
+  buyFullLot,
 } from "./lib/auctions";
 import { POKEMON_SET_ERAS } from "./lib/pokemonSets";
 
@@ -289,11 +291,35 @@ function AccountMenu({
   onOpenAdmin,
 }) {
   const [open, setOpen] = useState(false);
+
+  function MenuGroup({ label, children }) {
+    return (
+      <div className="border-t border-line first:border-t-0">
+        <p className="px-4 pt-2.5 text-[9px] font-bold uppercase tracking-wide text-ink-soft/70">{label}</p>
+        {children}
+      </div>
+    );
+  }
+
+  function MenuItem({ onClick, danger, children }) {
+    return (
+      <button
+        onClick={() => {
+          setOpen(false);
+          onClick();
+        }}
+        className={`block w-full px-4 py-2 text-left text-[12px] font-bold hover:bg-cream ${danger ? "text-[#B9432C]" : ""}`}
+      >
+        {children}
+      </button>
+    );
+  }
+
   return (
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 font-bold text-cream/80 hover:text-paper"
+        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-bold text-cream/80 transition hover:bg-white/10 hover:text-paper md:border md:border-white/20"
       >
         <GenderIcon gender={gender} size={14} />
         {alias} <ChevronDown size={12} className={`transition ${open ? "rotate-180" : ""}`} />
@@ -301,134 +327,30 @@ function AccountMenu({
       {open && (
         <>
           <div className="fixed inset-0 z-10 bg-ink/40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-lg border-2 border-ink bg-paper text-ink shadow-card">
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenProfile();
-              }}
-              className="block w-full px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Mi perfil
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenMyBids();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Mis pujas
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenMyPublications();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Mis publicaciones
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenMyTickets();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Mis tickets
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenFavorites();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Mis favoritos
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenRecommended();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Vendedores garantizados
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenTopMonthly();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Destacadas del mes
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenBlog();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Novedades
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenGiveaways();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Sorteos
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenCommunities();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Comunidades de WhatsApp
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenRanking();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Ranking
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenSuggestions();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Sugerencias
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-                onOpenFaq();
-              }}
-              className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold hover:bg-cream"
-            >
-              Preguntas frecuentes
-            </button>
+          <div className="absolute right-0 top-full z-20 mt-2 max-h-[80vh] w-56 overflow-y-auto rounded-lg border-2 border-ink bg-paper text-ink shadow-card">
+            <MenuGroup label="Mi cuenta">
+              <MenuItem onClick={onOpenProfile}>Mi perfil</MenuItem>
+              <MenuItem onClick={onOpenMyBids}>Mis pujas</MenuItem>
+              <MenuItem onClick={onOpenMyPublications}>Mis publicaciones</MenuItem>
+              <MenuItem onClick={onOpenMyTickets}>Mis tickets</MenuItem>
+              <MenuItem onClick={onOpenFavorites}>Mis favoritos</MenuItem>
+            </MenuGroup>
+            <MenuGroup label="Comunidad">
+              <MenuItem onClick={onOpenRecommended}>Vendedores garantizados</MenuItem>
+              <MenuItem onClick={onOpenTopMonthly}>Destacadas del mes</MenuItem>
+              <MenuItem onClick={onOpenBlog}>Novedades</MenuItem>
+              <MenuItem onClick={onOpenGiveaways}>Sorteos</MenuItem>
+              <MenuItem onClick={onOpenCommunities}>Comunidades de WhatsApp</MenuItem>
+              <MenuItem onClick={onOpenRanking}>Ranking</MenuItem>
+            </MenuGroup>
+            <MenuGroup label="Ayuda">
+              <MenuItem onClick={onOpenSuggestions}>Sugerencias</MenuItem>
+              <MenuItem onClick={onOpenFaq}>Preguntas frecuentes</MenuItem>
+            </MenuGroup>
             {isAdmin && (
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onOpenAdmin();
-                }}
-                className="block w-full border-t border-line px-4 py-2.5 text-left text-[12px] font-bold text-[#B9432C] hover:bg-cream"
-              >
-                Panel admin
-              </button>
+              <MenuGroup label="Admin">
+                <MenuItem onClick={onOpenAdmin} danger>Panel admin</MenuItem>
+              </MenuGroup>
             )}
           </div>
         </>
@@ -545,6 +467,7 @@ function AuctionList({
   const [filterRarity, setFilterRarity] = useState("");
   const [filterCondition, setFilterCondition] = useState("");
   const [filterCity, setFilterCity] = useState("");
+  const [filterLanguage, setFilterLanguage] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
@@ -565,16 +488,18 @@ function AuctionList({
   if (filterRarity) filtered = filtered.filter((a) => a.rarity === filterRarity);
   if (filterCondition) filtered = filtered.filter((a) => a.condition === filterCondition);
   if (filterCity) filtered = filtered.filter((a) => a.sellerCity === filterCity);
+  if (filterLanguage) filtered = filtered.filter((a) => a.language === filterLanguage);
   if (minPrice) filtered = filtered.filter((a) => a.currentBid >= Number(minPrice));
   if (maxPrice) filtered = filtered.filter((a) => a.currentBid <= Number(maxPrice));
 
-  const activeFilterCount = [filterSet, filterRarity, filterCondition, filterCity, minPrice, maxPrice].filter(Boolean).length;
+  const activeFilterCount = [filterSet, filterRarity, filterCondition, filterCity, filterLanguage, minPrice, maxPrice].filter(Boolean).length;
 
   function clearFilters() {
     setFilterSet("");
     setFilterRarity("");
     setFilterCondition("");
     setFilterCity("");
+    setFilterLanguage("");
     setMinPrice("");
     setMaxPrice("");
   }
@@ -590,6 +515,12 @@ function AuctionList({
                 <span className="font-pixel text-[9px] tracking-wide text-gold">CIUDAD AZULONA</span>
               </div>
               <div className="flex items-center gap-3 text-[12px] text-cream/80">
+                <nav className="hidden items-center gap-4 md:flex">
+                  <button onClick={onOpenBlog} className="font-bold transition hover:text-paper">Novedades</button>
+                  <button onClick={onOpenRanking} className="font-bold transition hover:text-paper">Ranking</button>
+                  <button onClick={onOpenCommunities} className="font-bold transition hover:text-paper">Comunidades</button>
+                  <button onClick={onOpenFaq} className="font-bold transition hover:text-paper">FAQ</button>
+                </nav>
                 <AccountMenu
                   alias={profile.alias}
                   gender={profile.gender}
@@ -698,7 +629,7 @@ function AuctionList({
               >
                 <option value="">Cualquier condición</option>
                 {CONDITION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>{CONDITION_SHORT[opt.value]} — {opt.label}</option>
                 ))}
               </select>
               <select
@@ -709,6 +640,16 @@ function AuctionList({
                 <option value="">Cualquier ciudad</option>
                 {availableCities.map((c) => (
                   <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={filterLanguage}
+                onChange={(e) => setFilterLanguage(e.target.value)}
+                className="rounded-lg border border-white/20 bg-forest-deep px-2 py-1.5 text-[12px] font-medium text-cream"
+              >
+                <option value="">Cualquier idioma</option>
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
               <div className="flex gap-1.5">
@@ -2310,9 +2251,11 @@ function LotsRow({ lots, onOpen }) {
   );
 }
 
-function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, claimingItemId, claimError }) {
+function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, claimingItemId, claimError, onBuyFullLot, buyFullLotBusy, buyFullLotError }) {
   const photos = lot.photo_urls ?? [];
   const [activePhoto, setActivePhoto] = useState(0);
+  const allItemsLive = items.length > 0 && items.every((it) => it.status === "live");
+  const lotCurrency = items[0]?.currency ?? "ARS";
 
   return (
     <div className="min-h-dvh bg-cream pb-10">
@@ -2356,6 +2299,25 @@ function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, cla
           />
         </div>
         {lot.description && <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">{lot.description}</p>}
+
+        {lot.full_price != null && (
+          <>
+            {allItemsLive && onBuyFullLot ? (
+              <button
+                onClick={() => onBuyFullLot(lot.id)}
+                disabled={buyFullLotBusy}
+                className="mt-4 w-full rounded-lg bg-plum py-3 text-[13px] font-extrabold text-cream shadow-[0_4px_0_rgba(76,29,87,1)] transition hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_rgba(76,29,87,1)] disabled:opacity-40"
+              >
+                {buyFullLotBusy ? "Comprando..." : `Comprar el lote completo por ${formatPrice(lot.full_price, lotCurrency)}`}
+              </button>
+            ) : (
+              <p className="mt-4 text-[11px] text-ink-soft">
+                El precio de lote completo ({formatPrice(lot.full_price, lotCurrency)}) ya no está disponible — se vendió alguna carta suelta.
+              </p>
+            )}
+            {buyFullLotError && <p className="mt-2 text-[12px] text-[#B9432C]">{buyFullLotError}</p>}
+          </>
+        )}
 
         <p className="mt-5 font-pixel text-[8px] tracking-wide text-gold-dark">CARTAS DEL LOTE ({items.length})</p>
         <div className="mt-2.5 flex flex-col gap-2">
@@ -2474,19 +2436,50 @@ function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile,
         {auctions.length === 0 ? (
           <p className="mt-4 text-[12px] text-ink-soft">Todavía no hay pujas este mes.</p>
         ) : (
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
             {auctions.map((a, i) => (
-              <div key={a.id} className="flex items-center gap-3">
-                <span className="font-pixel flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-[11px] text-forest-deep">
+              <div key={a.id} className="relative">
+                <span className="font-pixel absolute -left-1.5 -top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-gold text-[10px] text-forest-deep shadow-card">
                   #{i + 1}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showStatusPill />
-                </div>
+                <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showStatusPill />
               </div>
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Slide de subastas parecidas, para navegar sin volver a la grilla.
+// Prioriza mismo set, después misma rareza, después cualquier otra en vivo.
+// ---------------------------------------------
+function SimilarAuctionsRow({ auctions, currentAuction, onOpen, onOpenSellerProfile }) {
+  const similar = useMemo(() => {
+    const others = (auctions ?? []).filter((a) => a.id !== currentAuction.id && a.status === "live" && !a.lotId);
+    const bySet = currentAuction.setName ? others.filter((a) => a.setName === currentAuction.setName) : [];
+    const bySetIds = new Set(bySet.map((a) => a.id));
+    const byRarity = currentAuction.rarity
+      ? others.filter((a) => a.rarity === currentAuction.rarity && !bySetIds.has(a.id))
+      : [];
+    const byRarityIds = new Set(byRarity.map((a) => a.id));
+    const rest = others.filter((a) => !bySetIds.has(a.id) && !byRarityIds.has(a.id));
+    return [...bySet, ...byRarity, ...rest].slice(0, 10);
+  }, [auctions, currentAuction]);
+
+  if (similar.length === 0) return null;
+
+  return (
+    <div className="mt-6">
+      <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Subastas parecidas</h4>
+      <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+        {similar.map((a) => (
+          <div key={a.id} className="w-36 shrink-0">
+            <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showSeller={false} />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -2528,6 +2521,8 @@ function AuctionDetail({
   onRepublish,
   republishBusy,
   republishError,
+  allAuctions,
+  onOpenAuction,
 }) {
   const [republishOpen, setRepublishOpen] = useState(false);
   const [republishPrice, setRepublishPrice] = useState(String(auction.basePrice));
@@ -3064,6 +3059,13 @@ function AuctionDetail({
           </div>
         )}
 
+        <SimilarAuctionsRow
+          auctions={allAuctions}
+          currentAuction={auction}
+          onOpen={onOpenAuction}
+          onOpenSellerProfile={onOpenUserProfile}
+        />
+
         <p className="mt-6 flex items-start gap-2 text-[12px] leading-relaxed text-ink-soft">
           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
           El pago se hace en persona en el stand del vendedor. La plataforma no procesa dinero — solo confirma la identidad de la entrega con un código único.
@@ -3364,6 +3366,8 @@ const DURATION_OPTIONS = [
   { label: "3 horas", value: 180 },
   { label: "12 horas", value: 720 },
   { label: "24 horas", value: 1440 },
+  { label: "3 días", value: 4320 },
+  { label: "1 semana", value: 10080 },
 ];
 
 // Sugerencias de sets reales para el campo "Colección / set" — sigue
@@ -3398,6 +3402,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
   const [gradingCompany, setGradingCompany] = useState("psa");
   const [grade, setGrade] = useState("");
   const [rarity, setRarity] = useState("");
+  const [language, setLanguage] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [photoConverting, setPhotoConverting] = useState(false);
   const [photoError, setPhotoError] = useState("");
@@ -3668,14 +3673,25 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               </div>
             </div>
 
-            <div>
-              <label className={labelClass}>Rareza</label>
-              <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={inputClass}>
-                <option value="">Sin especificar</option>
-                {RARITY_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Rareza</label>
+                <select value={rarity} onChange={(e) => setRarity(e.target.value)} className={inputClass}>
+                  <option value="">Sin especificar</option>
+                  {RARITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.symbol} {opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Idioma</label>
+                <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
+                  <option value="">Sin especificar</option>
+                  {LANGUAGE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
@@ -3829,6 +3845,7 @@ function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, b
               gradingCompany,
               grade: grade ? Number(grade) : null,
               rarity,
+              language,
               isFeatured,
               referencePrice: referencePrice ? Number(referencePrice) : null,
               reservePrice: isSaleOnly || isFreeClaim ? null : reservePrice ? Number(reservePrice) : null,
@@ -3871,6 +3888,7 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
   const [photos, setPhotos] = useState([]);
   const [duration, setDuration] = useState(1440);
   const [items, setItems] = useState([{ description: "", price: "" }, { description: "", price: "" }]);
+  const [fullPrice, setFullPrice] = useState("");
   const [photoConverting, setPhotoConverting] = useState(false);
   const [photoError, setPhotoError] = useState("");
 
@@ -4054,6 +4072,21 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
         </div>
 
         <div>
+          <label className={labelClass}>Precio por el lote completo (opcional)</label>
+          <input
+            type="number"
+            value={fullPrice}
+            onChange={(e) => setFullPrice(e.target.value)}
+            placeholder={currency === "USD" ? "Ej: U$S 50 por todo el lote" : "Ej: $50.000 por todo el lote"}
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-ink-soft">
+            Si lo cargás, además de vender cada carta suelta alguien va a poder llevarse el lote entero por
+            este precio — pero solo mientras esté 100% completo (ninguna carta vendida todavía).
+          </p>
+        </div>
+
+        <div>
           <label className={labelClass}>Dura</label>
           <div className="mt-1.5 grid grid-cols-3 gap-2">
             {DURATION_OPTIONS.map((opt) => (
@@ -4083,6 +4116,7 @@ function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = 
               photoFiles: photos.map((p) => p.file),
               durationMinutes: duration,
               items: validItems.map((it) => ({ description: it.description.trim(), price: Number(it.price) })),
+              fullPrice: fullPrice ? Number(fullPrice) : null,
             })
           }
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-3 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] disabled:opacity-40"
@@ -5034,6 +5068,8 @@ export default function App() {
   const [createLotError, setCreateLotError] = useState("");
   const [claimingLotItemId, setClaimingLotItemId] = useState(null);
   const [claimLotItemError, setClaimLotItemError] = useState("");
+  const [buyFullLotBusy, setBuyFullLotBusy] = useState(false);
+  const [buyFullLotError, setBuyFullLotError] = useState("");
   const [realTickets, setRealTickets] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [ratedTicketIds, setRatedTicketIds] = useState(new Set());
@@ -5326,6 +5362,7 @@ export default function App() {
     gradingCompany,
     grade,
     rarity,
+    language,
     isFeatured,
     referencePrice,
     reservePrice,
@@ -5355,6 +5392,7 @@ export default function App() {
         gradingCompany,
         grade,
         rarity,
+        language,
         isFeatured,
         referencePrice,
         reservePrice,
@@ -5529,7 +5567,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateLot({ title, currency, description, photoFiles, durationMinutes, items }) {
+  async function handleCreateLot({ title, currency, description, photoFiles, durationMinutes, items, fullPrice }) {
     setCreateLotBusy(true);
     setCreateLotError("");
     try {
@@ -5542,6 +5580,7 @@ export default function App() {
         photoUrls,
         durationMinutes,
         items,
+        fullPrice,
       });
       setLiveLots((rows) => [{ ...lot, seller: auth.profile, items: [] }, ...rows]);
       setView({ name: "list" });
@@ -5569,6 +5608,25 @@ export default function App() {
       setClaimLotItemError(e.message);
     } finally {
       setClaimingLotItemId(null);
+    }
+  }
+
+  async function handleBuyFullLot(lotId) {
+    setBuyFullLotBusy(true);
+    setBuyFullLotError("");
+    try {
+      await buyFullLot(lotId);
+      setActiveLotItems((rows) => rows.map((r) => ({ ...r, status: "closed" })));
+      setLiveLots((lots) =>
+        lots.map((lot) =>
+          lot.id === lotId ? { ...lot, items: lot.items?.map((it) => ({ ...it, status: "closed" })) } : lot
+        )
+      );
+      listMyTickets().then(setRealTickets);
+    } catch (e) {
+      setBuyFullLotError(e.message);
+    } finally {
+      setBuyFullLotBusy(false);
     }
   }
 
@@ -6031,6 +6089,8 @@ export default function App() {
           onRepublish={isSupabaseConfigured ? handleRepublish : undefined}
           republishBusy={republishBusy}
           republishError={republishError}
+          allAuctions={displayAuctions}
+          onOpenAuction={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
         />
       )}
 
@@ -6286,6 +6346,9 @@ export default function App() {
           onClaimItem={handleClaimLotItem}
           claimingItemId={claimingLotItemId}
           claimError={claimLotItemError}
+          onBuyFullLot={handleBuyFullLot}
+          buyFullLotBusy={buyFullLotBusy}
+          buyFullLotError={buyFullLotError}
         />
       )}
     </div>

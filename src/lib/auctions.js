@@ -2,11 +2,18 @@ import { supabase } from "./supabaseClient";
 
 const AUCTION_SELECT = `
   id, card_name, photo_urls, base_price, current_bid, bid_count, status, closes_at, winner_id,
-  set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured,
+  set_name, card_number, year, condition, is_graded, grading_company, grade, rarity, is_featured, language,
   reference_price, reserve_price, buy_now_price, is_sale_only, currency,
   is_free_claim, free_claim_winning_number, free_claim_count, lot_id,
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium, city )
 `;
+
+export const LANGUAGE_OPTIONS = [
+  { value: "es", label: "Español" },
+  { value: "en", label: "Inglés" },
+  { value: "jp", label: "Japonés" },
+  { value: "otro", label: "Otro" },
+];
 
 export const CONDITION_OPTIONS = [
   { value: "mint", label: "Mint" },
@@ -122,6 +129,7 @@ export function auctionToVM(row) {
     gradingCompany: row.grading_company,
     grade: row.grade,
     rarity: row.rarity,
+    language: row.language,
     isFeatured: row.is_featured,
     referencePrice: row.reference_price != null ? Number(row.reference_price) : null,
     reservePrice: row.reserve_price != null ? Number(row.reserve_price) : null,
@@ -147,6 +155,11 @@ export async function buyNowAuction(auctionId) {
   const { data, error } = await supabase.rpc("buy_now_auction", { p_auction_id: auctionId });
   if (error) throw error;
   return data;
+}
+
+export async function buyFullLot(lotId) {
+  const { error } = await supabase.rpc("buy_full_lot", { p_lot_id: lotId });
+  if (error) throw error;
 }
 
 export async function claimFreeItem(auctionId) {
@@ -258,6 +271,7 @@ export async function createAuction({
   isFreeClaim,
   freeClaimWinningNumber,
   currency,
+  language,
 }) {
   const closesAt = new Date(Date.now() + durationMinutes * 60_000).toISOString();
   const { data, error } = await supabase
@@ -285,6 +299,7 @@ export async function createAuction({
       is_free_claim: !!isFreeClaim,
       free_claim_winning_number: isFreeClaim ? freeClaimWinningNumber : null,
       currency: currency || "ARS",
+      language: language || null,
     })
     .select(AUCTION_SELECT)
     .single();
@@ -307,6 +322,7 @@ export async function updateOwnAuction(auctionId, {
   referencePrice,
   reservePrice,
   buyNowPrice,
+  language,
 }) {
   const { data, error } = await supabase.rpc("update_own_auction", {
     p_auction_id: auctionId,
@@ -324,6 +340,7 @@ export async function updateOwnAuction(auctionId, {
     p_reference_price: referencePrice || null,
     p_reserve_price: reservePrice || null,
     p_buy_now_price: buyNowPrice || null,
+    p_language: language || null,
   });
   if (error) throw error;
   return data;
@@ -833,10 +850,10 @@ export async function removeMyReaction(auctionId) {
   if (error) throw error;
 }
 
-export async function createCardLot({ sellerId, title, description, photoUrls, durationMinutes, items, currency }) {
+export async function createCardLot({ sellerId, title, description, photoUrls, durationMinutes, items, currency, fullPrice }) {
   const { data: lot, error: lotError } = await supabase
     .from("card_lots")
-    .insert({ seller_id: sellerId, title, description: description || null, photo_urls: photoUrls ?? [] })
+    .insert({ seller_id: sellerId, title, description: description || null, photo_urls: photoUrls ?? [], full_price: fullPrice || null })
     .select("*")
     .single();
   if (lotError) throw lotError;
