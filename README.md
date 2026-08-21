@@ -14,9 +14,9 @@ en Supabase (Postgres + Auth + Storage + Realtime + Edge Functions).
 
 ## Stack
 
-- **Frontend:** React 18 + Vite + Tailwind CSS. `src/App.jsx` (~4.850
+- **Frontend:** React 18 + Vite + Tailwind CSS. `src/App.jsx` (~2.760
   líneas, bajando de a poco — ver "Deuda técnica conocida" más abajo)
-  todavía tiene el componente raíz y las pantallas de admin, pero las 17
+  todavía tiene el componente raíz y las pantallas de admin, pero las 22
   pantallas públicas ya están separadas en `src/views/`, y los componentes
   chicos reutilizables en `src/components/ui/`.
 - **Backend:** Supabase — Postgres con Row Level Security, Auth por OTP de
@@ -32,7 +32,7 @@ en Supabase (Postgres + Auth + Storage + Realtime + Edge Functions).
 ```
 src/
   App.jsx              # componente raíz + pantallas de admin (pendiente de terminar de partir)
-  views/                # las 17 pantallas públicas, una por archivo
+  views/                # las 22 pantallas públicas, una por archivo
   lib/
     auctions.js         # toda la capa de acceso a Supabase (queries + RPCs)
     supabaseClient.js   # cliente de Supabase
@@ -106,17 +106,15 @@ npx vercel@latest --prod
 
 Para que quien lea esto no se sorprenda:
 
-- **`App.jsx` todavía tiene el componente raíz, el panel admin, y las 5
-  pantallas más grandes/críticas** (~4.850 líneas, bajando — ya se
-  sacaron los componentes chicos a `components/ui/`, los helpers a
-  `lib/format.js`/`lib/giveaways.js`, y 17 pantallas públicas a
-  `src/views/`). Falta mover `AuctionList`, `AuctionDetail`,
-  `CreateAuction`, `CreateLotView` y `EditAuction` (se dejaron para el
-  final por ser las más grandes y las que más tráfico real reciben — se
-  quiso hacerlas con más cuidado, no apuradas al cierre de una sesión de
-  refactor), las ~11 sub-vistas del panel admin, y después achicar el
-  componente raíz `App` (que hoy junta ~1.000 líneas de estado y handlers
-  antes de su JSX) a custom hooks.
+- **`App.jsx` todavía tiene el componente raíz y el panel admin**
+  (~2.760 líneas, bajando — ya se sacaron los componentes chicos a
+  `components/ui/`, los helpers a `lib/format.js`/`lib/giveaways.js`, y
+  las 22 pantallas públicas a `src/views/`, incluidas las 5 más
+  grandes/críticas: `AuctionList`, `AuctionDetail`, `CreateAuction`,
+  `CreateLotView` y `EditAuction`). Falta mover las ~11 sub-vistas del
+  panel admin a `src/views/admin/`, y después achicar el componente raíz
+  `App` (que hoy junta ~1.000 líneas de estado y handlers antes de su
+  JSX) a custom hooks.
 - **No hay tests automatizados** — toda verificación hoy es manual.
 - **No hay CI/CD ni ambiente de staging** — se deploya directo a
   producción a mano.
