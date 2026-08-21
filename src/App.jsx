@@ -9,6 +9,22 @@ import BadgeIcon from "./components/BadgeIcon";
 import PriceChart from "./components/PriceChart";
 import PokeballIcon from "./components/PokeballIcon";
 import PokedexIcon from "./components/PokedexIcon";
+import Pill from "./components/ui/Pill";
+import SellerBadge from "./components/ui/SellerBadge";
+import CardArt from "./components/ui/CardArt";
+import ConditionBadge from "./components/ui/ConditionBadge";
+import AccountMenu from "./components/ui/AccountMenu";
+import GuaranteedSellersBanner from "./components/ui/GuaranteedSellersBanner";
+import WhatsappCommunityBanner from "./components/ui/WhatsappCommunityBanner";
+import AuctionCard from "./components/ui/AuctionCard";
+import MiniBarChart from "./components/ui/MiniBarChart";
+import LotsRow from "./components/ui/LotsRow";
+import SimilarAuctionsRow from "./components/ui/SimilarAuctionsRow";
+import TicketRow from "./components/ui/TicketRow";
+import PokemonSetDatalist from "./components/ui/PokemonSetDatalist";
+import ToastStack from "./components/ui/ToastStack";
+import PickupInfoText from "./components/ui/PickupInfoText";
+import StatHistoryList from "./components/ui/StatHistoryList";
 import {
   listLiveAuctions,
   getAuction,
@@ -101,8 +117,12 @@ import {
   getAdminDailyMetrics,
   REFERENCE_PRICE_SOURCE_OPTIONS,
   REFERENCE_PRICE_SOURCE_LABEL,
+  DURATION_OPTIONS,
+  GIVEAWAY_DURATION_OPTIONS,
 } from "./lib/auctions";
 import { POKEMON_SET_ERAS } from "./lib/pokemonSets";
+import { formatARS, formatPrice, formatCountdown } from "./lib/format";
+import { giveawayRequirementText, handleShareGiveaway } from "./lib/giveaways";
 
 // ---------------------------------------------
 // Datos de ejemplo (mock) — reemplazar por backend real
@@ -161,276 +181,6 @@ const SEED_TICKETS = [
     closedAt: "hoy 14:02",
   },
 ];
-
-function formatARS(n) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
-}
-
-function formatPrice(n, currency = "ARS") {
-  if (currency === "USD") {
-    return `U$S ${Number(n).toLocaleString("es-AR", { maximumFractionDigits: 2 })}`;
-  }
-  return formatARS(n);
-}
-
-function formatCountdown(totalSeconds) {
-  if (totalSeconds <= 0) return "Cerrada";
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
-}
-
-// ---------------------------------------------
-// Componentes pequeños
-// ---------------------------------------------
-
-function Pill({ children, tone = "default" }) {
-  const tones = {
-    default: "bg-paper text-ink-soft border-line",
-    live: "bg-forest-mid/15 text-forest-deep border-forest-mid/40",
-    urgent: "bg-[#FBE6E0] text-[#B9432C] border-[#B9432C]/30",
-    gold: "bg-gold/15 text-gold-dark border-gold/40",
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${tones[tone]}`}>
-      {children}
-    </span>
-  );
-}
-
-function SellerBadge({ name, rating, sales, onClick, gender, isPremium = false }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] text-ink-soft">
-      <GenderIcon gender={gender} size={14} />
-      {onClick ? (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-          className="whitespace-nowrap font-bold text-ink underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-deep"
-        >
-          {name}
-        </button>
-      ) : (
-        <span className="whitespace-nowrap font-bold text-ink">{name}</span>
-      )}
-      {isPremium && (
-        <span
-          className="flex items-center gap-0.5 whitespace-nowrap rounded-full border border-gold bg-gold px-1.5 py-0.5 text-[9px] font-extrabold text-forest-deep"
-          title="Vendedor verificado"
-        >
-          <Trophy size={9} /> VERIFICADO
-        </span>
-      )}
-      <span className="flex items-center gap-0.5 whitespace-nowrap text-gold-dark">
-        <Star size={11} fill="currentColor" strokeWidth={0} />
-        {rating.toFixed(1)}
-      </span>
-      <span className="whitespace-nowrap font-bold text-ink">· {sales} ventas</span>
-    </div>
-  );
-}
-
-function CardArt({ label, photoUrl }) {
-  if (photoUrl) {
-    return (
-      <div className="relative aspect-[5/7] w-full overflow-hidden border-b-2 border-ink bg-cream-dark">
-        <img src={photoUrl} alt={label} className="h-full w-full object-cover" />
-      </div>
-    );
-  }
-  // Placeholder visual con proporción de carta TCG (aprox 2.5:3.5)
-  return (
-    <div className="relative aspect-[5/7] w-full overflow-hidden border-b-2 border-ink bg-cream-dark">
-      <div className="absolute inset-0 opacity-60" style={{
-        backgroundImage: "repeating-linear-gradient(45deg, rgba(217,164,65,0.12) 0px, rgba(217,164,65,0.12) 10px, transparent 10px, transparent 20px)"
-      }} />
-      <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
-        <span className="font-pixel text-[9px] uppercase leading-relaxed text-ink-soft">{label}</span>
-      </div>
-    </div>
-  );
-}
-
-function ConditionBadge({ condition, isGraded, gradingCompany, grade }) {
-  if (isGraded) {
-    return (
-      <Pill tone="gold">
-        {gradingCompany?.toUpperCase() ?? "GRADEADA"} {grade ?? ""}
-      </Pill>
-    );
-  }
-  if (!condition) return null;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${
-        CONDITION_COLORS[condition] ?? "border-line bg-paper text-ink-soft"
-      }`}
-    >
-      {CONDITION_SHORT[condition] ?? condition}
-    </span>
-  );
-}
-
-function AccountMenu({
-  alias,
-  gender,
-  isAdmin,
-  onOpenProfile,
-  onOpenMyBids,
-  onOpenMyPublications,
-  onOpenMyTickets,
-  onOpenFavorites,
-  onOpenRecommended,
-  onOpenTopMonthly,
-  onOpenBlog,
-  onOpenGiveaways,
-  onOpenCommunities,
-  onOpenRanking,
-  onOpenSuggestions,
-  onOpenFaq,
-  onOpenAdmin,
-  onOpenPro,
-}) {
-  const [open, setOpen] = useState(false);
-
-  function MenuGroup({ label, children }) {
-    return (
-      <div className="border-t border-line first:border-t-0">
-        <p className="px-4 pt-2.5 text-[9px] font-bold uppercase tracking-wide text-ink-soft/70">{label}</p>
-        {children}
-      </div>
-    );
-  }
-
-  function MenuItem({ onClick, danger, children }) {
-    return (
-      <button
-        onClick={() => {
-          setOpen(false);
-          onClick();
-        }}
-        className={`block w-full px-4 py-2 text-left text-[12px] font-bold hover:bg-cream ${danger ? "text-[#B9432C]" : ""}`}
-      >
-        {children}
-      </button>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 font-bold text-cream/80 transition hover:bg-white/10 hover:text-paper md:border md:border-white/20"
-      >
-        <GenderIcon gender={gender} size={14} />
-        <span className="max-w-[110px] truncate">{alias}</span>
-        <ChevronDown size={12} className={`shrink-0 transition ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10 bg-ink/40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 max-h-[80vh] w-56 overflow-y-auto rounded-lg border-2 border-ink bg-paper text-ink shadow-card">
-            <MenuGroup label="Mi cuenta">
-              <MenuItem onClick={onOpenProfile}>Mi perfil</MenuItem>
-              <MenuItem onClick={onOpenMyBids}>Mis pujas</MenuItem>
-              <MenuItem onClick={onOpenMyPublications}>Mis publicaciones</MenuItem>
-              <MenuItem onClick={onOpenMyTickets}>Mis tickets</MenuItem>
-              <MenuItem onClick={onOpenFavorites}>Mis favoritos</MenuItem>
-              <MenuItem onClick={onOpenPro}>Hazte Pro ✨</MenuItem>
-            </MenuGroup>
-            <MenuGroup label="Comunidad">
-              <MenuItem onClick={onOpenRecommended}>Vendedores garantizados</MenuItem>
-              <MenuItem onClick={onOpenTopMonthly}>Destacadas del mes</MenuItem>
-              <MenuItem onClick={onOpenBlog}>Novedades</MenuItem>
-              <MenuItem onClick={onOpenGiveaways}>Sorteos</MenuItem>
-              <MenuItem onClick={onOpenCommunities}>Comunidades de WhatsApp</MenuItem>
-              <MenuItem onClick={onOpenRanking}>Ranking</MenuItem>
-            </MenuGroup>
-            <MenuGroup label="Ayuda">
-              <MenuItem onClick={onOpenSuggestions}>Sugerencias</MenuItem>
-              <MenuItem onClick={onOpenFaq}>Preguntas frecuentes</MenuItem>
-            </MenuGroup>
-            {isAdmin && (
-              <MenuGroup label="Admin">
-                <MenuItem onClick={onOpenAdmin} danger>Panel admin</MenuItem>
-              </MenuGroup>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------
-// Banner rotativo: vendedores garantizados (recomendados por la plataforma)
-// ---------------------------------------------
-function GuaranteedSellersBanner({ sellers, onOpenAll }) {
-  const active = (sellers ?? []).filter((s) => s.is_active);
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    if (active.length <= 1) return;
-    const id = setInterval(() => setIndex((i) => (i + 1) % active.length), 4500);
-    return () => clearInterval(id);
-  }, [active.length]);
-
-  if (active.length === 0 || !onOpenAll) return null;
-  const current = active[index % active.length];
-
-  return (
-    <button
-      onClick={onOpenAll}
-      className="flex w-full items-center gap-2.5 rounded-lg border-2 border-gold/50 bg-gold/10 px-3.5 py-2 text-left transition hover:bg-gold/15"
-    >
-      <Trophy size={14} className="shrink-0 text-gold-dark" />
-      <span className="min-w-0 flex-1 text-[11.5px] font-medium text-ink">
-        <span className="block text-[9.5px] font-bold uppercase tracking-wide text-gold-dark/80">
-          Vendedores garantizados de productos oficiales
-        </span>
-        <span className="block truncate">
-          {current.business_name}
-          {current.description ? ` — ${current.description}` : ""}
-        </span>
-      </span>
-      <span className="hidden shrink-0 text-[11px] font-bold text-gold-dark underline underline-offset-2 sm:inline">
-        Ver todos →
-      </span>
-      {active.length > 1 && (
-        <span className="hidden shrink-0 items-center gap-1 sm:flex">
-          {active.map((s, i) => (
-            <span key={s.id} className={`h-1.5 w-1.5 rounded-full ${i === index ? "bg-gold-dark" : "bg-gold/30"}`} />
-          ))}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function WhatsappCommunityBanner({ communities, onOpenAll }) {
-  const active = (communities ?? []).filter((c) => c.is_active);
-  if (active.length === 0 || !onOpenAll) return null;
-
-  return (
-    <button
-      onClick={onOpenAll}
-      className="flex w-full items-center gap-2.5 rounded-lg border-2 border-[#25D366]/50 bg-[#25D366]/10 px-3.5 py-2.5 text-left transition hover:bg-[#25D366]/15"
-    >
-      <MessageCircle size={16} className="shrink-0 text-[#128C4A]" />
-      <span className="min-w-0 flex-1 text-[11.5px] font-bold text-ink">
-        Sumate a la comunidad de WhatsApp de Ciudad Azulona
-      </span>
-      <span className="shrink-0 text-[11px] font-bold text-[#128C4A] underline underline-offset-2">
-        Unirme →
-      </span>
-    </button>
-  );
-}
 
 // ---------------------------------------------
 // Vista: Lista de subastas
@@ -821,139 +571,6 @@ function MyAuctionsView({
 // Card de subasta — compartida entre la mesa del evento y
 // Mis pujas/Mis publicaciones, para que luzcan siempre igual.
 // ---------------------------------------------
-function AuctionCard({
-  auction: a,
-  onOpen,
-  onOpenSellerProfile,
-  showSeller = true,
-  showMyBid = false,
-  showStatusPill = false,
-  isFavorite = false,
-  onToggleFavorite,
-}) {
-  const clickable = a.status === "live" && !!onOpen;
-  const typeAccent = a.isFreeClaim ? "bg-teal" : a.isSaleOnly ? "bg-gold" : "bg-transparent";
-
-  return (
-    <div
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={clickable ? () => onOpen(a) : undefined}
-      onKeyDown={
-        clickable
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") onOpen(a);
-            }
-          : undefined
-      }
-      className={`relative isolate flex flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
-        a.isFeatured ? "border-plum" : "border-ink"
-      } ${clickable ? "cursor-pointer hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" : "opacity-90"}`}
-    >
-      <span className={`absolute inset-y-0 left-0 z-10 w-1.5 ${typeAccent}`} aria-hidden="true" />
-      <div className="relative">
-        <CardArt label={a.card} photoUrl={a.photoUrl} />
-        {a.isFeatured && (
-          <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> DESTACADA
-          </div>
-        )}
-        {(a.condition || a.isGraded) && (
-          <div className="absolute right-2 top-2 rounded-full bg-paper/90 p-0.5 backdrop-blur-sm">
-            <ConditionBadge
-              condition={a.condition}
-              isGraded={a.isGraded}
-              gradingCompany={a.gradingCompany}
-              grade={a.grade}
-            />
-          </div>
-        )}
-        {a.rarity && (
-          <div
-            className="absolute bottom-2 left-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-paper/90 px-1 text-[11px] font-bold text-ink backdrop-blur-sm"
-            title={RARITY_LABEL[a.rarity]}
-          >
-            {RARITY_SYMBOL[a.rarity]}
-          </div>
-        )}
-        {showStatusPill && (
-          <div className="absolute bottom-2 right-2">
-            {a.status === "live" ? <Pill tone="live">En vivo</Pill> : <Pill>Cerrada</Pill>}
-          </div>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-1.5 border-t-2 border-ink px-3.5 py-3.5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 text-[13px] font-extrabold leading-snug text-ink">{a.card}</p>
-          {onToggleFavorite && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(a.id);
-              }}
-              className="shrink-0 text-ink-soft transition hover:text-[#B9432C] focus:outline-none"
-              aria-label={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
-            >
-              <Heart size={16} className={isFavorite ? "fill-[#B9432C] text-[#B9432C]" : ""} />
-            </button>
-          )}
-        </div>
-        {(a.isFreeClaim || a.buyNowPrice != null) && a.status === "live" && (
-          <span
-            className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-              a.isFreeClaim ? "bg-teal/20 text-teal" : "bg-gold/20 text-gold-dark"
-            }`}
-          >
-            {a.isFreeClaim ? <Package size={11} /> : <Zap size={11} />}
-            {a.isFreeClaim ? "Free claim — gratis" : a.isSaleOnly ? "Venta directa" : `Claim: ${formatPrice(a.buyNowPrice, a.currency)}`}
-          </span>
-        )}
-        {(a.setName || a.cardNumber || a.year) && (
-          <p className="line-clamp-1 text-[11px] text-ink-soft">
-            {[a.setName, a.cardNumber, a.year].filter(Boolean).join(" · ")}
-          </p>
-        )}
-        {a.sellerCity && (
-          <p className="flex items-center gap-1 text-[10px] font-bold text-ink-soft">
-            <MapPin size={10} /> {a.sellerCity}
-          </p>
-        )}
-        {showSeller && (
-          <SellerBadge
-            name={a.seller}
-            rating={a.sellerRating}
-            sales={a.sellerSales}
-            gender={a.sellerGender}
-            isPremium={a.sellerIsPremium}
-            onClick={onOpenSellerProfile && a.sellerId ? () => onOpenSellerProfile(a.sellerId) : undefined}
-          />
-        )}
-        {showMyBid && a.myBid != null ? (
-          <div className="mt-auto flex flex-col gap-0.5 pt-1.5">
-            <span className="text-[16px] font-extrabold text-forest-deep">{formatPrice(a.currentBid, a.currency)}</span>
-            <span className="text-[11px] font-bold text-ink-soft">Tu puja: {formatPrice(a.myBid, a.currency)}</span>
-          </div>
-        ) : (
-          <div className="mt-auto flex items-center justify-between pt-1.5">
-            <span className="text-[16px] font-extrabold text-forest-deep">
-              {a.isFreeClaim ? "Gratis" : formatPrice(a.currentBid, a.currency)}
-            </span>
-            {a.status === "live" && (
-              <span
-                className={`font-pixel flex items-center gap-1 rounded px-1.5 py-1 text-[8.5px] ${
-                  a.closesInSec <= 600 ? "bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
-                }`}
-              >
-                {formatCountdown(a.closesInSec)}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------
 // Vista: Notificaciones
 // ---------------------------------------------
@@ -1610,13 +1227,6 @@ function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePubl
   );
 }
 
-const GIVEAWAY_DURATION_OPTIONS = [
-  { value: 3, label: "3 días" },
-  { value: 7, label: "7 días" },
-  { value: 14, label: "14 días" },
-  { value: 30, label: "30 días" },
-];
-
 function GiveawayEntrantsPicker({ giveawayId, onLoadEntrants, onPickWinner, closeBusy }) {
   const [entrants, setEntrants] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1661,13 +1271,6 @@ function GiveawayEntrantsPicker({ giveawayId, onLoadEntrants, onPickWinner, clos
       ))}
     </div>
   );
-}
-
-function giveawayRequirementText(g) {
-  const parts = [];
-  if (g.min_publications) parts.push(`mínimo ${g.min_publications} carta(s) publicada(s)`);
-  if (g.min_sales) parts.push(`mínimo ${g.min_sales} venta(s) concretada(s)`);
-  return parts.length > 0 ? `Requisito para anotarte: ${parts.join(" y ")}.` : null;
 }
 
 function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onLoadEntrants, onClose, closeBusyId, onDelete, deleteBusyId }) {
@@ -1904,46 +1507,6 @@ function GiveawaysTabContent({ giveaways, onCreate, createBusy, createError, onL
   );
 }
 
-// Gráfico de barras genérico chiquito, sin librería (mismo enfoque a mano
-// que PriceChart, pero reutilizable para cualquier serie {day, [valueKey]}).
-function MiniBarChart({ series, valueKey, color = "#3E7A52" }) {
-  const height = 90;
-  const values = series.map((s) => Number(s[valueKey]) || 0);
-  const max = Math.max(1, ...values);
-  const barWidth = series.length > 0 ? 100 / series.length : 100;
-  const labelEvery = Math.max(1, Math.ceil(series.length / 6));
-
-  return (
-    <div>
-      <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="h-24 w-full">
-        {series.map((s, i) => {
-          const v = Number(s[valueKey]) || 0;
-          const barH = (v / max) * (height - 16);
-          return (
-            <rect
-              key={s.day}
-              x={i * barWidth + barWidth * 0.15}
-              y={height - 16 - barH}
-              width={barWidth * 0.7}
-              height={barH}
-              fill={color}
-              rx="0.5"
-            />
-          );
-        })}
-      </svg>
-      <div className="mt-1 flex text-[9px] text-ink-soft">
-        {series.map((s, i) => (
-          <span key={s.day} style={{ width: `${barWidth}%` }} className="text-center">
-            {i % labelEvery === 0
-              ? new Date(s.day).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
-              : ""}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function MetricsTabContent() {
   const [days, setDays] = useState(30);
@@ -2338,57 +1901,6 @@ function ProUpsellView({ onBack, onOpenSuggestions }) {
 // ---------------------------------------------
 // Vista: Sorteos para la comunidad (pública)
 // ---------------------------------------------
-function giveawayShareText(g) {
-  return [
-    `🎁 ${g.title}`,
-    g.prize_description ? `Premio: ${g.prize_description}` : null,
-    `Cierra el ${new Date(g.closes_at).toLocaleDateString("es-AR")}`,
-    giveawayRequirementText(g),
-    g.community_url ? `Para participar, sumate al grupo: ${g.community_url}` : null,
-    `Enterate del resultado acá: ${window.location.origin}/sorteo/${g.id}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-// Devuelve true si el texto quedó copiado al portapapeles como resguardo
-// (WhatsApp, sobre todo en Android, suele descartar el texto/título del
-// share sheet cuando también se adjunta una imagen y solo pasa la foto —
-// así el usuario lo puede pegar a mano como descripción del posteo).
-async function handleShareGiveaway(g) {
-  const text = giveawayShareText(g);
-
-  if (navigator.share) {
-    try {
-      if (g.photo_url && navigator.canShare) {
-        const res = await fetch(g.photo_url);
-        const blob = await res.blob();
-        const file = new File([blob], "sorteo.jpg", { type: blob.type || "image/jpeg" });
-        if (navigator.canShare({ files: [file] })) {
-          let copiedAsCaption = false;
-          try {
-            await navigator.clipboard.writeText(text);
-            copiedAsCaption = true;
-          } catch {
-            // clipboard no disponible (ej. sin permisos) — seguimos igual
-          }
-          await navigator.share({ files: [file], title: g.title, text });
-          return copiedAsCaption;
-        }
-      }
-      await navigator.share({ title: g.title, text });
-    } catch {
-      // el usuario canceló el share sheet, no hacemos nada
-    }
-    return false;
-  }
-
-  // Desktop sin Web Share API: abrir WhatsApp Web con el texto precargado
-  // (el click-to-chat de WhatsApp no admite adjuntar una imagen por URL).
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  return false;
-}
-
 function GiveawaysView({ giveaways, myEntryIds, onBack, onEnter, enterBusyId, enterError, enterErrorId, highlightId }) {
   const [shareCopiedId, setShareCopiedId] = useState(null);
 
@@ -2698,47 +2210,6 @@ function SuggestionsView({ onBack, onSubmit, busy = false, error = "" }) {
 // ---------------------------------------------
 // Lotes: varias cartas sueltas en una sola publicación (Premium).
 // ---------------------------------------------
-function LotPreviewCard({ lot, onOpen }) {
-  const photo = lot.photo_urls?.[0];
-  const availableCount = lot.items?.filter((i) => i.status === "live").length ?? 0;
-
-  return (
-    <button
-      onClick={() => onOpen(lot)}
-      className="flex w-36 shrink-0 flex-col overflow-hidden rounded-xl border-2 border-plum bg-paper text-left shadow-card transition hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-    >
-      <div className="relative">
-        <CardArt label={lot.title} photoUrl={photo} />
-        <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-plum px-2 py-0.5 text-[9px] font-extrabold text-paper">
-          <Package size={10} /> LOTE
-        </div>
-      </div>
-      <div className="p-2.5">
-        <p className="line-clamp-2 text-[12px] font-extrabold leading-snug text-ink">{lot.title}</p>
-        <p className="mt-1 text-[10px] text-ink-soft">{availableCount} disponibles</p>
-      </div>
-    </button>
-  );
-}
-
-function LotsRow({ lots, onOpen }) {
-  const active = lots.filter((l) => l.items?.some((i) => i.status === "live"));
-  if (active.length === 0) return null;
-
-  return (
-    <div className="mx-auto max-w-5xl px-5 pt-4">
-      <p className="mb-2 flex items-center gap-1.5 font-pixel text-[9px] tracking-wide text-plum">
-        <Package size={12} /> LOTES DISPONIBLES
-      </p>
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {active.map((lot) => (
-          <LotPreviewCard key={lot.id} lot={lot} onOpen={onOpen} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function LotDetailView({ lot, items, onBack, onOpenUserProfile, onClaimItem, claimingItemId, claimError, onBuyFullLot, buyFullLotBusy, buyFullLotError }) {
   const photos = lot.photo_urls ?? [];
   const [activePhoto, setActivePhoto] = useState(0);
@@ -2944,35 +2415,6 @@ function TopMonthlyAuctionsView({ auctions, onBack, onOpen, onOpenSellerProfile,
 // Slide de subastas parecidas, para navegar sin volver a la grilla.
 // Prioriza mismo set, después misma rareza, después cualquier otra en vivo.
 // ---------------------------------------------
-function SimilarAuctionsRow({ auctions, currentAuction, onOpen, onOpenSellerProfile }) {
-  const similar = useMemo(() => {
-    const others = (auctions ?? []).filter((a) => a.id !== currentAuction.id && a.status === "live" && !a.lotId);
-    const bySet = currentAuction.setName ? others.filter((a) => a.setName === currentAuction.setName) : [];
-    const bySetIds = new Set(bySet.map((a) => a.id));
-    const byRarity = currentAuction.rarity
-      ? others.filter((a) => a.rarity === currentAuction.rarity && !bySetIds.has(a.id))
-      : [];
-    const byRarityIds = new Set(byRarity.map((a) => a.id));
-    const rest = others.filter((a) => !bySetIds.has(a.id) && !byRarityIds.has(a.id));
-    return [...bySet, ...byRarity, ...rest].slice(0, 10);
-  }, [auctions, currentAuction]);
-
-  if (similar.length === 0) return null;
-
-  return (
-    <div className="mt-6">
-      <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Subastas parecidas</h4>
-      <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
-        {similar.map((a) => (
-          <div key={a.id} className="w-36 shrink-0">
-            <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showSeller={false} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------
 // Vista: Detalle de subasta + pujar
 // ---------------------------------------------
@@ -3614,27 +3056,6 @@ function AuctionDetail({
 // ---------------------------------------------
 // Vista: Mis tickets (todos, no solo el primero pendiente)
 // ---------------------------------------------
-function TicketRow({ ticket, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex w-full items-center justify-between rounded-lg border-2 border-line bg-paper p-3 text-left transition hover:-translate-y-0.5"
-    >
-      <div className="min-w-0">
-        <p className="line-clamp-1 text-[13px] font-extrabold text-ink">{ticket.card}</p>
-        <p className="text-[11px] text-ink-soft">
-          {ticket.isSeller ? "Vos vendiste" : `Vendedor: ${ticket.seller}`} · {formatPrice(ticket.price, ticket.currency)}
-        </p>
-      </div>
-      {ticket.status === "pendiente" ? (
-        <Pill tone="gold">Pendiente</Pill>
-      ) : (
-        <Pill tone="live">Entregado</Pill>
-      )}
-    </button>
-  );
-}
-
 function MyTicketsView({ tickets, onBack, onOpenTicket }) {
   const toPickup = tickets.filter((t) => !t.isSeller && t.status === "pendiente");
   const toDeliver = tickets.filter((t) => t.isSeller && t.status === "pendiente");
@@ -3848,29 +3269,6 @@ function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingP
 // ---------------------------------------------
 // Vista: Crear subasta
 // ---------------------------------------------
-const DURATION_OPTIONS = [
-  { label: "15 min", value: 15 },
-  { label: "30 min", value: 30 },
-  { label: "1 hora", value: 60 },
-  { label: "3 horas", value: 180 },
-  { label: "12 horas", value: 720 },
-  { label: "24 horas", value: 1440 },
-  { label: "3 días", value: 4320 },
-  { label: "1 semana", value: 10080 },
-];
-
-// Sugerencias de sets reales para el campo "Colección / set" — sigue
-// siendo texto libre, esto solo autocompleta los nombres más comunes.
-function PokemonSetDatalist() {
-  return (
-    <datalist id="pokemon-set-options">
-      {POKEMON_SET_ERAS.flatMap((era) => era.sets).map((set) => (
-        <option key={set} value={set} />
-      ))}
-    </datalist>
-  );
-}
-
 function CreateAuction({ onBack, onCreate, showDuration = false, busy = false, busyText = "", error = "" }) {
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("ARS");
@@ -5182,100 +4580,9 @@ function FaqView({ onBack }) {
 // ---------------------------------------------
 // Notificaciones flotantes (ej: "te superaron")
 // ---------------------------------------------
-function ToastStack({ toasts }) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-4">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className="pointer-events-auto max-w-sm rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-4 py-2.5 text-center text-[13px] font-bold text-[#B9432C] shadow-card"
-        >
-          {t.text}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ---------------------------------------------
 // Vista: Perfil
 // ---------------------------------------------
-function PickupInfoText({ profile }) {
-  const cityLine = profile.city ? (
-    <>
-      Retira en <span className="font-bold text-ink">{profile.city}</span>
-      {profile.pickup_point?.name && (
-        <>
-          {" "}— <span className="font-bold text-ink">{profile.pickup_point.name}</span>
-        </>
-      )}
-      <br />
-    </>
-  ) : null;
-
-  if (profile.has_stand) {
-    return (
-      <>
-        {cityLine}
-        {profile.stand_number ? (
-          <>Tiene stand fijo: <span className="font-bold text-ink">{profile.stand_number}</span></>
-        ) : (
-          <>Tiene stand fijo en el evento.</>
-        )}
-      </>
-    );
-  }
-  if (profile.pickup_day || profile.pickup_time || profile.contact_phone) {
-    return (
-      <>
-        {cityLine}
-        Prefiere coordinar el retiro
-        {profile.pickup_day && (
-          <>
-            {" "}— <span className="font-bold text-ink">{profile.pickup_day}</span>
-          </>
-        )}
-        {profile.pickup_time && (
-          <>
-            {" "}a las <span className="font-bold text-ink">{profile.pickup_time}</span>
-          </>
-        )}
-        {profile.contact_phone && (
-          <>
-            <br />
-            Contacto: <span className="font-bold text-ink">{profile.contact_phone}</span>
-          </>
-        )}
-      </>
-    );
-  }
-  if (cityLine) return cityLine;
-  return "Todavía no cargó cómo prefiere coordinar el retiro.";
-}
-
-function StatHistoryList({ title, icon, items = [], emptyText }) {
-  return (
-    <div className="mt-4">
-      <h4 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
-        {icon} {title}
-      </h4>
-      {items.length > 0 ? (
-        <ul className="mt-2 flex flex-col gap-1.5">
-          {items.map((it, i) => (
-            <li key={i} className="flex items-center justify-between rounded-lg bg-paper px-3 py-2 text-[13px]">
-              <span className="line-clamp-1 text-ink-soft">{it.cardName}</span>
-              <span className="shrink-0 font-bold text-forest-deep">{formatPrice(Number(it.amount), it.currency)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-1.5 text-[12px] text-ink-soft">{emptyText}</p>
-      )}
-    </div>
-  );
-}
-
 function ProfileView({ profile, onBack, isOwn = true, badges = [], stats, onEditPickup, onOpenLegal, onUpdateGender }) {
   const [editingGender, setEditingGender] = useState(false);
   const [savingGender, setSavingGender] = useState(false);

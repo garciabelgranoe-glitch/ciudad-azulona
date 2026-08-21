@@ -8,6 +8,24 @@ const AUCTION_SELECT = `
   seller:profiles!auctions_seller_id_fkey ( id, alias, gender, rating_avg, sales_count, is_premium, city )
 `;
 
+export const DURATION_OPTIONS = [
+  { label: "15 min", value: 15 },
+  { label: "30 min", value: 30 },
+  { label: "1 hora", value: 60 },
+  { label: "3 horas", value: 180 },
+  { label: "12 horas", value: 720 },
+  { label: "24 horas", value: 1440 },
+  { label: "3 días", value: 4320 },
+  { label: "1 semana", value: 10080 },
+];
+
+export const GIVEAWAY_DURATION_OPTIONS = [
+  { value: 3, label: "3 días" },
+  { value: 7, label: "7 días" },
+  { value: 14, label: "14 días" },
+  { value: 30, label: "30 días" },
+];
+
 export const REFERENCE_PRICE_SOURCE_OPTIONS = [
   { value: "pricecharting", label: "PriceCharting" },
   { value: "ebay", label: "eBay" },

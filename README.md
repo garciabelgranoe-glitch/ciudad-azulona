@@ -14,9 +14,10 @@ en Supabase (Postgres + Auth + Storage + Realtime + Edge Functions).
 
 ## Stack
 
-- **Frontend:** React 18 + Vite + Tailwind CSS. Casi todo vive en un único
-  archivo (`src/App.jsx`, ~7.000 líneas — ver "Deuda técnica conocida"
-  más abajo).
+- **Frontend:** React 18 + Vite + Tailwind CSS. La mayor parte de la app
+  todavía vive en `src/App.jsx` (~6.300 líneas — bajando de a poco, ver
+  "Deuda técnica conocida" más abajo), con los componentes chicos
+  reutilizables ya separados en `src/components/ui/`.
 - **Backend:** Supabase — Postgres con Row Level Security, Auth por OTP de
   email, Storage para fotos, Realtime para pujas/notificaciones en vivo, y
   Edge Functions (Deno) para lo que necesita un secret del lado del
@@ -29,12 +30,16 @@ en Supabase (Postgres + Auth + Storage + Realtime + Edge Functions).
 
 ```
 src/
-  App.jsx              # casi toda la UI y la lógica de la app
+  App.jsx              # pantallas completas + el componente raíz (en proceso de achicarse)
   lib/
     auctions.js         # toda la capa de acceso a Supabase (queries + RPCs)
     supabaseClient.js   # cliente de Supabase
     pokemonSets.js       # catálogo local de sets para el autocompletado
-  components/           # componentes chicos ya extraídos (iconos, login, etc.)
+    format.js            # formatPrice/formatARS/formatCountdown
+    giveaways.js          # helpers de sorteos (texto de requisitos, compartir)
+  components/
+    ui/                  # componentes chicos reutilizables (uno por archivo)
+    (iconos, Login, Landing, etc. — ya estaban acá)
   context/
     AuthContext.jsx     # sesión + perfil del usuario logueado
 supabase/
@@ -73,8 +78,9 @@ seguridad real la da Row Level Security en Postgres, no estas keys.
 Cada cambio de esquema es un archivo nuevo en `supabase/migrations/`,
 numerado en orden. **Hoy el proceso para aplicar una migración a
 producción es manual:** se pega el SQL directo en el SQL Editor del
-dashboard de Supabase. Vincular la CLI del proyecto (`supabase link` +
-`supabase db push`) para automatizar esto es el próximo paso — ver
+dashboard de Supabase. La CLI ya está vinculada al proyecto
+(`supabase link`), así que de acá en adelante las migraciones nuevas se
+pueden aplicar con `supabase db push` en vez de pegar SQL a mano — ver
 `docs/SERVICIOS.md`.
 
 ## Edge Functions
@@ -98,10 +104,12 @@ npx vercel@latest --prod
 
 Para que quien lea esto no se sorprenda:
 
-- **`App.jsx` concentra casi todo** (~7.000 líneas): vistas, componentes,
-  handlers, todo junto. Funciona, pero cualquier cambio implica navegar un
-  archivo enorme. Partirlo en módulos por feature es la mejora estructural
-  más importante pendiente.
+- **`App.jsx` sigue concentrando la mayoría de las pantallas** (~6.300
+  líneas, bajando — ya se sacaron los componentes chicos reutilizables a
+  `components/ui/` y los helpers a `lib/format.js`/`lib/giveaways.js`).
+  Falta la parte grande: mover cada pantalla completa a `src/views/`, y
+  después achicar el componente raíz `App` (que hoy junta ~1.000 líneas
+  de estado y handlers antes de su JSX) a custom hooks.
 - **No hay tests automatizados** — toda verificación hoy es manual.
 - **No hay CI/CD ni ambiente de staging** — se deploya directo a
   producción a mano.
