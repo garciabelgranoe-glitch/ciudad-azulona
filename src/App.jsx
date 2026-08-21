@@ -1814,7 +1814,7 @@ function AuctionDetail({
       </header>
 
       <div className="px-5 pt-5 md:mx-auto md:flex md:max-w-4xl md:items-start md:gap-8 md:px-8">
-        <div className="md:sticky md:top-20 md:w-72 md:shrink-0">
+        <div className="md:w-72 md:shrink-0">
         <button
           onClick={() => photos.length > 0 && setLightboxOpen(true)}
           className="mx-auto block w-52 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
