@@ -19,9 +19,9 @@ export default function SimilarAuctionsRow({ auctions, currentAuction, onOpen, o
   return (
     <div className="mt-6">
       <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-soft">Subastas parecidas</h4>
-      <div className="mt-2 flex gap-3 overflow-x-auto pb-2">
+      <div className="mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth">
         {similar.map((a) => (
-          <div key={a.id} className="w-36 shrink-0">
+          <div key={a.id} className="w-32 shrink-0 snap-start sm:w-36 md:w-40">
             <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showSeller={false} />
           </div>
         ))}
