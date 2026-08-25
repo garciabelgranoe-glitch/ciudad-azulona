@@ -708,7 +708,7 @@ export default function App() {
     return <LegalView onBack={() => setShowLegal(false)} />;
   }
 
-  if (isSupabaseConfigured && auth.loading) {
+  if (isSupabaseConfigured && (auth.loading || (auth.session && auth.profileLoading))) {
     return <div className="min-h-dvh bg-cream" />;
   }
 

@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -27,15 +28,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!isSupabaseConfigured || !session?.user) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
+    setProfileLoading(true);
     supabase
       .from("profiles")
       .select("*")
       .eq("id", session.user.id)
       .maybeSingle()
       .then(({ data }) => setProfile(data))
-      .catch(() => setProfile(null));
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoading(false));
   }, [session]);
 
   async function sendOtp(email) {
@@ -67,7 +71,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, sendOtp, verifyOtp, createProfile, signOut }}
+      value={{ session, profile, loading, profileLoading, sendOtp, verifyOtp, createProfile, signOut }}
     >
       {children}
     </AuthContext.Provider>
