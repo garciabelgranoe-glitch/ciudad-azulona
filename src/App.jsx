@@ -43,6 +43,7 @@ import LegalView from "./views/LegalView";
 import FaqView from "./views/FaqView";
 import ProfileView from "./views/ProfileView";
 import EditPickupInfo from "./views/EditPickupInfo";
+import PublicAuctionPreview from "./views/PublicAuctionPreview";
 import ReportsTabContent from "./views/admin/ReportsTabContent";
 import SuggestionsTabContent from "./views/admin/SuggestionsTabContent";
 import UsersTabContent from "./views/admin/UsersTabContent";
@@ -411,6 +412,7 @@ export default function App() {
   const [view, setView] = useState(parseInitialView);
   const [enteredLanding, setEnteredLanding] = useState(() => parseInitialView().name !== "list");
   const [showLegal, setShowLegal] = useState(false);
+  const [previewDismissed, setPreviewDismissed] = useState(false);
   const isPoppingRef = useRef(false);
   const isFirstHistoryRender = useRef(true);
 
@@ -423,7 +425,7 @@ export default function App() {
       isPoppingRef.current = false;
       return;
     }
-    const historyState = { view, enteredLanding, showLegal };
+    const historyState = { view, enteredLanding, showLegal, previewDismissed };
     const url = urlForView(view);
     if (isFirstHistoryRender.current) {
       isFirstHistoryRender.current = false;
@@ -431,7 +433,7 @@ export default function App() {
     } else {
       window.history.pushState(historyState, "", url);
     }
-  }, [view, enteredLanding, showLegal]);
+  }, [view, enteredLanding, showLegal, previewDismissed]);
 
   useEffect(() => {
     function onPopState(e) {
@@ -440,6 +442,7 @@ export default function App() {
         setView(e.state.view);
         setEnteredLanding(e.state.enteredLanding);
         setShowLegal(e.state.showLegal);
+        setPreviewDismissed(e.state.previewDismissed ?? false);
       }
     }
     window.addEventListener("popstate", onPopState);
@@ -717,6 +720,18 @@ export default function App() {
   }
 
   if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
+    if (view.name === "detail" && view.auctionId && !previewDismissed) {
+      return (
+        <PublicAuctionPreview
+          auctionId={view.auctionId}
+          onGoToLogin={() => setPreviewDismissed(true)}
+          onBack={() => {
+            setEnteredLanding(false);
+            setView({ name: "list" });
+          }}
+        />
+      );
+    }
     return <Login onOpenLegal={() => setShowLegal(true)} />;
   }
 
@@ -1419,7 +1434,13 @@ export default function App() {
         directAuction
       : null;
   const activeEditAuction =
-    view.name === "editAuction" ? displayAuctions.find((a) => a.id === view.auctionId) : null;
+    view.name === "editAuction"
+      ? displayAuctions.find((a) => a.id === view.auctionId) ||
+        topMonthlyAuctions.find((a) => a.id === view.auctionId) ||
+        myPublications.find((a) => a.id === view.auctionId) ||
+        myBids.find((a) => a.id === view.auctionId) ||
+        directAuction
+      : null;
   const displayTickets = isSupabaseConfigured
     ? realTickets.map((t) => ticketToVM(t, auth.session?.user.id))
     : tickets;
