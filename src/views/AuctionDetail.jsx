@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Users,
@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Check,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import {
   CONDITION_COLORS,
@@ -26,6 +27,11 @@ import CardArt from "../components/ui/CardArt";
 import SellerBadge from "../components/ui/SellerBadge";
 import SimilarAuctionsRow from "../components/ui/SimilarAuctionsRow";
 import GuaranteedSellersBanner from "../components/ui/GuaranteedSellersBanner";
+
+function getTouchDist(touches) {
+  const [a, b] = touches;
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
 
 // Vista: Detalle de subasta + pujar
 export default function AuctionDetail({
@@ -75,6 +81,11 @@ export default function AuctionDetail({
   const reserveMet = auction.reservePrice == null || auction.currentBid >= auction.reservePrice;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [zoomScale, setZoomScale] = useState(1);
+  const pinchStartDist = useRef(null);
+  const pinchStartScale = useRef(1);
+  const lastTapRef = useRef(0);
+  const actionRef = useRef(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
@@ -83,6 +94,9 @@ export default function AuctionDetail({
   const minBid = auction.currentBid + bidIncrement;
   const upCount = reactions?.filter((r) => r.reaction === "up").length ?? 0;
   const downCount = reactions?.filter((r) => r.reaction === "down").length ?? 0;
+  const urgent = auction.status === "live" && auction.closesInSec <= 600;
+  const showStickyBar =
+    !isMine && auction.status === "live" && !placed && !bought && !claimResult;
 
   async function handleShare() {
     const url = `${window.location.origin}/subasta/${auction.id}`;
@@ -111,6 +125,43 @@ export default function AuctionDetail({
     if (!placed) setBid(auction.currentBid + bidIncrement);
   }, [auction.currentBid, placed]);
 
+  useEffect(() => {
+    if (!lightboxOpen) setZoomScale(1);
+  }, [lightboxOpen]);
+
+  useEffect(() => {
+    setZoomScale(1);
+  }, [activePhoto]);
+
+  function handlePinchStart(e) {
+    if (e.touches.length === 2) {
+      pinchStartDist.current = getTouchDist(e.touches);
+      pinchStartScale.current = zoomScale;
+    }
+  }
+
+  function handlePinchMove(e) {
+    if (e.touches.length === 2 && pinchStartDist.current) {
+      e.preventDefault();
+      const dist = getTouchDist(e.touches);
+      const nextScale = Math.min(4, Math.max(1, pinchStartScale.current * (dist / pinchStartDist.current)));
+      setZoomScale(nextScale);
+    }
+  }
+
+  function handlePinchEnd(e) {
+    if (e.touches.length < 2) pinchStartDist.current = null;
+  }
+
+  function handleImageTap(e) {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      setZoomScale((s) => (s > 1 ? 1 : 2));
+    }
+    lastTapRef.current = now;
+  }
+
   async function handleBid() {
     if (onBid) {
       const ok = await onBid(auction.id, bid);
@@ -136,24 +187,19 @@ export default function AuctionDetail({
   }
 
   return (
-    <div className="min-h-dvh bg-cream pb-10">
+    <div className={`min-h-dvh bg-cream ${showStickyBar ? "pb-28 md:pb-10" : "pb-10"}`}>
       <header className="flex items-center gap-3 border-b-4 border-forest-mid bg-forest-deep px-5 py-4">
         <button onClick={onBack} className="text-cream/80 hover:text-paper focus:outline-none">
           <ArrowLeft size={20} />
         </button>
         <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
-        {viewerCount > 1 && auction.status === "live" && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-bold text-cream/70">
-            <Users size={13} /> {viewerCount} viendo ahora
-          </span>
-        )}
       </header>
 
       <div className="px-5 pt-5 md:mx-auto md:flex md:max-w-4xl md:items-start md:gap-8 md:px-8">
-        <div className="md:w-72 md:shrink-0">
+        <div className="md:w-96 md:shrink-0">
         <button
           onClick={() => photos.length > 0 && setLightboxOpen(true)}
-          className="mx-auto block w-52 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          className="mx-auto block w-64 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold md:w-full"
         >
           <CardArt label={auction.card} photoUrl={photos[activePhoto]} />
         </button>
@@ -176,7 +222,7 @@ export default function AuctionDetail({
 
         {lightboxOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-6"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-ink/90 p-6"
             onClick={() => setLightboxOpen(false)}
           >
             <button
@@ -185,7 +231,7 @@ export default function AuctionDetail({
             >
               <X size={18} />
             </button>
-            {photos.length > 1 && (
+            {photos.length > 1 && zoomScale === 1 && (
               <>
                 <button
                   onClick={(e) => {
@@ -210,12 +256,21 @@ export default function AuctionDetail({
             <img
               src={photos[activePhoto]}
               alt={auction.card}
-              className="max-h-full max-w-full rounded-lg object-contain shadow-card"
-              onClick={(e) => e.stopPropagation()}
+              className="max-h-full max-w-full touch-none rounded-lg object-contain shadow-card transition-transform duration-100"
+              style={{ transform: `scale(${zoomScale})` }}
+              onClick={handleImageTap}
+              onTouchStart={handlePinchStart}
+              onTouchMove={handlePinchMove}
+              onTouchEnd={handlePinchEnd}
             />
             {photos.length > 1 && (
               <span className="absolute bottom-6 rounded-full bg-ink/60 px-2.5 py-1 text-[11px] font-bold text-paper">
                 {activePhoto + 1} / {photos.length}
+              </span>
+            )}
+            {zoomScale === 1 && (
+              <span className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 text-[10px] text-paper/70 sm:block">
+                Pellizcá para hacer zoom, o doble tap
               </span>
             )}
           </div>
@@ -251,6 +306,53 @@ export default function AuctionDetail({
               </button>
             </div>
           )}
+        </div>
+
+        {/* Precio, tiempo restante y prueba social — lo primero que hace
+            falta para decidir si quedarse, arriba de todo lo secundario. */}
+        <div className="mt-4 rounded-xl border-2 border-ink bg-paper p-4 shadow-card">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block text-[10px] font-bold uppercase tracking-wide text-ink-soft">
+                {auction.isSaleOnly || auction.isFreeClaim ? "Precio" : "Puja actual"}
+              </span>
+              <span className="text-[28px] font-extrabold leading-none text-forest-deep">
+                {auction.isFreeClaim ? "Gratis" : formatPrice(auction.currentBid, auction.currency)}
+              </span>
+            </div>
+            {auction.status === "live" ? (
+              <div
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 font-pixel text-[11px] ${
+                  urgent ? "animate-pulse bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
+                }`}
+              >
+                <Clock size={13} />
+                {formatCountdown(auction.closesInSec)}
+              </div>
+            ) : (
+              <span className="shrink-0 rounded-lg border-2 border-line px-3 py-2 text-[11px] font-bold text-ink-soft">
+                Cerrada
+              </span>
+            )}
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t-2 border-line pt-2.5 text-[11px]">
+            {viewerCount > 1 && auction.status === "live" && (
+              <span className="flex items-center gap-1 font-bold text-forest-deep">
+                <Users size={13} /> {viewerCount} viendo ahora
+              </span>
+            )}
+            {auction.isFreeClaim ? (
+              <span className="text-ink-soft">{auction.freeClaimCount} reclamos</span>
+            ) : (
+              !auction.isSaleOnly && <span className="text-ink-soft">{auction.bids} pujas</span>
+            )}
+            {auction.status === "live" && auction.reservePrice != null && (
+              <span className={`font-bold ${reserveMet ? "text-forest-deep" : "text-[#B9432C]"}`}>
+                {reserveMet ? "Reserva alcanzada" : "No alcanzó la reserva todavía"}
+                {isMine && ` (${formatPrice(auction.reservePrice, auction.currency)})`}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -325,41 +427,7 @@ export default function AuctionDetail({
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap gap-6">
-          <div>
-            <span className="block text-[10px] text-ink-soft">{auction.isSaleOnly || auction.isFreeClaim ? "PRECIO" : "PUJA ACTUAL"}</span>
-            <span className="text-lg font-extrabold text-forest-deep">
-              {auction.isFreeClaim ? "GRATIS" : formatPrice(auction.currentBid, auction.currency)}
-            </span>
-          </div>
-          <div>
-            <span className="block text-[10px] text-ink-soft">TERMINA EN</span>
-            <span className={`text-lg font-extrabold ${auction.closesInSec <= 600 ? "text-[#B9432C]" : "text-ink"}`}>
-              {formatCountdown(auction.closesInSec)}
-            </span>
-          </div>
-          {auction.isFreeClaim ? (
-            <div>
-              <span className="block text-[10px] text-ink-soft">RECLAMOS</span>
-              <span className="text-lg font-extrabold text-ink">{auction.freeClaimCount}</span>
-            </div>
-          ) : (
-            !auction.isSaleOnly && (
-              <div>
-                <span className="block text-[10px] text-ink-soft">PUJAS</span>
-                <span className="text-lg font-extrabold text-ink">{auction.bids}</span>
-              </div>
-            )
-          )}
-        </div>
-
-        {auction.status === "live" && auction.reservePrice != null && (
-          <p className={`mt-2 text-[11px] font-bold ${reserveMet ? "text-forest-deep" : "text-[#B9432C]"}`}>
-            {reserveMet ? "Reserva alcanzada" : "Todavía no se alcanzó el precio mínimo del vendedor"}
-            {isMine && ` (${formatPrice(auction.reservePrice, auction.currency)})`}
-          </p>
-        )}
-
+        <div ref={actionRef}>
         {isMine ? (
           <div className="mt-6 rounded-xl border-2 border-line bg-paper p-4 text-[12px] text-ink-soft">
             <p>
@@ -523,6 +591,25 @@ export default function AuctionDetail({
                 Pujar
               </button>
             </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {[0, 4, 9].map((extra) => {
+                const value = minBid + extra * bidIncrement;
+                return (
+                  <button
+                    key={extra}
+                    type="button"
+                    onClick={() => setBid(value)}
+                    className={`rounded-lg border-2 px-3 py-1.5 text-[12px] font-bold transition ${
+                      bid === value
+                        ? "border-gold bg-gold/15 text-gold-dark"
+                        : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+                    }`}
+                  >
+                    {extra === 0 ? "Mínimo" : `+${formatPrice(extra * bidIncrement, auction.currency)}`}
+                  </button>
+                );
+              })}
+            </div>
             {bidError && <p className="mt-2 text-[12px] text-[#B9432C]">{bidError}</p>}
 
             {auction.buyNowPrice != null && onBuyNow && (
@@ -555,6 +642,7 @@ export default function AuctionDetail({
             )}
           </div>
         )}
+        </div>
 
         {bidHistory.length > 0 && (
           <div className="mt-6">
@@ -659,6 +747,34 @@ export default function AuctionDetail({
         )}
         </div>
       </div>
+
+      {showStickyBar && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-paper/95 px-4 py-3 shadow-[0_-4px_12px_rgba(32,41,28,0.15)] backdrop-blur md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="block text-[9px] font-bold uppercase tracking-wide text-ink-soft">
+                {auction.isSaleOnly || auction.isFreeClaim ? "Precio" : "Puja actual"}
+              </span>
+              <span className="text-[17px] font-extrabold leading-none text-forest-deep">
+                {auction.isFreeClaim ? "Gratis" : formatPrice(auction.currentBid, auction.currency)}
+              </span>
+            </div>
+            <span
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 font-pixel text-[9px] ${
+                urgent ? "animate-pulse bg-[#FBE6E0] text-[#B9432C]" : "bg-[#EFE6F5] text-plum"
+              }`}
+            >
+              {formatCountdown(auction.closesInSec)}
+            </span>
+            <button
+              onClick={() => actionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              className="shrink-0 rounded-lg bg-gold px-4 py-2.5 text-[12px] font-extrabold text-forest-deep shadow-[0_3px_0_rgba(185,134,47,1)] transition active:translate-y-[2px] active:shadow-none"
+            >
+              {auction.isFreeClaim ? "Reclamar" : auction.isSaleOnly ? "Comprar" : "Pujar"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
