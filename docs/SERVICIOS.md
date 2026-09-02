@@ -41,16 +41,14 @@ preguntar todo por WhatsApp.
 - **Qué hace:** SMTP para dos cosas: (1) los códigos de login (OTP) que
   manda Supabase Auth, y (2) el email al vendedor cuando le hacen claim a
   una carta (`supabase/functions/notify-claim`).
-- **Cuenta:** _completar._
-- **Credenciales:** `RESEND_API_KEY` — secret de la Edge Function
-  `notify-claim` en Supabase (Project Settings → Edge Functions →
-  Secrets), y configurado también como SMTP custom en Supabase Auth
-  (Project Settings → Auth → SMTP Settings).
-- **Estado del dominio de envío:** _completar — confirmar si ya se
-  verificó un dominio propio en Resend, o si todavía se depende del
-  remitente compartido `onboarding@resend.dev` (que solo entrega a la
-  cuenta dueña de Resend, no sirve para usuarios reales — ver
-  `PLAN_PRODUCCION.md`)._
+- **Cuenta:** la del dueño del proyecto — ya tiene dominio propio
+  verificado (se confirmó al probar el envío del email de claim).
+- **Credenciales:** `RESEND_API_KEY` — cargada como secret de la Edge
+  Function `notify-claim` en Supabase (2026-09-02), y configurada
+  también como SMTP custom en Supabase Auth para los códigos de login.
+- **Estado del dominio de envío:** verificado — el remitente
+  `notificaciones@ciudadazulona.com` entrega a cualquier casilla, no
+  depende del remitente compartido `onboarding@resend.dev`.
 - **Dónde se administra:** [resend.com](https://resend.com)
 
 ## Google AI Studio (Gemini) — reconocimiento de carta por foto
