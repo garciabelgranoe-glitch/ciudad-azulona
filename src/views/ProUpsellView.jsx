@@ -40,8 +40,11 @@ export default function ProUpsellView({ onBack, onOpenSuggestions }) {
               href={PRO_ANNUAL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-gold py-2.5 text-center text-[12px] font-extrabold text-forest-deep transition hover:bg-gold-glow"
+              className="relative rounded-lg bg-forest-deep pb-2.5 pt-4 text-center text-[12px] font-extrabold text-gold-glow shadow-[0_3px_0_rgba(18,51,31,1)] transition hover:bg-[#204f37] active:translate-y-[2px] active:shadow-none"
             >
+              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-forest-deep">
+                Mejor precio
+              </span>
               Anual (ahorrás 2 meses)
               <br />
               $100.000/año
