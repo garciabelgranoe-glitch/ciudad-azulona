@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { ArrowLeft, Check, QrCode, Star } from "lucide-react";
+import { ArrowLeft, Check, QrCode, Star, MessageCircle } from "lucide-react";
 import GenderIcon from "../components/GenderIcon";
 import { formatPrice } from "../lib/format";
 import Pill from "../components/ui/Pill";
 import PickupInfoText from "../components/ui/PickupInfoText";
+
+// Normaliza a como espera wa.me: solo dígitos, con 549 adelante si todavía
+// no lo tiene (mismo formato que ya se usa en el resto de la app).
+function buildWhatsappLink(phone, message) {
+  const digits = phone.replace(/\D/g, "");
+  const normalized = digits.startsWith("54") ? digits : `549${digits}`;
+  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
 
 // Vista: Ticket de retiro (signature element)
 export default function TicketView({ ticket, onBack, onMarkDelivered, busy = false, showRatingPrompt = false, onSubmitRating, ratingBusy = false, onOpenUserProfile }) {
@@ -99,7 +107,17 @@ export default function TicketView({ ticket, onBack, onMarkDelivered, busy = fal
           <div className="mx-auto mt-6 max-w-sm rounded-lg border-2 border-line bg-paper p-3 text-[12px] leading-relaxed text-ink-soft">
             <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-soft">Cómo contactar al comprador</p>
             {ticket.buyerContactPhone ? (
-              <>Teléfono: <span className="font-bold text-ink">{ticket.buyerContactPhone}</span></>
+              <a
+                href={buildWhatsappLink(
+                  ticket.buyerContactPhone,
+                  `Hola ${ticket.buyer}! Te contacto por la compra de "${ticket.card}" en Ciudad Azulona para coordinar la entrega.`
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-bold text-forest-deep underline decoration-line decoration-dotted underline-offset-2 hover:text-forest-mid"
+              >
+                <MessageCircle size={14} /> {ticket.buyerContactPhone}
+              </a>
             ) : (
               <>Todavía no cargó un teléfono de contacto — podés escribirle desde su perfil o coordinar con el código al retirar.</>
             )}
