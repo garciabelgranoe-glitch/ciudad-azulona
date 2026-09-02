@@ -5,6 +5,7 @@ import { MAX_PHOTOS, DURATION_OPTIONS } from "../lib/auctions";
 // Vista: Publicar lote (Premium) — varias cartas sueltas, cada una
 // con su propia descripción y precio, en una sola publicación.
 export default function CreateLotView({ onBack, onCreate, busy = false, busyText = "", error = "" }) {
+  const [mode, setMode] = useState("rapido"); // rapido | detallado
   const [title, setTitle] = useState("");
   const [currency, setCurrency] = useState("ARS");
   const [description, setDescription] = useState("");
@@ -12,6 +13,7 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
   const [duration, setDuration] = useState(1440);
   const [items, setItems] = useState([{ description: "", price: "" }, { description: "", price: "" }]);
   const [fullPrice, setFullPrice] = useState("");
+  const [quickPrice, setQuickPrice] = useState("");
   const [photoConverting, setPhotoConverting] = useState(false);
   const [photoError, setPhotoError] = useState("");
 
@@ -65,7 +67,12 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
   }
 
   const validItems = items.filter((it) => it.description.trim() && Number(it.price) > 0);
-  const canPublish = title.trim() && photos.length > 0 && validItems.length >= 2 && !busy && !photoConverting;
+  const canPublish =
+    title.trim() &&
+    photos.length > 0 &&
+    !busy &&
+    !photoConverting &&
+    (mode === "rapido" ? Number(quickPrice) > 0 : validItems.length >= 2);
 
   const inputClass =
     "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[14px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
@@ -82,7 +89,8 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
 
       <div className="space-y-4 px-5 pt-6">
         <p className="rounded-lg border-2 border-gold/40 bg-gold/10 px-3 py-2.5 text-[12px] leading-relaxed text-ink-soft">
-          Cada carta que cargues abajo se publica con su propio precio — quien la quiera la claimea directo, sin pujas.
+          Publicá varias cartas juntas, sin pujas — con un precio único y rápido, o cargando cada carta por
+          separado si preferís que se puedan claimear una por una.
         </p>
 
         <div>
@@ -124,6 +132,39 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
         </div>
 
         <div>
+          <label className={labelClass}>Cómo querés cargar el precio</label>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("rapido")}
+              className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                mode === "rapido"
+                  ? "border-gold bg-gold/15 text-gold-dark"
+                  : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+              }`}
+            >
+              Precio único (rápido)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("detallado")}
+              className={`rounded-lg border-2 py-2.5 text-[12px] font-bold transition ${
+                mode === "detallado"
+                  ? "border-gold bg-gold/15 text-gold-dark"
+                  : "border-line bg-paper text-ink-soft hover:border-forest-mid"
+              }`}
+            >
+              Cada carta por separado
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] text-ink-soft">
+            {mode === "rapido"
+              ? "Un solo precio para todo el lote — se publica como una única publicación."
+              : "Cada carta con su propia descripción y precio, para que se puedan claimear por separado."}
+          </p>
+        </div>
+
+        <div>
           <label className={labelClass}>Descripción general (opcional)</label>
           <textarea
             value={description}
@@ -158,56 +199,74 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
           {photoError && <p className="mt-1.5 text-[11px] text-[#B9432C]">{photoError}</p>}
         </div>
 
-        <div>
-          <label className={labelClass}>Cartas incluidas (mínimo 2, hasta 10)</label>
-          <div className="mt-1.5 flex flex-col gap-2">
-            {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input
-                  value={item.description}
-                  onChange={(e) => updateItem(i, "description", e.target.value)}
-                  placeholder={`Ej: Charizard NM, alt art, 2023`}
-                  className="min-w-0 flex-1 rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
-                />
-                <input
-                  type="number"
-                  value={item.price}
-                  onChange={(e) => updateItem(i, "price", e.target.value)}
-                  placeholder={currency === "USD" ? "U$S" : "$"}
-                  className="w-24 shrink-0 rounded-lg border-2 border-line bg-white px-2.5 py-2.5 text-[13px] font-bold text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
-                />
-                {items.length > 2 && (
-                  <button onClick={() => removeItem(i)} className="shrink-0 text-ink-soft hover:text-[#B9432C]">
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
+        {mode === "rapido" ? (
+          <div>
+            <label className={labelClass}>Precio de todo el lote</label>
+            <input
+              type="number"
+              value={quickPrice}
+              onChange={(e) => setQuickPrice(e.target.value)}
+              placeholder={currency === "USD" ? "Ej: U$S 50 por todo el lote" : "Ej: $50.000 por todo el lote"}
+              className={inputClass}
+            />
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Se publica como una única carta/lote — quien lo quiera lo claimea directo, sin pujas.
+            </p>
           </div>
-          {items.length < 10 && (
-            <button
-              onClick={addItem}
-              className="mt-2 flex items-center gap-1 text-[12px] font-bold text-forest-deep underline underline-offset-2"
-            >
-              <Plus size={13} /> Agregar otra carta
-            </button>
-          )}
-        </div>
+        ) : (
+          <>
+            <div>
+              <label className={labelClass}>Cartas incluidas (mínimo 2, hasta 10)</label>
+              <div className="mt-1.5 flex flex-col gap-2">
+                {items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      value={item.description}
+                      onChange={(e) => updateItem(i, "description", e.target.value)}
+                      placeholder={`Ej: Charizard NM, alt art, 2023`}
+                      className="min-w-0 flex-1 rounded-lg border-2 border-line bg-white px-3 py-2.5 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+                    />
+                    <input
+                      type="number"
+                      value={item.price}
+                      onChange={(e) => updateItem(i, "price", e.target.value)}
+                      placeholder={currency === "USD" ? "U$S" : "$"}
+                      className="w-24 shrink-0 rounded-lg border-2 border-line bg-white px-2.5 py-2.5 text-[13px] font-bold text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid"
+                    />
+                    {items.length > 2 && (
+                      <button onClick={() => removeItem(i)} className="shrink-0 text-ink-soft hover:text-[#B9432C]">
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {items.length < 10 && (
+                <button
+                  onClick={addItem}
+                  className="mt-2 flex items-center gap-1 text-[12px] font-bold text-forest-deep underline underline-offset-2"
+                >
+                  <Plus size={13} /> Agregar otra carta
+                </button>
+              )}
+            </div>
 
-        <div>
-          <label className={labelClass}>Precio por el lote completo (opcional)</label>
-          <input
-            type="number"
-            value={fullPrice}
-            onChange={(e) => setFullPrice(e.target.value)}
-            placeholder={currency === "USD" ? "Ej: U$S 50 por todo el lote" : "Ej: $50.000 por todo el lote"}
-            className={inputClass}
-          />
-          <p className="mt-1 text-[11px] text-ink-soft">
-            Si lo cargás, además de vender cada carta suelta alguien va a poder llevarse el lote entero por
-            este precio — pero solo mientras esté 100% completo (ninguna carta vendida todavía).
-          </p>
-        </div>
+            <div>
+              <label className={labelClass}>Precio por el lote completo (opcional)</label>
+              <input
+                type="number"
+                value={fullPrice}
+                onChange={(e) => setFullPrice(e.target.value)}
+                placeholder={currency === "USD" ? "Ej: U$S 50 por todo el lote" : "Ej: $50.000 por todo el lote"}
+                className={inputClass}
+              />
+              <p className="mt-1 text-[11px] text-ink-soft">
+                Si lo cargás, además de vender cada carta suelta alguien va a poder llevarse el lote entero por
+                este precio — pero solo mientras esté 100% completo (ninguna carta vendida todavía).
+              </p>
+            </div>
+          </>
+        )}
 
         <div>
           <label className={labelClass}>Dura</label>
@@ -238,7 +297,10 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
               description: description.trim(),
               photoFiles: photos.map((p) => p.file),
               durationMinutes: duration,
-              items: validItems.map((it) => ({ description: it.description.trim(), price: Number(it.price) })),
+              items:
+                mode === "rapido"
+                  ? [{ description: description.trim() || title.trim(), price: Number(quickPrice) }]
+                  : validItems.map((it) => ({ description: it.description.trim(), price: Number(it.price) })),
               fullPrice: fullPrice ? Number(fullPrice) : null,
             })
           }
@@ -247,7 +309,7 @@ export default function CreateLotView({ onBack, onCreate, busy = false, busyText
           {busy && <Loader2 size={15} className="animate-spin" />}
           {busy ? busyText || "Publicando..." : "Publicar lote"}
         </button>
-        {validItems.length < 2 && (
+        {mode === "detallado" && validItems.length < 2 && (
           <p className="text-center text-[11px] text-ink-soft">Cargá al menos 2 cartas con descripción y precio.</p>
         )}
       </div>
