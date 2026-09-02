@@ -96,6 +96,7 @@ import {
   listBlogPosts,
   createBlogPost,
   setBlogPostPublished,
+  updateBlogPost,
   deleteBlogPost,
   listWhatsappCommunities,
   createWhatsappCommunity,
@@ -239,6 +240,9 @@ function AdminPanel({
   createBlogError,
   onToggleBlogPublished,
   onDeleteBlogPost,
+  onUpdateBlogPost,
+  editBlogBusyId,
+  editBlogError,
   blogBusyId,
   giveaways,
   onCreateGiveaway,
@@ -348,6 +352,9 @@ function AdminPanel({
             createError={createBlogError}
             onTogglePublished={onToggleBlogPublished}
             onDelete={onDeleteBlogPost}
+            onUpdate={onUpdateBlogPost}
+            editBusyId={editBlogBusyId}
+            editError={editBlogError}
             busyId={blogBusyId}
           />
         )}
@@ -515,6 +522,8 @@ export default function App() {
   const [createBlogBusy, setCreateBlogBusy] = useState(false);
   const [createBlogError, setCreateBlogError] = useState("");
   const [blogBusyId, setBlogBusyId] = useState(null);
+  const [editBlogBusyId, setEditBlogBusyId] = useState(null);
+  const [editBlogError, setEditBlogError] = useState("");
   const [giveaways, setGiveaways] = useState([]);
   const [myGiveawayEntryIds, setMyGiveawayEntryIds] = useState(new Set());
   const [createGiveawayBusy, setCreateGiveawayBusy] = useState(false);
@@ -1239,6 +1248,21 @@ export default function App() {
     }
   }
 
+  async function handleUpdateBlogPost(id, fields) {
+    setEditBlogBusyId(id);
+    setEditBlogError("");
+    try {
+      const row = await updateBlogPost(id, fields);
+      setBlogPosts((rows) => rows.map((p) => (p.id === id ? row : p)));
+      return true;
+    } catch (e) {
+      setEditBlogError(e.message);
+      return false;
+    } finally {
+      setEditBlogBusyId(null);
+    }
+  }
+
   async function handleToggleBlogPublished(id, isPublished) {
     setBlogBusyId(id);
     try {
@@ -1671,6 +1695,9 @@ export default function App() {
           createBlogError={createBlogError}
           onToggleBlogPublished={handleToggleBlogPublished}
           onDeleteBlogPost={handleDeleteBlogPost}
+          onUpdateBlogPost={handleUpdateBlogPost}
+          editBlogBusyId={editBlogBusyId}
+          editBlogError={editBlogError}
           blogBusyId={blogBusyId}
           giveaways={giveaways}
           onCreateGiveaway={handleCreateGiveaway}

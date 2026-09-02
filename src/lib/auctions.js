@@ -737,6 +737,17 @@ export async function setBlogPostPublished(id, isPublished) {
   if (error) throw error;
 }
 
+export async function updateBlogPost(id, { title, body, category, photoUrl }) {
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .update({ title, body, category, ...(photoUrl !== undefined ? { photo_url: photoUrl || null } : {}) })
+    .eq("id", id)
+    .select("id, title, body, photo_url, category, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteBlogPost(id) {
   const { error } = await supabase.from("blog_posts").delete().eq("id", id);
   if (error) throw error;
