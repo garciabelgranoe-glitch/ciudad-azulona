@@ -1209,11 +1209,11 @@ export default function App() {
     }
   }
 
-  async function handleCreateBlogPost({ title, body, photoUrl }) {
+  async function handleCreateBlogPost({ title, body, photoUrl, category }) {
     setCreateBlogBusy(true);
     setCreateBlogError("");
     try {
-      const row = await createBlogPost({ title, body, photoUrl, authorId: auth.session.user.id });
+      const row = await createBlogPost({ title, body, photoUrl, category, authorId: auth.session.user.id });
       setBlogPosts((rows) => [row, ...rows]);
       return true;
     } catch (e) {

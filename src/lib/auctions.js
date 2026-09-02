@@ -38,6 +38,20 @@ export const REFERENCE_PRICE_SOURCE_LABEL = Object.fromEntries(
   REFERENCE_PRICE_SOURCE_OPTIONS.map((o) => [o.value, o.label])
 );
 
+export const BLOG_CATEGORY_OPTIONS = [
+  { value: "general", label: "General" },
+  { value: "novedades_plataforma", label: "Novedades de la plataforma" },
+  { value: "nuevas_colecciones", label: "Nuevas colecciones y sets" },
+  { value: "mercado_precios", label: "Mercado y precios" },
+  { value: "eventos_torneos", label: "Eventos y torneos" },
+  { value: "tips_coleccionismo", label: "Tips de coleccionismo" },
+  { value: "historias_comunidad", label: "Historias de la comunidad" },
+];
+
+export const BLOG_CATEGORY_LABEL = Object.fromEntries(
+  BLOG_CATEGORY_OPTIONS.map((o) => [o.value, o.label])
+);
+
 export const LANGUAGE_OPTIONS = [
   { value: "es", label: "Español" },
   { value: "en", label: "Inglés" },
@@ -702,17 +716,17 @@ export async function listBlogPosts() {
   // RLS: admins ven todo (publicado y no), el resto solo lo publicado.
   const { data, error } = await supabase
     .from("blog_posts")
-    .select("id, title, body, photo_url, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .select("id, title, body, photo_url, category, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
 }
 
-export async function createBlogPost({ title, body, authorId, photoUrl }) {
+export async function createBlogPost({ title, body, authorId, photoUrl, category }) {
   const { data, error } = await supabase
     .from("blog_posts")
-    .insert({ title, body, author_id: authorId, photo_url: photoUrl || null })
-    .select("id, title, body, photo_url, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
+    .insert({ title, body, author_id: authorId, photo_url: photoUrl || null, category: category || "general" })
+    .select("id, title, body, photo_url, category, is_published, created_at, author:profiles!blog_posts_author_id_fkey ( alias )")
     .single();
   if (error) throw error;
   return data;

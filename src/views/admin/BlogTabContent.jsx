@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
-import { uploadAuctionPhoto } from "../../lib/auctions";
+import { uploadAuctionPhoto, BLOG_CATEGORY_OPTIONS, BLOG_CATEGORY_LABEL } from "../../lib/auctions";
 
 export default function BlogTabContent({ posts, onCreate, createBusy, createError, onTogglePublished, onDelete, busyId }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [category, setCategory] = useState("general");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -35,10 +36,11 @@ export default function BlogTabContent({ posts, onCreate, createBusy, createErro
       }
       setUploadingPhoto(false);
     }
-    const ok = await onCreate({ title, body, photoUrl });
+    const ok = await onCreate({ title, body, photoUrl, category });
     if (ok) {
       setTitle("");
       setBody("");
+      setCategory("general");
       setPhotoFile(null);
       setPhotoPreview(null);
     }
@@ -56,6 +58,14 @@ export default function BlogTabContent({ posts, onCreate, createBusy, createErro
           <div>
             <label className={labelClass}>Texto</label>
             <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Categoría</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
+              {BLOG_CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={labelClass}>Imagen (opcional)</label>
@@ -93,6 +103,8 @@ export default function BlogTabContent({ posts, onCreate, createBusy, createErro
                   <p className="line-clamp-2 text-[11px] text-ink-soft">{p.body}</p>
                   <p className="mt-1 text-[10px] text-ink-soft">
                     {new Date(p.created_at).toLocaleDateString("es-AR")}
+                    {" · "}
+                    {BLOG_CATEGORY_LABEL[p.category] ?? BLOG_CATEGORY_LABEL.general}
                   </p>
                 </div>
               </div>
