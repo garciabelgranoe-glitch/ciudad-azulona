@@ -117,6 +117,7 @@ import {
   setPickupPointActive,
   deletePickupPoint,
   createSuggestion,
+  logPageView,
   listSuggestionsForAdmin,
   setSuggestionStatus,
   getTopSellers,
@@ -473,6 +474,13 @@ export default function App() {
   // dejaba caído en esa misma posición en vez de arrancar arriba.
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [view]);
+
+  // Analytics livianos para el panel de métricas admin — una fila por
+  // pantalla vista, sin bloquear ni afectar la navegación si falla.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    logPageView(view.name, auth.session?.user?.id).catch(() => {});
   }, [view]);
 
   const [auctions, setAuctions] = useState(SEED_AUCTIONS);

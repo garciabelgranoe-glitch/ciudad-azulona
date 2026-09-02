@@ -874,7 +874,18 @@ export async function getAdminDailyMetrics(days = 30) {
     salesCount: Number(row.sales_count),
     gmvArs: Number(row.gmv_ars),
     gmvUsd: Number(row.gmv_usd),
+    bidsCount: Number(row.bids_count ?? 0),
+    reactionsCount: Number(row.reactions_count ?? 0),
+    favoritesCount: Number(row.favorites_count ?? 0),
+    pageViewsCount: Number(row.page_views_count ?? 0),
   }));
+}
+
+// Analytics liviano y anónimo: una fila por cambio de pantalla, sin
+// bloquear la navegación si falla (ver logPageView en App.jsx).
+export async function logPageView(viewName, userId) {
+  const { error } = await supabase.from("page_views").insert({ view_name: viewName, user_id: userId || null });
+  if (error) throw error;
 }
 
 export async function createSuggestion(userId, message) {
