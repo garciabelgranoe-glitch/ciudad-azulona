@@ -423,6 +423,18 @@ export default function App() {
   const isPoppingRef = useRef(false);
   const isFirstHistoryRender = useRef(true);
 
+  // El navegador, por defecto, intenta restaurar el scroll de una entrada
+  // de historial por su cuenta (scrollRestoration "auto") — como manejamos
+  // el historial a mano con pushState, eso compite con nuestro propio
+  // scrollTo(0,0) de abajo y a veces gana, dejando la página abierta a
+  // mitad de camino en vez de arriba del todo. Lo desactivamos una sola
+  // vez para que el control quede 100% en nuestras manos.
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
   // Sincroniza todo lo que decide "qué pantalla se ve" (view, y también
   // enteredLanding/showLegal que viven fuera del view state machine) con
   // el historial del navegador: cada cambio pushea una entrada, y "atrás"
