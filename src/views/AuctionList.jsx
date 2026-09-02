@@ -8,6 +8,13 @@ import GuaranteedSellersBanner from "../components/ui/GuaranteedSellersBanner";
 import LotsRow from "../components/ui/LotsRow";
 import AuctionCard from "../components/ui/AuctionCard";
 
+const MODE_TABS = [
+  { value: "todas", label: "Todas" },
+  { value: "subasta", label: "Subastas" },
+  { value: "venta", label: "Venta directa" },
+  { value: "free", label: "Free claims" },
+];
+
 // Vista: Lista de subastas
 export default function AuctionList({
   auctions,
@@ -45,6 +52,7 @@ export default function AuctionList({
   onOpenLot,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [modeFilter, setModeFilter] = useState("todas");
   const [showFilters, setShowFilters] = useState(false);
   const [filterSet, setFilterSet] = useState("");
   const [filterRarity, setFilterRarity] = useState("");
@@ -68,6 +76,15 @@ export default function AuctionList({
     ? auctions.filter((a) => a.card.toLowerCase().includes(searchTerm.toLowerCase()))
     : auctions;
   let filtered = featuredOnly ? bySearch.filter((a) => a.isFeatured) : bySearch;
+  const modeCounts = {
+    todas: filtered.length,
+    subasta: filtered.filter((a) => !a.isSaleOnly && !a.isFreeClaim).length,
+    venta: filtered.filter((a) => a.isSaleOnly).length,
+    free: filtered.filter((a) => a.isFreeClaim).length,
+  };
+  if (modeFilter === "subasta") filtered = filtered.filter((a) => !a.isSaleOnly && !a.isFreeClaim);
+  if (modeFilter === "venta") filtered = filtered.filter((a) => a.isSaleOnly);
+  if (modeFilter === "free") filtered = filtered.filter((a) => a.isFreeClaim);
   if (filterSet) filtered = filtered.filter((a) => a.setName === filterSet);
   if (filterRarity) filtered = filtered.filter((a) => a.rarity === filterRarity);
   if (filterCondition) filtered = filtered.filter((a) => a.condition === filterCondition);
@@ -152,18 +169,37 @@ export default function AuctionList({
               <h1 className="mt-2 text-2xl font-extrabold text-paper">Plaza Azulona</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-forest-light/40 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-cream">
+              <span className="inline-flex items-center gap-1.5 px-1 text-[11px] font-bold text-cream/60">
                 <span className="h-1.5 w-1.5 rounded-full bg-forest-light" /> {auctions.length} activas
               </span>
               <button
                 onClick={() => setFeaturedOnly((f) => !f)}
+                aria-pressed={featuredOnly}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
-                  featuredOnly ? "border-plum bg-plum/30 text-cream" : "border-forest-light/40 bg-white/10 text-cream/80"
+                  featuredOnly
+                    ? "border-plum bg-plum/30 text-cream shadow-[0_0_0_1px_rgba(139,94,158,0.5)]"
+                    : "border-forest-light/40 bg-white/10 text-cream/80 hover:border-forest-light/70"
                 }`}
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-plum" /> Destacadas
               </button>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {MODE_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setModeFilter(tab.value)}
+                className={`rounded-lg border px-3 py-1.5 text-[12px] font-bold transition ${
+                  modeFilter === tab.value
+                    ? "border-gold bg-gold/20 text-gold"
+                    : "border-white/20 bg-white/10 text-cream/80 hover:border-white/40"
+                }`}
+              >
+                {tab.label} <span className={modeFilter === tab.value ? "text-gold/70" : "text-cream/50"}>({modeCounts[tab.value]})</span>
+              </button>
+            ))}
           </div>
 
           {onSearchChange && (
