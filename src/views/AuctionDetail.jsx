@@ -195,8 +195,8 @@ export default function AuctionDetail({
         <p className="font-pixel text-[9px] tracking-wide text-gold">DETALLE DE SUBASTA</p>
       </header>
 
-      <div className="px-5 pt-5 md:mx-auto md:flex md:max-w-4xl md:items-start md:gap-8 md:px-8">
-        <div className="md:w-96 md:shrink-0">
+      <div className="px-5 pt-5 md:mx-auto md:flex md:max-w-6xl md:items-start md:gap-8 md:px-8">
+        <div className="md:w-[28rem] md:shrink-0">
         <button
           onClick={() => photos.length > 0 && setLightboxOpen(true)}
           className="mx-auto block w-64 overflow-hidden rounded-lg border-2 border-ink shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-gold md:w-full"
@@ -208,14 +208,18 @@ export default function AuctionDetail({
         )}
 
         {photos.length > 1 && (
-          <div className="mx-auto mt-2 flex w-40 justify-center gap-1.5">
+          <div className="mx-auto mt-3 flex max-w-xs flex-wrap justify-center gap-2 md:max-w-none">
             {photos.map((url, i) => (
               <button
                 key={url}
                 onClick={() => setActivePhoto(i)}
-                className={`h-2 w-2 rounded-full transition ${i === activePhoto ? "bg-forest-mid" : "bg-line"}`}
+                className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                  i === activePhoto ? "border-forest-mid ring-2 ring-forest-mid/40" : "border-line opacity-60 hover:opacity-100"
+                }`}
                 aria-label={`Foto ${i + 1}`}
-              />
+              >
+                <img src={url} alt="" className="h-full w-full object-cover" />
+              </button>
             ))}
           </div>
         )}
