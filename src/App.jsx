@@ -112,6 +112,7 @@ import {
   createRecommendedSeller,
   setRecommendedSellerActive,
   deleteRecommendedSeller,
+  updateRecommendedSeller,
   listPickupPoints,
   createPickupPoint,
   setPickupPointActive,
@@ -235,6 +236,9 @@ function AdminPanel({
   createRecommendedError,
   onToggleRecommendedActive,
   onDeleteRecommendedSeller,
+  onUpdateRecommendedSeller,
+  editRecommendedBusyId,
+  editRecommendedError,
   recommendedBusyId,
   onCreateBlogPost,
   createBlogBusy,
@@ -342,6 +346,9 @@ function AdminPanel({
             createError={createRecommendedError}
             onToggleActive={onToggleRecommendedActive}
             onDelete={onDeleteRecommendedSeller}
+            onUpdate={onUpdateRecommendedSeller}
+            editBusyId={editRecommendedBusyId}
+            editError={editRecommendedError}
             busyId={recommendedBusyId}
           />
         )}
@@ -560,6 +567,8 @@ export default function App() {
   const [createRecommendedBusy, setCreateRecommendedBusy] = useState(false);
   const [createRecommendedError, setCreateRecommendedError] = useState("");
   const [recommendedBusyId, setRecommendedBusyId] = useState(null);
+  const [editRecommendedBusyId, setEditRecommendedBusyId] = useState(null);
+  const [editRecommendedError, setEditRecommendedError] = useState("");
   const [topSellers, setTopSellers] = useState([]);
   const [topBuyers, setTopBuyers] = useState([]);
   const [adminSuggestions, setAdminSuggestions] = useState([]);
@@ -1218,6 +1227,21 @@ export default function App() {
     }
   }
 
+  async function handleUpdateRecommendedSeller(id, fields) {
+    setEditRecommendedBusyId(id);
+    setEditRecommendedError("");
+    try {
+      const row = await updateRecommendedSeller(id, fields);
+      setRecommendedSellers((rows) => rows.map((s) => (s.id === id ? row : s)));
+      return true;
+    } catch (e) {
+      setEditRecommendedError(e.message);
+      return false;
+    } finally {
+      setEditRecommendedBusyId(null);
+    }
+  }
+
   async function handleCreatePickupPoint(fields) {
     setCreatePickupPointBusy(true);
     setCreatePickupPointError("");
@@ -1709,6 +1733,9 @@ export default function App() {
           createRecommendedError={createRecommendedError}
           onToggleRecommendedActive={handleToggleRecommendedActive}
           onDeleteRecommendedSeller={handleDeleteRecommendedSeller}
+          onUpdateRecommendedSeller={handleUpdateRecommendedSeller}
+          editRecommendedBusyId={editRecommendedBusyId}
+          editRecommendedError={editRecommendedError}
           recommendedBusyId={recommendedBusyId}
           onCreateBlogPost={handleCreateBlogPost}
           createBlogBusy={createBlogBusy}

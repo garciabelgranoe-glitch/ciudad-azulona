@@ -2,7 +2,172 @@ import { useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { uploadAuctionPhoto } from "../../lib/auctions";
 
-export default function RecommendedSellersTabContent({ sellers, onCreate, createBusy, createError, onToggleActive, onDelete, busyId }) {
+const inputClass =
+  "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
+const labelClass = "text-[11px] font-bold text-ink-soft";
+
+function SellerRow({ seller: s, onToggleActive, onDelete, onUpdate, busy, editBusy, editError }) {
+  const [editing, setEditing] = useState(false);
+  const [businessName, setBusinessName] = useState(s.business_name);
+  const [description, setDescription] = useState(s.description ?? "");
+  const [contactInfo, setContactInfo] = useState(s.contact_info ?? "");
+  const [whatsappUrl, setWhatsappUrl] = useState(s.whatsapp_url ?? "");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+
+  function openEdit() {
+    setBusinessName(s.business_name);
+    setDescription(s.description ?? "");
+    setContactInfo(s.contact_info ?? "");
+    setWhatsappUrl(s.whatsapp_url ?? "");
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoError("");
+    setEditing(true);
+  }
+
+  function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  async function handleSave() {
+    setPhotoError("");
+    let photoUrl = s.photo_url ?? null;
+    if (photoFile) {
+      setUploadingPhoto(true);
+      try {
+        photoUrl = await uploadAuctionPhoto(photoFile);
+      } catch (e) {
+        setPhotoError(e.message);
+        setUploadingPhoto(false);
+        return;
+      }
+      setUploadingPhoto(false);
+    }
+    const ok = await onUpdate(s.id, { businessName, description, contactInfo, whatsappUrl, photoUrl });
+    if (ok) setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border-2 border-forest-mid bg-paper p-3">
+        <div className="space-y-2">
+          <div>
+            <label className={labelClass}>Nombre del comercio</label>
+            <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Descripción</label>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Link directo de WhatsApp (opcional)</label>
+            <input
+              value={whatsappUrl}
+              onChange={(e) => setWhatsappUrl(e.target.value)}
+              placeholder="Ej: https://wa.me/5491122334455"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Otro contacto (Instagram, etc. — opcional)</label>
+            <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Imagen (opcional)</label>
+            <div className="mt-1.5 flex items-center gap-2">
+              {(photoPreview || s.photo_url) && (
+                <img src={photoPreview || s.photo_url} alt="" className="h-14 w-14 rounded-lg border-2 border-line object-cover" />
+              )}
+              <label className="flex h-14 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-line bg-white text-[12px] text-ink-soft">
+                <ImageIcon size={14} /> Cambiar imagen
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              </label>
+            </div>
+          </div>
+          {(editError || photoError) && <p className="text-[11px] text-[#B9432C]">{editError || photoError}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={!businessName || editBusy || uploadingPhoto}
+              className="rounded-lg bg-forest-mid px-3 py-2 text-[12px] font-bold text-paper disabled:opacity-40"
+            >
+              {uploadingPhoto ? "Subiendo imagen..." : editBusy ? "Guardando..." : "Guardar cambios"}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              disabled={editBusy || uploadingPhoto}
+              className="rounded-lg border-2 border-line px-3 py-2 text-[12px] font-bold text-ink-soft"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-lg border-2 p-3 ${s.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 gap-2.5">
+          {s.photo_url && (
+            <img src={s.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border-2 border-line object-cover" />
+          )}
+          <div className="min-w-0">
+            <p className="text-[13px] font-extrabold text-ink">{s.business_name}</p>
+            {s.description && <p className="text-[11px] text-ink-soft">{s.description}</p>}
+            {s.whatsapp_url && <p className="text-[11px] font-bold text-[#128C4A]">{s.whatsapp_url}</p>}
+            {s.contact_info && <p className="text-[11px] font-bold text-forest-deep">{s.contact_info}</p>}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <button
+            onClick={openEdit}
+            className="rounded-lg border-2 border-line px-2.5 py-1 text-[11px] font-bold text-ink-soft"
+          >
+            Editar
+          </button>
+          <button
+            onClick={() => onToggleActive(s.id, !s.is_active)}
+            disabled={busy === s.id}
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:opacity-40 ${
+              s.is_active ? "border-2 border-line text-ink-soft" : "bg-forest-mid text-paper"
+            }`}
+          >
+            {s.is_active ? "Ocultar" : "Activar"}
+          </button>
+          <button
+            onClick={() => onDelete(s.id)}
+            disabled={busy === s.id}
+            className="rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
+          >
+            Borrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RecommendedSellersTabContent({
+  sellers,
+  onCreate,
+  createBusy,
+  createError,
+  onToggleActive,
+  onDelete,
+  onUpdate,
+  editBusyId,
+  editError,
+  busyId,
+}) {
   const [businessName, setBusinessName] = useState("");
   const [description, setDescription] = useState("");
   const [contactInfo, setContactInfo] = useState("");
@@ -11,9 +176,6 @@ export default function RecommendedSellersTabContent({ sellers, onCreate, create
   const [photoPreview, setPhotoPreview] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState("");
-  const inputClass =
-    "mt-1.5 w-full rounded-lg border-2 border-line bg-white px-3 py-2 text-[13px] font-medium text-ink placeholder:text-ink-soft/50 focus:outline-none focus-visible:border-forest-mid";
-  const labelClass = "text-[11px] font-bold text-ink-soft";
 
   function handlePhotoChange(e) {
     const file = e.target.files?.[0];
@@ -104,39 +266,16 @@ export default function RecommendedSellersTabContent({ sellers, onCreate, create
 
       <div className="space-y-2">
         {sellers.map((s) => (
-          <div key={s.id} className={`rounded-lg border-2 p-3 ${s.is_active ? "border-line bg-paper" : "border-line bg-cream-dark/40 opacity-70"}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 gap-2.5">
-                {s.photo_url && (
-                  <img src={s.photo_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border-2 border-line object-cover" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-[13px] font-extrabold text-ink">{s.business_name}</p>
-                  {s.description && <p className="text-[11px] text-ink-soft">{s.description}</p>}
-                  {s.whatsapp_url && <p className="text-[11px] font-bold text-[#128C4A]">{s.whatsapp_url}</p>}
-                  {s.contact_info && <p className="text-[11px] font-bold text-forest-deep">{s.contact_info}</p>}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-col gap-1.5">
-                <button
-                  onClick={() => onToggleActive(s.id, !s.is_active)}
-                  disabled={busyId === s.id}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:opacity-40 ${
-                    s.is_active ? "border-2 border-line text-ink-soft" : "bg-forest-mid text-paper"
-                  }`}
-                >
-                  {s.is_active ? "Ocultar" : "Activar"}
-                </button>
-                <button
-                  onClick={() => onDelete(s.id)}
-                  disabled={busyId === s.id}
-                  className="rounded-lg border-2 border-[#B9432C]/40 px-2.5 py-1 text-[11px] font-bold text-[#B9432C] disabled:opacity-40"
-                >
-                  Borrar
-                </button>
-              </div>
-            </div>
-          </div>
+          <SellerRow
+            key={s.id}
+            seller={s}
+            onToggleActive={onToggleActive}
+            onDelete={onDelete}
+            onUpdate={onUpdate}
+            busy={busyId}
+            editBusy={editBusyId === s.id}
+            editError={editBusyId === s.id ? editError : ""}
+          />
         ))}
         {sellers.length === 0 && <p className="text-[12px] text-ink-soft">Todavía no cargaste ningún comercio.</p>}
       </div>

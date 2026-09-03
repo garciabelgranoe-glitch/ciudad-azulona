@@ -671,6 +671,23 @@ export async function createRecommendedSeller({ businessName, description, conta
   return data;
 }
 
+export async function updateRecommendedSeller(id, { businessName, description, contactInfo, photoUrl, whatsappUrl }) {
+  const { data, error } = await supabase
+    .from("recommended_sellers")
+    .update({
+      business_name: businessName,
+      description: description || null,
+      contact_info: contactInfo || null,
+      photo_url: photoUrl || null,
+      whatsapp_url: whatsappUrl || null,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function setRecommendedSellerActive(id, isActive) {
   const { error } = await supabase.from("recommended_sellers").update({ is_active: isActive }).eq("id", id);
   if (error) throw error;
