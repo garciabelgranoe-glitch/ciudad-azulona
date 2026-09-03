@@ -186,12 +186,12 @@ export default function AuctionList({
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="-mx-5 mt-2.5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {MODE_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setModeFilter(tab.value)}
-                className={`rounded-lg border px-3 py-1.5 text-[12px] font-bold transition ${
+                className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[12px] font-bold transition ${
                   modeFilter === tab.value
                     ? "border-gold bg-gold/20 text-gold"
                     : "border-white/20 bg-white/10 text-cream/80 hover:border-white/40"
@@ -203,7 +203,7 @@ export default function AuctionList({
           </div>
 
           {onSearchChange && (
-            <div className="mt-3 flex items-center gap-2 sm:max-w-lg">
+            <div className="mt-2.5 flex items-center gap-2 sm:max-w-lg">
               <div className="relative flex-1">
                 <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/50" />
                 <input
