@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [profileLoading, setProfileLoading] = useState(false);
+  const lastProfileUserIdRef = useRef(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -29,8 +30,17 @@ export function AuthProvider({ children }) {
     if (!isSupabaseConfigured || !session?.user) {
       setProfile(null);
       setProfileLoading(false);
+      lastProfileUserIdRef.current = null;
       return;
     }
+    // Supabase refresca el token en segundo plano (por ejemplo al volver a la
+    // pestaña), lo que dispara este efecto con el mismo usuario pero un
+    // objeto `session` nuevo. Si ya tenemos el perfil de ese usuario, no hace
+    // falta volver a pedirlo — hacerlo prendía `profileLoading` y eso tapaba
+    // la vista actual con una pantalla en blanco, perdiendo cualquier
+    // formulario que el usuario estuviera completando.
+    if (lastProfileUserIdRef.current === session.user.id) return;
+    lastProfileUserIdRef.current = session.user.id;
     setProfileLoading(true);
     supabase
       .from("profiles")

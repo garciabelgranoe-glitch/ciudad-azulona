@@ -186,12 +186,12 @@ export default function AuctionList({
             </div>
           </div>
 
-          <div className="-mx-5 mt-2.5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
             {MODE_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setModeFilter(tab.value)}
-                className={`shrink-0 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[12px] font-bold transition ${
+                className={`rounded-lg border px-2.5 py-1.5 text-center text-[12px] font-bold leading-tight transition sm:px-3 ${
                   modeFilter === tab.value
                     ? "border-gold bg-gold/20 text-gold"
                     : "border-white/20 bg-white/10 text-cream/80 hover:border-white/40"
