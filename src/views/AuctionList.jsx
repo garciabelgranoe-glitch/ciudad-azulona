@@ -113,8 +113,8 @@ export default function AuctionList({
 
   return (
     <div className="min-h-dvh bg-cream pb-24">
-      <header className="sticky top-0 z-10 border-b-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-4">
-        <div className="mx-auto max-w-3xl">
+      <header className="sticky top-0 z-10 bg-cream px-5 pb-3 pt-3">
+        <div className="mx-auto max-w-5xl rounded-2xl border-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-4 shadow-sm">
           {profile && (
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
