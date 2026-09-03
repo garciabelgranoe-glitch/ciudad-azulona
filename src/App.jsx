@@ -516,15 +516,31 @@ export default function App() {
 
   // Sin esto, el scroll del navegador queda donde estaba en la pantalla
   // anterior — entrar a una subasta desde el medio/fondo de la lista te
-  // dejaba caído en esa misma posición en vez de arrancar arriba. El
-  // segundo scrollTo con un pequeño delay cubre el caso de que el toque/
-  // deslizada que disparó la navegación todavía tenga inercia de scroll
-  // corriendo en mobile, que si no puede "ganarle" a este primer scrollTo
-  // y volver a dejar la página a mitad de camino.
+  // dejaba caído en esa misma posición en vez de arrancar arriba.
+  // Confirmado que en Safari un solo scrollTo (incluso con reintento a los
+  // 120ms) no alcanza — Safari no soporta overflow-anchor y parece pelear
+  // el scroll con su propia restauración interna en más de un momento
+  // después de la navegación. Por eso esto insiste en varios puntos
+  // (siguiente frame, y varios delays cortos) en vez de una sola vez, y
+  // además saca el foco del elemento clickeado (el foco quedándose en un
+  // nodo que ya no está en pantalla puede disparar su propio scroll).
   useEffect(() => {
-    window.scrollTo(0, 0);
-    const t = setTimeout(() => window.scrollTo(0, 0), 120);
-    return () => clearTimeout(t);
+    document.activeElement?.blur?.();
+    const toTop = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    toTop();
+    const raf = requestAnimationFrame(() => {
+      toTop();
+      requestAnimationFrame(toTop);
+    });
+    const timers = [50, 150, 300, 600].map((ms) => setTimeout(toTop, ms));
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+    };
   }, [view]);
 
   // Analytics livianos para el panel de métricas admin — una fila por
