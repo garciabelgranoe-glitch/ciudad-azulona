@@ -365,17 +365,21 @@ export default function AuctionList({
       {profile?.is_premium && (
         <button
           onClick={onOpenCreateLot}
-          className="fixed bottom-24 right-5 flex items-center gap-2 rounded-full bg-plum px-5 py-3.5 text-[13px] font-extrabold text-cream shadow-[0_4px_0_rgba(76,29,87,1)] transition hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_rgba(76,29,87,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep"
+          aria-label="Publicar lote"
+          className="fixed bottom-[5.75rem] right-4 z-10 flex h-11 w-11 items-center justify-center gap-2 rounded-full bg-plum text-cream shadow-[0_4px_0_rgba(76,29,87,1)] transition hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_rgba(76,29,87,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep sm:h-auto sm:w-auto sm:px-5 sm:py-3.5 sm:text-[13px] sm:font-extrabold"
         >
-          <Package size={16} strokeWidth={2.5} /> Publicar lote
+          <Package size={18} strokeWidth={2.5} />
+          <span className="hidden sm:inline">Publicar lote</span>
         </button>
       )}
 
       <button
         onClick={onCreate}
-        className="fixed bottom-6 right-5 flex items-center gap-2 rounded-full bg-gold px-5 py-3.5 text-[13px] font-extrabold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep"
+        aria-label="Publicar carta"
+        className="fixed bottom-5 right-4 z-10 flex h-12 w-12 items-center justify-center gap-2 rounded-full bg-gold text-forest-deep shadow-[0_4px_0_rgba(185,134,47,1)] transition hover:bg-gold-glow active:translate-y-[3px] active:shadow-[0_1px_0_rgba(185,134,47,1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-deep sm:h-auto sm:w-auto sm:px-5 sm:py-3.5 sm:text-[13px] sm:font-extrabold"
       >
-        <Plus size={16} strokeWidth={2.5} /> Publicar carta
+        <Plus size={20} strokeWidth={2.5} />
+        <span className="hidden sm:inline">Publicar carta</span>
       </button>
     </div>
   );
