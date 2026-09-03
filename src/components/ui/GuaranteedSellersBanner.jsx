@@ -20,7 +20,15 @@ export default function GuaranteedSellersBanner({ sellers, onOpenAll }) {
       onClick={onOpenAll}
       className="flex w-full items-center gap-2.5 rounded-lg border-2 border-gold/50 bg-gold/10 px-3.5 py-2 text-left transition hover:bg-gold/15"
     >
-      <Trophy size={14} className="shrink-0 text-gold-dark" />
+      {current.photo_url ? (
+        <img
+          src={current.photo_url}
+          alt=""
+          className="h-8 w-8 shrink-0 rounded-md border border-gold/50 object-cover"
+        />
+      ) : (
+        <Trophy size={14} className="shrink-0 text-gold-dark" />
+      )}
       <span className="min-w-0 flex-1 text-[11.5px] font-medium text-ink">
         <span className="block text-[9.5px] font-bold uppercase tracking-wide text-gold-dark/80">
           Vendedores garantizados de productos oficiales
