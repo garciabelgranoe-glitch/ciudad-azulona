@@ -570,8 +570,64 @@ export async function listAllReports() {
 }
 
 export async function updateReportStatus(reportId, status) {
-  const { error } = await supabase.from("reports").update({ status }).eq("id", reportId);
+  const { error } = await supabase.rpc("admin_resolve_report", { p_report_id: reportId, p_status: status });
   if (error) throw error;
+}
+
+export async function cancelAuctionAsAdmin(auctionId) {
+  const { error } = await supabase.rpc("admin_cancel_auction", { p_auction_id: auctionId });
+  if (error) throw error;
+}
+
+export async function setAuctionFeaturedAsAdmin(auctionId, isFeatured) {
+  const { error } = await supabase.rpc("admin_set_auction_featured", { p_auction_id: auctionId, p_is_featured: isFeatured });
+  if (error) throw error;
+}
+
+export async function listBlockedEmails() {
+  const { data, error } = await supabase
+    .from("blocked_emails")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function blockEmail(email, reason) {
+  const { data, error } = await supabase
+    .from("blocked_emails")
+    .insert({ email: email.trim().toLowerCase(), reason: reason || null })
+    .select("*")
+    .single();
+  if (error) throw error;
+  await supabase.rpc("log_admin_action", {
+    p_action: "bloquear_email",
+    p_target_type: "blocked_email",
+    p_target_id: data.email,
+    p_details: reason ? { reason } : null,
+  });
+  return data;
+}
+
+export async function unblockEmail(email) {
+  const { error } = await supabase.from("blocked_emails").delete().eq("email", email);
+  if (error) throw error;
+  await supabase.rpc("log_admin_action", {
+    p_action: "desbloquear_email",
+    p_target_type: "blocked_email",
+    p_target_id: email,
+    p_details: null,
+  });
+}
+
+export async function listAdminAuditLog() {
+  const { data, error } = await supabase
+    .from("admin_audit_log")
+    .select("id, action, target_type, target_id, details, created_at, admin:profiles!admin_audit_log_admin_id_fkey ( alias )")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data;
 }
 
 export async function listMyNotifications() {

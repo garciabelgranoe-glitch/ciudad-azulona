@@ -54,6 +54,8 @@ import PickupPointsTabContent from "./views/admin/PickupPointsTabContent";
 import BlogTabContent from "./views/admin/BlogTabContent";
 import GiveawaysTabContent from "./views/admin/GiveawaysTabContent";
 import MetricsTabContent from "./views/admin/MetricsTabContent";
+import BlockedEmailsTabContent from "./views/admin/BlockedEmailsTabContent";
+import AuditLogTabContent from "./views/admin/AuditLogTabContent";
 import {
   listLiveAuctions,
   getAuction,
@@ -80,6 +82,12 @@ import {
   createReport,
   listAllReports,
   updateReportStatus,
+  cancelAuctionAsAdmin,
+  setAuctionFeaturedAsAdmin,
+  listBlockedEmails,
+  blockEmail,
+  unblockEmail,
+  listAdminAuditLog,
   updateOwnAuction,
   cancelOwnAuction,
   updateGender,
@@ -226,6 +234,16 @@ function AdminPanel({
   blogPosts,
   onBack,
   onSuspend,
+  onCancelAuction,
+  onToggleAuctionFeatured,
+  auctionModerationBusyId,
+  blockedEmails,
+  onBlockEmail,
+  blockEmailBusy,
+  blockEmailError,
+  onUnblockEmail,
+  unblockEmailBusyId,
+  auditLog,
   suspendBusyId,
   onSetPremium,
   premiumBusyId,
@@ -288,6 +306,8 @@ function AdminPanel({
     { value: "comunidades", label: "Comunidades" },
     { value: "sugerencias", label: "Sugerencias" },
     { value: "metricas", label: "Métricas" },
+    { value: "bloqueados", label: "Emails bloqueados" },
+    { value: "auditoria", label: "Auditoría" },
   ];
 
   return (
@@ -323,7 +343,14 @@ function AdminPanel({
             premiumBusyId={premiumBusyId}
           />
         )}
-        {tab === "subastas" && <AuctionsTabContent auctions={auctions} />}
+        {tab === "subastas" && (
+          <AuctionsTabContent
+            auctions={auctions}
+            onCancel={onCancelAuction}
+            onToggleFeatured={onToggleAuctionFeatured}
+            busyId={auctionModerationBusyId}
+          />
+        )}
         {tab === "denuncias" && (
           <ReportsTabContent reports={reports} onResolve={onResolveReport} busyId={resolveBusyId} />
         )}
@@ -398,6 +425,17 @@ function AdminPanel({
           />
         )}
         {tab === "metricas" && <MetricsTabContent />}
+        {tab === "bloqueados" && (
+          <BlockedEmailsTabContent
+            blockedEmails={blockedEmails}
+            onBlock={onBlockEmail}
+            blockBusy={blockEmailBusy}
+            blockError={blockEmailError}
+            onUnblock={onUnblockEmail}
+            unblockBusyId={unblockEmailBusyId}
+          />
+        )}
+        {tab === "auditoria" && <AuditLogTabContent entries={auditLog} />}
       </div>
     </div>
   );
@@ -535,8 +573,14 @@ export default function App() {
   const [resolveReportBusyId, setResolveReportBusyId] = useState(null);
   const [adminProfiles, setAdminProfiles] = useState([]);
   const [adminAuctions, setAdminAuctions] = useState([]);
+  const [auctionModerationBusyId, setAuctionModerationBusyId] = useState(null);
   const [suspendBusyId, setSuspendBusyId] = useState(null);
   const [premiumBusyId, setPremiumBusyId] = useState(null);
+  const [blockedEmails, setBlockedEmails] = useState([]);
+  const [blockEmailBusy, setBlockEmailBusy] = useState(false);
+  const [blockEmailError, setBlockEmailError] = useState("");
+  const [unblockEmailBusyId, setUnblockEmailBusyId] = useState(null);
+  const [auditLog, setAuditLog] = useState([]);
   const [recommendedSellers, setRecommendedSellers] = useState([]);
   const [pickupPoints, setPickupPoints] = useState([]);
   const [createPickupPointBusy, setCreatePickupPointBusy] = useState(false);
@@ -720,6 +764,8 @@ export default function App() {
       listGiveaways().then((rows) => !cancelled && setGiveaways(rows));
       listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
       listSuggestionsForAdmin().then((rows) => !cancelled && setAdminSuggestions(rows));
+      listBlockedEmails().then((rows) => !cancelled && setBlockedEmails(rows));
+      listAdminAuditLog().then((rows) => !cancelled && setAuditLog(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "topMonthly") {
@@ -1032,6 +1078,51 @@ export default function App() {
       setAdminProfiles((rows) => rows.map((p) => (p.id === userId ? { ...p, is_premium: premium } : p)));
     } finally {
       setPremiumBusyId(null);
+    }
+  }
+
+  async function handleCancelAuctionAsAdmin(auctionId) {
+    setAuctionModerationBusyId(auctionId);
+    try {
+      await cancelAuctionAsAdmin(auctionId);
+      setAdminAuctions((rows) => rows.map((a) => (a.id === auctionId ? { ...a, status: "cancelled" } : a)));
+    } finally {
+      setAuctionModerationBusyId(null);
+    }
+  }
+
+  async function handleToggleAuctionFeaturedAsAdmin(auctionId, isFeatured) {
+    setAuctionModerationBusyId(auctionId);
+    try {
+      await setAuctionFeaturedAsAdmin(auctionId, isFeatured);
+      setAdminAuctions((rows) => rows.map((a) => (a.id === auctionId ? { ...a, isFeatured } : a)));
+    } finally {
+      setAuctionModerationBusyId(null);
+    }
+  }
+
+  async function handleBlockEmail(email, reason) {
+    setBlockEmailBusy(true);
+    setBlockEmailError("");
+    try {
+      const row = await blockEmail(email, reason);
+      setBlockedEmails((rows) => [row, ...rows]);
+      return true;
+    } catch (e) {
+      setBlockEmailError(e.message);
+      return false;
+    } finally {
+      setBlockEmailBusy(false);
+    }
+  }
+
+  async function handleUnblockEmail(email) {
+    setUnblockEmailBusyId(email);
+    try {
+      await unblockEmail(email);
+      setBlockedEmails((rows) => rows.filter((b) => b.email !== email));
+    } finally {
+      setUnblockEmailBusyId(null);
     }
   }
 
@@ -1727,6 +1818,16 @@ export default function App() {
           onBack={() => setView({ name: "list" })}
           onResolveReport={handleResolveReport}
           onSuspend={handleSuspendUser}
+          onCancelAuction={handleCancelAuctionAsAdmin}
+          onToggleAuctionFeatured={handleToggleAuctionFeaturedAsAdmin}
+          auctionModerationBusyId={auctionModerationBusyId}
+          blockedEmails={blockedEmails}
+          onBlockEmail={handleBlockEmail}
+          blockEmailBusy={blockEmailBusy}
+          blockEmailError={blockEmailError}
+          onUnblockEmail={handleUnblockEmail}
+          unblockEmailBusyId={unblockEmailBusyId}
+          auditLog={auditLog}
           onSetPremium={handleSetPremium}
           onCreateRecommendedSeller={handleCreateRecommendedSeller}
           createRecommendedBusy={createRecommendedBusy}
