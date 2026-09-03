@@ -9,6 +9,12 @@ html, body, #root {
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
+  /* Sin esto, el navegador "compensa" el scroll solo cuando aparece
+     contenido async cerca del tope de la página (ej: "X viendo ahora" en
+     el detalle de subasta, que llega unos instantes después de montar vía
+     un canal de tiempo real) — eso es lo que hacía que la página pareciera
+     abrirse a mitad de camino en vez de arriba del todo. */
+  overflow-anchor: none;
 }
 
 body {

@@ -516,9 +516,15 @@ export default function App() {
 
   // Sin esto, el scroll del navegador queda donde estaba en la pantalla
   // anterior — entrar a una subasta desde el medio/fondo de la lista te
-  // dejaba caído en esa misma posición en vez de arrancar arriba.
+  // dejaba caído en esa misma posición en vez de arrancar arriba. El
+  // segundo scrollTo con un pequeño delay cubre el caso de que el toque/
+  // deslizada que disparó la navegación todavía tenga inercia de scroll
+  // corriendo en mobile, que si no puede "ganarle" a este primer scrollTo
+  // y volver a dejar la página a mitad de camino.
   useEffect(() => {
     window.scrollTo(0, 0);
+    const t = setTimeout(() => window.scrollTo(0, 0), 120);
+    return () => clearTimeout(t);
   }, [view]);
 
   // Analytics livianos para el panel de métricas admin — una fila por
