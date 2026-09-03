@@ -22,7 +22,7 @@ export default function SimilarAuctionsRow({ auctions, currentAuction, onOpen, o
       <div className="mt-2 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth">
         {similar.map((a) => (
           <div key={a.id} className="w-32 shrink-0 snap-start sm:w-36 md:w-40">
-            <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showSeller={false} />
+            <AuctionCard auction={a} onOpen={onOpen} onOpenSellerProfile={onOpenSellerProfile} showSeller={false} hoverEffect={false} />
           </div>
         ))}
       </div>

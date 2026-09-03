@@ -15,6 +15,7 @@ export default function AuctionCard({
   showStatusPill = false,
   isFavorite = false,
   onToggleFavorite,
+  hoverEffect = true,
 }) {
   const clickable = a.status === "live" && !!onOpen;
   const typeAccent = a.isFreeClaim ? "bg-teal" : a.isSaleOnly ? "bg-gold" : "bg-transparent";
@@ -33,7 +34,11 @@ export default function AuctionCard({
       }
       className={`relative isolate flex h-full flex-col overflow-hidden rounded-xl border-2 bg-paper text-left shadow-card transition ${
         a.isFeatured ? "border-plum" : "border-ink"
-      } ${clickable ? "cursor-pointer hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold" : "opacity-90"}`}
+      } ${
+        clickable
+          ? `cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-gold ${hoverEffect ? "hover:-translate-y-1" : ""}`
+          : "opacity-90"
+      }`}
     >
       <span className={`absolute inset-y-0 left-0 z-10 w-1.5 ${typeAccent}`} aria-hidden="true" />
       <div className="relative">
