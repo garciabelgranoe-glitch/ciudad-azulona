@@ -961,6 +961,39 @@ export async function logPageView(viewName, userId) {
   if (error) throw error;
 }
 
+export async function logClientError({ message, stack, viewName, userId }) {
+  // Fire-and-forget a propósito — nunca debe hacer que algo más falle.
+  await supabase
+    .from("client_error_log")
+    .insert({
+      message: String(message).slice(0, 2000),
+      stack: stack ? String(stack).slice(0, 4000) : null,
+      view_name: viewName || null,
+      url: typeof window !== "undefined" ? window.location.href : null,
+      user_id: userId || null,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+    })
+    .then(() => {}, () => {});
+}
+
+export async function listClientErrorLog() {
+  const { data, error } = await supabase
+    .from("client_error_log")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data;
+}
+
+export function subscribeToClientErrors(onInsert) {
+  const channel = supabase
+    .channel(`client-errors-${crypto.randomUUID()}`)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "client_error_log" }, (payload) => onInsert(payload.new))
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
+
 export async function createSuggestion(userId, message) {
   const { data, error } = await supabase
     .from("suggestions")

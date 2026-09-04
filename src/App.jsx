@@ -56,6 +56,7 @@ import GiveawaysTabContent from "./views/admin/GiveawaysTabContent";
 import MetricsTabContent from "./views/admin/MetricsTabContent";
 import BlockedEmailsTabContent from "./views/admin/BlockedEmailsTabContent";
 import AuditLogTabContent from "./views/admin/AuditLogTabContent";
+import ErrorLogTabContent from "./views/admin/ErrorLogTabContent";
 import {
   listLiveAuctions,
   getAuction,
@@ -88,6 +89,8 @@ import {
   blockEmail,
   unblockEmail,
   listAdminAuditLog,
+  listClientErrorLog,
+  subscribeToClientErrors,
   updateOwnAuction,
   cancelOwnAuction,
   updateGender,
@@ -244,6 +247,7 @@ function AdminPanel({
   onUnblockEmail,
   unblockEmailBusyId,
   auditLog,
+  errorLog,
   suspendBusyId,
   onSetPremium,
   premiumBusyId,
@@ -308,6 +312,7 @@ function AdminPanel({
     { value: "metricas", label: "Métricas" },
     { value: "bloqueados", label: "Emails bloqueados" },
     { value: "auditoria", label: "Auditoría" },
+    { value: "errores", label: "Errores" },
   ];
 
   return (
@@ -436,6 +441,7 @@ function AdminPanel({
           />
         )}
         {tab === "auditoria" && <AuditLogTabContent entries={auditLog} />}
+        {tab === "errores" && <ErrorLogTabContent entries={errorLog} />}
       </div>
     </div>
   );
@@ -604,6 +610,7 @@ export default function App() {
   const [blockEmailError, setBlockEmailError] = useState("");
   const [unblockEmailBusyId, setUnblockEmailBusyId] = useState(null);
   const [auditLog, setAuditLog] = useState([]);
+  const [errorLog, setErrorLog] = useState([]);
   const [recommendedSellers, setRecommendedSellers] = useState([]);
   const [pickupPoints, setPickupPoints] = useState([]);
   const [createPickupPointBusy, setCreatePickupPointBusy] = useState(false);
@@ -801,6 +808,7 @@ export default function App() {
       listSuggestionsForAdmin().then((rows) => !cancelled && setAdminSuggestions(rows));
       listBlockedEmails().then((rows) => !cancelled && setBlockedEmails(rows));
       listAdminAuditLog().then((rows) => !cancelled && setAuditLog(rows));
+      listClientErrorLog().then((rows) => !cancelled && setErrorLog(rows));
     } else if (view.name === "recommended") {
       listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     } else if (view.name === "topMonthly") {
@@ -825,6 +833,13 @@ export default function App() {
       cancelled = true;
     };
   }, [view.name, ready]);
+
+  // Errores de clientes en vivo mientras el admin está en el panel — así se
+  // ven aparecer apenas pasan, sin tener que recargar la pestaña.
+  useEffect(() => {
+    if (!isSupabaseConfigured || view.name !== "admin") return;
+    return subscribeToClientErrors((row) => setErrorLog((rows) => [row, ...rows]));
+  }, [view.name]);
 
   if (showLegal) {
     return <LegalView onBack={() => setShowLegal(false)} />;
@@ -1896,6 +1911,7 @@ export default function App() {
           onUnblockEmail={handleUnblockEmail}
           unblockEmailBusyId={unblockEmailBusyId}
           auditLog={auditLog}
+          errorLog={errorLog}
           onSetPremium={handleSetPremium}
           onCreateRecommendedSeller={handleCreateRecommendedSeller}
           createRecommendedBusy={createRecommendedBusy}
