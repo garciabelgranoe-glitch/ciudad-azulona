@@ -956,6 +956,19 @@ export async function getAdminDailyMetrics(days = 30) {
 
 // Analytics liviano y anónimo: una fila por cambio de pantalla, sin
 // bloquear la navegación si falla (ver logPageView en App.jsx).
+export async function getPublicPlatformStats() {
+  const { data, error } = await supabase.rpc("public_platform_stats");
+  if (error) throw error;
+  const row = data?.[0];
+  return {
+    totalListings: Number(row?.total_listings ?? 0),
+    activeListings: Number(row?.active_listings ?? 0),
+    totalSales: Number(row?.total_sales ?? 0),
+    verifiedSellers: Number(row?.verified_sellers ?? 0),
+    cities: Number(row?.cities ?? 0),
+  };
+}
+
 export async function logPageView(viewName, userId) {
   const { error } = await supabase.from("page_views").insert({ view_name: viewName, user_id: userId || null });
   if (error) throw error;

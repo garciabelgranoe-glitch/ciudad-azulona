@@ -528,9 +528,13 @@ export default function App() {
   // 120ms) no alcanza — Safari no soporta overflow-anchor y parece pelear
   // el scroll con su propia restauración interna en más de un momento
   // después de la navegación. Por eso esto insiste en varios puntos
-  // (siguiente frame, y varios delays cortos) en vez de una sola vez, y
+  // (siguiente frame, y un par de delays cortos) en vez de una sola vez, y
   // además saca el foco del elemento clickeado (el foco quedándose en un
   // nodo que ya no está en pantalla puede disparar su propio scroll).
+  // Importante: la ventana de reintentos se mantiene corta (~150ms) a
+  // propósito — con delays más largos (probamos hasta 600ms) esto le
+  // ganaba a un scroll real del usuario si arrancaba a deslizar rápido
+  // justo después de entrar a la pantalla.
   useEffect(() => {
     document.activeElement?.blur?.();
     const toTop = () => {
@@ -543,7 +547,7 @@ export default function App() {
       toTop();
       requestAnimationFrame(toTop);
     });
-    const timers = [50, 150, 300, 600].map((ms) => setTimeout(toTop, ms));
+    const timers = [50, 150].map((ms) => setTimeout(toTop, ms));
     return () => {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
@@ -855,7 +859,17 @@ export default function App() {
     : displayAuctions;
 
   if (!enteredLanding && (!isSupabaseConfigured || !auth.session || !auth.profile)) {
-    return <Landing onEnter={() => setEnteredLanding(true)} onOpenLegal={() => setShowLegal(true)} />;
+    return (
+      <Landing
+        onEnter={() => setEnteredLanding(true)}
+        onGetStarted={() => {
+          setEnteredLanding(true);
+          setForceLogin(true);
+        }}
+        onOpenLegal={() => setShowLegal(true)}
+        recommendedSellers={recommendedSellers}
+      />
+    );
   }
 
   if (isSupabaseConfigured && (!auth.session || !auth.profile)) {
