@@ -14,7 +14,7 @@ function getErrorMessage(e) {
   return "No pudimos completar la acción. Probá de nuevo en un momento.";
 }
 
-export default function Login({ onOpenLegal }) {
+export default function Login({ onOpenLegal, onBack }) {
   const { sendOtp, verifyOtp, createProfile, session, profile } = useAuth();
   const [step, setStep] = useState("email"); // email | otp | alias
   const [email, setEmail] = useState("");
@@ -148,7 +148,7 @@ export default function Login({ onOpenLegal }) {
   }
 
   return (
-    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu email para identificarte, sin contraseñas" onOpenLegal={onOpenLegal}>
+    <AuthShell title="Bienvenido a Ciudad Azulona" subtitle="Usamos tu email para identificarte, sin contraseñas" onOpenLegal={onOpenLegal} onBack={onBack}>
       {!isSupabaseConfigured && (
         <p className="mb-3 rounded-lg border-2 border-[#B9432C]/30 bg-[#FBE6E0] px-3 py-2 text-[12px] font-medium text-[#B9432C]">
           Supabase todavía no está configurado (falta VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
@@ -176,13 +176,20 @@ export default function Login({ onOpenLegal }) {
   );
 }
 
-function AuthShell({ title, subtitle, children, onOpenLegal }) {
+function AuthShell({ title, subtitle, children, onOpenLegal, onBack }) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-cream px-6">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2 text-gold-dark">
-          <PokeballIcon size={18} />
-          <span className="font-pixel text-[9px] tracking-wide">CIUDAD AZULONA</span>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-gold-dark">
+            <PokeballIcon size={18} />
+            <span className="font-pixel text-[9px] tracking-wide">CIUDAD AZULONA</span>
+          </div>
+          {onBack && (
+            <button onClick={onBack} className="text-[12px] font-bold text-ink-soft underline underline-offset-2">
+              ‹ Volver
+            </button>
+          )}
         </div>
         <h1 className="text-2xl font-extrabold text-ink">{title}</h1>
         <p className="mt-1 text-[13px] text-ink-soft">{subtitle}</p>

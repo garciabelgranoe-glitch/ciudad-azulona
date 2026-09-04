@@ -50,6 +50,8 @@ export default function AuctionList({
   onOpenCreateLot,
   liveLots,
   onOpenLot,
+  isGuest = false,
+  onRequestLogin,
 }) {
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [modeFilter, setModeFilter] = useState("todas");
@@ -115,6 +117,20 @@ export default function AuctionList({
     <div className="min-h-dvh bg-cream pb-24">
       <header className="sticky top-0 z-10 border-b-4 border-forest-mid bg-forest-deep px-5 pb-4 pt-4 sm:border-b-0 sm:bg-cream sm:pb-3 sm:pt-3">
         <div className="mx-auto max-w-5xl sm:rounded-2xl sm:border-4 sm:border-forest-mid sm:bg-forest-deep sm:px-5 sm:pb-4 sm:pt-4 sm:shadow-sm">
+          {isGuest && (
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PokeballIcon size={16} />
+                <span className="font-pixel text-[9px] tracking-wide text-gold">CIUDAD AZULONA</span>
+              </div>
+              <button
+                onClick={onRequestLogin}
+                className="rounded-lg border border-gold/50 bg-gold/20 px-3 py-1.5 text-[12px] font-bold text-gold"
+              >
+                Iniciar sesión
+              </button>
+            </div>
+          )}
           {profile && (
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -316,6 +332,22 @@ export default function AuctionList({
           )}
         </div>
       </header>
+
+      {isGuest && (
+        <div className="mx-auto max-w-5xl px-5 pt-4">
+          <button
+            onClick={onRequestLogin}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border-2 border-gold/50 bg-gold/10 px-4 py-3 text-left transition hover:bg-gold/15"
+          >
+            <span className="text-[13px] font-bold text-ink">
+              Creá tu cuenta gratis para pujar, publicar y guardar favoritos
+            </span>
+            <span className="shrink-0 text-[12px] font-bold text-gold-dark underline underline-offset-2">
+              Empezar →
+            </span>
+          </button>
+        </div>
+      )}
 
       {pendingCount > 0 && (
         <div className="mx-auto max-w-5xl px-5 pt-4">

@@ -466,6 +466,7 @@ export default function App() {
   const [enteredLanding, setEnteredLanding] = useState(() => parseInitialView().name !== "list");
   const [showLegal, setShowLegal] = useState(false);
   const [previewDismissed, setPreviewDismissed] = useState(false);
+  const [forceLogin, setForceLogin] = useState(false);
   const isPoppingRef = useRef(false);
   const isFirstHistoryRender = useRef(true);
 
@@ -666,8 +667,11 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
+  // Datos públicos: se cargan siempre que Supabase esté configurado, haya
+  // o no sesión — permiten navegar el listado de subastas sin estar
+  // logueado (RLS ya deja leer esto de forma anónima).
   useEffect(() => {
-    if (!ready) return;
+    if (!isSupabaseConfigured) return;
     let cancelled = false;
     listLiveAuctions()
       .then((rows) => !cancelled && setRealRows(rows))
@@ -681,20 +685,29 @@ export default function App() {
         delete myBidAmountsRef.current[updatedRow.id];
       }
     });
-    listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
-    listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
-    listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
     listRecommendedSellers().then((rows) => !cancelled && setRecommendedSellers(rows));
     listPickupPoints().then((rows) => !cancelled && setPickupPoints(rows));
     listWhatsappCommunities().then((rows) => !cancelled && setWhatsappCommunities(rows));
-    listMyFavoriteIds().then((ids) => !cancelled && setFavoriteIds(ids));
     listLiveLots().then((rows) => !cancelled && setLiveLots(rows));
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  // Datos privados: solo con sesión + perfil reales.
+  useEffect(() => {
+    if (!ready) return;
+    let cancelled = false;
+    listMyTickets().then((rows) => !cancelled && setRealTickets(rows));
+    listMyGivenRatingTicketIds().then((ids) => !cancelled && setRatedTicketIds(ids));
+    listMyNotifications().then((rows) => !cancelled && setNotifications(rows));
+    listMyFavoriteIds().then((ids) => !cancelled && setFavoriteIds(ids));
     const unsubscribeNotifications = subscribeToMyNotifications(auth.session.user.id, (newNotif) => {
       setNotifications((rows) => [newNotif, ...rows]);
     });
     return () => {
       cancelled = true;
-      unsubscribe();
       unsubscribeNotifications();
     };
   }, [ready]);
@@ -821,6 +834,11 @@ export default function App() {
     return <div className="min-h-dvh bg-cream" />;
   }
 
+  const displayAuctions = isSupabaseConfigured ? realRows.map(auctionToVM) : auctions;
+  const liveDisplayAuctions = isSupabaseConfigured
+    ? displayAuctions.filter((a) => a.status === "live")
+    : displayAuctions;
+
   if (!enteredLanding && (!isSupabaseConfigured || !auth.session || !auth.profile)) {
     return <Landing onEnter={() => setEnteredLanding(true)} onOpenLegal={() => setShowLegal(true)} />;
   }
@@ -838,13 +856,41 @@ export default function App() {
         />
       );
     }
-    return <Login onOpenLegal={() => setShowLegal(true)} />;
+    if (view.name === "list" && !forceLogin) {
+      if (auctionsLoading) {
+        return <p className="min-h-dvh bg-cream px-5 pt-10 text-center text-[12px] text-ink-soft">Cargando subastas...</p>;
+      }
+      return (
+        <AuctionList
+          auctions={liveDisplayAuctions}
+          onOpen={(a) => setView({ name: "detail", auctionId: a.id, back: view })}
+          onCreate={() => setForceLogin(true)}
+          onOpenCreateLot={() => setForceLogin(true)}
+          onOpenSellerProfile={() => setForceLogin(true)}
+          onOpenCommunities={() => setForceLogin(true)}
+          onOpenRecommended={() => setForceLogin(true)}
+          onOpenLot={() => setForceLogin(true)}
+          profile={null}
+          onSignOut={() => {}}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          recommendedSellers={recommendedSellers}
+          whatsappCommunities={whatsappCommunities}
+          favoriteIds={new Set()}
+          onToggleFavorite={() => setForceLogin(true)}
+          liveLots={liveLots}
+          isGuest
+          onRequestLogin={() => setForceLogin(true)}
+        />
+      );
+    }
+    return (
+      <Login
+        onOpenLegal={() => setShowLegal(true)}
+        onBack={forceLogin ? () => setForceLogin(false) : undefined}
+      />
+    );
   }
-
-  const displayAuctions = isSupabaseConfigured ? realRows.map(auctionToVM) : auctions;
-  const liveDisplayAuctions = isSupabaseConfigured
-    ? displayAuctions.filter((a) => a.status === "live")
-    : displayAuctions;
 
   function handleWin(auction) {
     const code = Math.random().toString(16).slice(2, 6).toUpperCase() + "-" + Math.floor(10 + Math.random() * 90);
